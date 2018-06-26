@@ -423,3 +423,205 @@ func EquivilanceVerify(
 	return true
 
 }
+
+// =============== DISJUNCTIVE PROOFS ========================
+
+/*
+	Disjunctive Proofs: prove that you know either x or y but do not reveal
+						which one you know
+
+	Public: generator points G and H
+
+	V			 						P
+	(proving x)
+	knows x AND/OR y					knows A = xG ; B = yH // can be yG
+	selects random u1, u2, u3
+	T1 = u1G
+	T2 = u2H - u3yH
+	c = HASH(T1, T2, G, A, B)
+	deltaC = c - u2
+	s = u1 + deltaC * x
+
+	(V perspective)						(P perspective)
+	T1, T2, c, deltaC, u3, s, u2 -----> T1, T2, c, c1, c2, s1, s2
+										c ?= HASH(T1, T2, G, A, B)
+										c ?= c1 + c2 // mod zkCurve.N
+										s1G ?= T1 + c1A
+										s2G ?= T2 + c2A
+	To prove y instead:
+	Same as above with y in place of x
+	T2, T1, c, u3 ,deltaC, u2, s -----> T1, T2, c, c1, c2, s1, s2
+										Same checks as above
+
+	Note:
+	It should be indistingushiable for V with T1, T2, c, c1, c2, s1, s2
+	to tell if we are proving x or y. The above arrows show how the variables
+	used in the proof translate to T1, T2, etc.
+
+	Sorry about the proof interaction summary above, trying to
+	be consice with my comments in this code
+*/
+
+// DisjunctiveProof is also Generalized Schnorr Proof with FS-transform
+type DisjunctiveProof struct {
+	T1 ECPoint
+	T2 ECPoint
+	C  *big.Int
+	C1 *big.Int
+	C2 *big.Int
+	S1 *big.Int
+	S2 *big.Int
+}
+
+// DisjunctiveProve generates a disjunctive proof for the given x
+func DisjunctiveProve(
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, side uint) *DisjunctiveProof {
+
+	// Declaring them like this because Golang crys otherwise
+	ProveBase := zkCurve.Zero()
+	ProveResult := zkCurve.Zero()
+	OtherBase := zkCurve.Zero()
+	OtherResult := zkCurve.Zero()
+
+	// Generate a proof for A
+	if side == 0 {
+		ProveBase = Base1
+		OtherBase = Base2
+		OtherResult = Result2
+	} else if side == 1 { // Generate a proof for B
+		ProveBase = Base2
+		OtherBase = Base1
+		OtherResult = Result1
+	} else { // number for side is not correct
+		Dprintf("ERROR --- Invalid side number given for DisjunctiveProve\n")
+		return nil
+	}
+
+	if !ProveBase.Mult(x).Equal(ProveResult) {
+		Dprintf("Seems like we're lying about values we know...", x, ProveBase, ProveResult)
+		// TODO: do something with error checking or whatever
+		return nil
+	}
+
+	u1, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+	u2, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+	u3, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+
+	// T1 = u1G
+	T1X, T1Y := zkCurve.C.ScalarMult(ProveBase.X, ProveBase.Y, u1.Bytes())
+
+	// u2H
+	tempX, tempY := zkCurve.C.ScalarMult(OtherBase.X, OtherBase.Y, u2.Bytes())
+	// u3yH
+	temp2X, temp2Y := zkCurve.C.ScalarMult(OtherResult.X, OtherResult.Y, u3.Bytes())
+	// T2 = u2H + u3yH (yH is OtherResult)
+	T2X, T2Y := zkCurve.C.Add(tempX, tempY, temp2X, temp2Y)
+
+	stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
+		Result1.X.String() + "," + Result1.Y.String() + ";" +
+		Base2.X.String() + "," + Base2.Y.String() + ";" +
+		Result2.X.String() + "," + Result2.Y.String() + ";" +
+		T1X.String() + "," + T1Y.String() + ";" +
+		T2X.String() + "," + T2Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	deltaC := new(big.Int).Sub(Challenge, u2)
+	deltaC.Mod(deltaC, zkCurve.N)
+
+	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
+
+	// Look at mapping given in block comment above
+	if side == 0 {
+		return &DisjunctiveProof{
+			ECPoint{T1X, T1Y},
+			ECPoint{T2X, T2Y},
+			Challenge,
+			deltaC,
+			u3,
+			s,
+			u2}
+	} else {
+		return &DisjunctiveProof{
+			ECPoint{T2X, T2Y},
+			ECPoint{T1X, T1Y},
+			Challenge,
+			u3,
+			deltaC,
+			u2,
+			s}
+	}
+
+	// // Should never reach this statement, best not to have undefined behaviour though
+	// Dprintf("ERROR --- Should not be here loc: AAA")
+	// return nil
+}
+
+/*
+	Copy-Pasta from above for convienence
+	GIVEN: T1, T2, c, c1, c2, s1, s2
+	c ?= HASH(T1, T2, G, A, B)
+	c ?= c1 + c2 // mod zkCurve.N
+	s1G ?= T1 + c1A
+	s2G ?= T2 + c2A
+*/
+
+func DisjunctiveVerify(
+	Base1, Result1, Base2, Result2 ECPoint, djProof *DisjunctiveProof) bool {
+
+	T1 := djProof.T1
+	T2 := djProof.T2
+	C := djProof.C
+	C1 := djProof.C1
+	C2 := djProof.C2
+	S1 := djProof.S1
+	S2 := djProof.S2
+
+	hasher := sha256.New()
+
+	stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
+		Result1.X.String() + "," + Result1.Y.String() + ";" +
+		Base2.X.String() + "," + Base2.Y.String() + ";" +
+		Result2.X.String() + "," + Result2.Y.String() + ";" +
+		T1.X.String() + "," + T1.Y.String() + ";" +
+		T2.X.String() + "," + T2.Y.String() + ";"
+
+	hasher.Write([]byte(stringToHash))
+	checkC := new(big.Int).SetBytes(hasher.Sum(nil))
+	if checkC.Cmp(C) != 0 {
+		Dprintf("DJproof failed : checkC does not agree with proofC")
+		return false
+	}
+
+	totalC := new(big.Int).Add(C1, C2)
+	totalC.Mod(totalC, zkCurve.N)
+	if totalC.Cmp(C) != 0 {
+		Dprintf("DJproof failed : totalC does not agree with proofC")
+		return false
+	}
+
+	c1AX, c1AY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, C.Bytes())
+	checks1GX, checks1GY := zkCurve.C.Add(c1AX, c1AY, T1.X, T1.Y)
+	s1GX, s1GY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, S1.Bytes())
+
+	if checks1GX.Cmp(s1GX) != 0 || checks1GY.Cmp(s1GY) != 0 {
+		Dprintf("DJproof failed : s1G not equal to T1 + c1A")
+		return false
+	}
+
+	c2AX, c2AY := zkCurve.C.ScalarMult(Base2.X, Base2.Y, C.Bytes())
+	checks2GX, checks2GY := zkCurve.C.Add(c2AX, c2AY, T2.X, T2.Y)
+	s2GX, s2GY := zkCurve.C.ScalarMult(Base2.X, Base2.Y, S2.Bytes())
+
+	if checks2GX.Cmp(s2GX) != 0 || checks2GY.Cmp(s2GY) != 0 {
+		Dprintf("DJproof failed : s2G not equal to T2 + c2A")
+		return false
+	}
+
+	return true
+}
