@@ -1,9 +1,9 @@
 Stuff to do:
 
 
- - Make sure of GSPFS implementation 
- - Test GSPFS implementation
- - Start working on Equivilance 
+ - Build Equivilance testing functions
+ - Test and verify Equivilance working as intended
+ - Start EquivilanceOrLog
 
 
  - Check what is redundant and see what functions can be deleted
