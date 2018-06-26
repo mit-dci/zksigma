@@ -211,6 +211,7 @@ func Open(value, randomValue *big.Int, PedComm ECPoint) bool {
 // =========== GENERALIZED SCHNORR PROOFS ===============
 
 // GSPFS is Generalized Schnorr Proofs with Fiat-Shamir transform
+// TODO: change the json stuff
 
 // GSPFSProof is proof of knowledge of x
 type GSPFSProof struct {
@@ -218,6 +219,24 @@ type GSPFSProof struct {
 	HiddenValue *big.Int `json:"R"` // s = x * c + u, here c is the challenge and x is what we want to prove knowledge of
 	Challenge   *big.Int `json:"C"` // challenge string hash sum, only use for sanity checks
 }
+
+/*
+	Schnorr Proof: prove that we know x withot revealing x
+
+	Public: generator points G and H
+
+	V									P
+	know x								knows A = xG //doesnt know x and G just A
+	selects random u
+	T1 = uG
+	c = HASH(G, xG, uG)
+	s = u + c * x
+
+	T1, s, c -------------------------->
+										c ?= HASH(G, A, T1)
+										sG ?= T1 + cA
+
+*/
 
 // GSPFSProve generates a Schnorr proof for the value x
 func GSPFSProve(x *big.Int) *GSPFSProof {
@@ -230,12 +249,12 @@ func GSPFSProve(x *big.Int) *GSPFSProof {
 	check(err)
 
 	// generate random point uG
-	tX, tY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, u.Bytes())
+	uX, uY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, u.Bytes())
 
 	// genereate string to hash for challenge
 	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + "," +
 		resX.String() + "," + resY.String() + "," +
-		tX.String() + "," + tY.String()
+		uX.String() + "," + uY.String()
 
 	stringHashed := sha256.Sum256([]byte(stringToHash))
 
@@ -246,11 +265,13 @@ func GSPFSProve(x *big.Int) *GSPFSProof {
 	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, x))
 	HiddenValue.Mod(HiddenValue, zkCurve.N)
 
-	return &GSPFSProof{ECPoint{tX, tY}, HiddenValue, Challenge}
+	return &GSPFSProof{ECPoint{uX, uY}, HiddenValue, Challenge}
 }
 
+// TODO: check if result should be within the proof
+
 // Verify checks if a proof-commit pair is valid
-func Verify(result ECPoint, proof *GSPFSProof) bool {
+func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
 	// Remeber that result = xG and RandCommit = uG
 
 	hasher := sha256.New()
@@ -279,3 +300,101 @@ func Verify(result ECPoint, proof *GSPFSProof) bool {
 }
 
 // =========== EQUIVILANCE PROOFS ===================
+
+type EquivProof struct {
+	uG          ECPoint // kG is the scalar mult of k (random num) with base G
+	uH          ECPoint
+	Challenge   *big.Int // Challenge is hash sum of challenge commitment
+	HiddenValue *big.Int // Hidden Value hides the discrete log x that we want to prove equivilance for
+}
+
+/*
+	Equivilance Proofs: prove that both A and B both use x as a discrete log
+
+	Public: generator points G and H
+
+	V									P
+	know x								knows A = xG ; B = xH
+	selects random u
+	T1 = uG
+	T2 = uH
+	c = HASH(G, H, xG, xH, uG, uH)
+	s = u + c * x
+
+	T1, T2, s, c ---------------------->
+										c ?= HASH(G, H, A, B, T1, T2)
+										sG ?= T1 + cA
+										sH ?= T2 + cB
+*/
+
+func EquivilanceProve(
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) EquivProof {
+	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
+	// x trying to be proved that both G and H are raised with x
+
+	checkX, checkY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
+	if checkX.Cmp(Result1.X) != 0 || checkY.Cmp(Result1.Y) != 0 {
+		Dprintf("EquivProof check: Base1 and Result1 are not related by x... \n")
+	}
+	checkX, checkY = zkCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
+	if checkX.Cmp(Result2.X) != 0 || checkY.Cmp(Result2.Y) != 0 {
+		Dprintf("EquivProof check: Base2 and Result2 are not related by x... \n")
+	}
+
+	// random number
+	u, err := rand.Int(rand.Reader, zkCurve.N) // random number to hide x later
+	check(err)
+
+	// uG
+	uBase1X, uBase1Y := zkCurve.C.ScalarMult(Base1.X, Base1.Y, u.Bytes())
+	// uH
+	uBase2X, uBase2Y := zkCurve.C.ScalarMult(Base2.X, Base2.Y, u.Bytes())
+
+	// HASH( G, H, xG, xH, kG, kH)
+	stringToHash := Base1.X.String() + "||" + Base1.Y.String() + ";" +
+		Base2.X.String() + "||" + Base2.Y.String() + ";" +
+		Result1.X.String() + "||" + Result1.Y.String() + ";" +
+		Result2.X.String() + "||" + Result2.Y.String() + ";" +
+		uBase1X.String() + "||" + uBase1Y.String() + ";" +
+		uBase2X.String() + "||" + uBase2Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, x))
+	HiddenValue.Mod(HiddenValue, zkCurve.N)
+
+	return EquivProof{
+		ECPoint{uBase1X, uBase1Y}, // uG
+		ECPoint{uBase2X, uBase2Y}, // uH
+		Challenge,
+		HiddenValue} //Kinda dumb this bracket cannot be on the next line...
+
+}
+
+func EquivilanceVerify(
+	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) bool {
+	// Regenerate challenge string
+	stringToHash := Base1.X.String() + "||" + Base1.Y.String() + ";" +
+		Base2.X.String() + "||" + Base2.Y.String() + ";" +
+		Result1.X.String() + "||" + Result1.Y.String() + ";" +
+		Result2.X.String() + "||" + Result2.Y.String() + ";" +
+		eqProof.uG.X.String() + "||" + eqProof.uG.Y.String() + ";" +
+		eqProof.uH.X.String() + "||" + eqProof.uH.Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	if Challenge.Cmp(eqProof.Challenge) != 0 {
+		Dprintf(" [crypto] c comparison failed. proof: %v calculated: %v\n",
+			eqProof.Challenge, Challenge)
+		return false
+	}
+
+	return true
+
+}
