@@ -151,7 +151,7 @@ func GenerateH2tothe() []ECPoint {
 	return Hslice
 }
 
-func init() {
+func Init() {
 	zkCurve = NewECPrimeGroupKey()
 	H2tothe = GenerateH2tothe()
 }
@@ -327,6 +327,7 @@ type EquivProof struct {
 										sH ?= T2 + cB
 */
 
+// EquivilanceProve generates an equivilance proof that Result1 and Result2 use the same discrete log x
 func EquivilanceProve(
 	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) EquivProof {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
@@ -350,7 +351,7 @@ func EquivilanceProve(
 	// uH
 	uBase2X, uBase2Y := zkCurve.C.ScalarMult(Base2.X, Base2.Y, u.Bytes())
 
-	// HASH( G, H, xG, xH, kG, kH)
+	// HASH(G, H, xG, xH, kG, kH)
 	stringToHash := Base1.X.String() + "||" + Base1.Y.String() + ";" +
 		Base2.X.String() + "||" + Base2.Y.String() + ";" +
 		Result1.X.String() + "||" + Result1.Y.String() + ";" +
@@ -374,6 +375,7 @@ func EquivilanceProve(
 
 }
 
+// EquivilanceVerify checks if a proof is valid
 func EquivilanceVerify(
 	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) bool {
 	// Regenerate challenge string
@@ -395,6 +397,29 @@ func EquivilanceVerify(
 		return false
 	}
 
+	// sG ?= uG + cG
+	sGX, sGY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, eqProof.HiddenValue.Bytes())
+	cGX, cGY := zkCurve.C.ScalarMult(Result1.X, Result1.Y, eqProof.Challenge.Bytes())
+	testX, testY := zkCurve.C.Add(eqProof.uG.X, eqProof.uG.Y, cGX, cGY)
+
+	if sGX.Cmp(testX) != 0 || sGY.Cmp(testY) != 0 {
+		Dprintf(" [crypto] lhs/rhs cmp failed. lhsX %v lhsY %v rhsX %v rhsY %v\n",
+			sGX, sGY, testX, testY)
+		return false
+	}
+
+	// sH ?= uH + cH
+	sHX, sHY := zkCurve.C.ScalarMult(Base2.X, Base2.Y, eqProof.HiddenValue.Bytes())
+	cHX, cHY := zkCurve.C.ScalarMult(Result2.X, Result2.Y, eqProof.Challenge.Bytes())
+	testX, testY = zkCurve.C.Add(eqProof.uH.X, eqProof.uH.Y, cHX, cHY)
+
+	if sHX.Cmp(testX) != 0 || sHY.Cmp(testY) != 0 {
+		Dprintf(" [crypto] lhs/rhs cmp failed. lhsX %v lhsY %v rhsX %v rhsY %v\n",
+			sHX, sHY, testX, testY)
+		return false
+	}
+
+	// All three checks passed, proof must be correct
 	return true
 
 }

@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+func TestInit(t *testing.T) {
+	Init()
+	fmt.Println("Global Variables Initialized")
+}
+
 func TestECPointMethods(t *testing.T) {
 	v := big.NewInt(3)
 	p := zkCurve.G.Mult(v)
@@ -151,5 +156,54 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	fmt.Println("Passed TestGSPFS")
+
+}
+
+func TestEquivilance(t *testing.T) {
+
+	x := big.NewInt(100)
+	Base1 := zkCurve.G
+	Result1X, Result1Y := zkCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
+	Result1 := ECPoint{Result1X, Result1Y}
+
+	Base2 := zkCurve.H
+	Result2X, Result2Y := zkCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
+	Result2 := ECPoint{Result2X, Result2Y}
+
+	eqProof := EquivilanceProve(Base1, Result1, Base2, Result2, x)
+
+	if !EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof) {
+		fmt.Printf("Base1 : %v\n", Base1)
+		fmt.Printf("Result1 : %v\n", Result1)
+		fmt.Printf("Base2 : %v\n", Base2)
+		fmt.Printf("Result2 : %v\n", Result2)
+		fmt.Printf("Proof : %v \n", eqProof)
+		t.Fatalf("Equivilance Proof verification failed")
+	}
+
+	Dprintf("Next comparison should fail\n")
+	// Bases swapped shouldnt work
+	if EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof) {
+		fmt.Printf("Base1 : %v\n", Base1)
+		fmt.Printf("Result1 : %v\n", Result1)
+		fmt.Printf("Base2 : %v\n", Base2)
+		fmt.Printf("Result2 : %v\n", Result2)
+		fmt.Printf("Proof : %v \n", eqProof)
+		t.Fatalf("Equivilance Proof verification doesnt work")
+	}
+
+	Dprintf("Next comparison should fail\n")
+	// Bad proof
+	eqProof.HiddenValue = big.NewInt(-1)
+	if EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof) {
+		fmt.Printf("Base1 : %v\n", Base1)
+		fmt.Printf("Result1 : %v\n", Result1)
+		fmt.Printf("Base2 : %v\n", Base2)
+		fmt.Printf("Result2 : %v\n", Result2)
+		fmt.Printf("Proof : %v \n", eqProof)
+		t.Fatalf("Equivilance Proof verification doesnt work")
+	}
+
+	fmt.Println("Passed TestEquivilance")
 
 }
