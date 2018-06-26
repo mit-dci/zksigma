@@ -1,0 +1,9 @@
+Stuff to do:
+
+
+ - Make sure of GSPFS implementation 
+ - Test GSPFS implementation
+ - Start working on Equivilance 
+
+
+ - Check what is redundant and see what functions can be deleted
