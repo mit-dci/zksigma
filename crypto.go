@@ -17,6 +17,13 @@ import (
 var zkCurve zkpCrypto // look for init()
 var H2tothe []ECPoint // look for init()
 
+type side int
+
+const (
+	left  side = 0
+	right side = 1
+)
+
 type ECPoint struct {
 	X, Y *big.Int
 }
@@ -424,6 +431,160 @@ func EquivilanceVerify(
 
 }
 
+// The following ia combo of disjunctive proof and equivilance proofs
+
+type EquivORLogProof struct {
+	T1 ECPoint  // Either u1 * Base1 or s1*Base1 - c1 * Result1
+	T2 ECPoint  // Either u1 * Base2 or s1*Base2 - c1 * Result2
+	T3 ECPoint  // Either u2 * Base3 or s2*Base3 - c2 * Result3
+	C  *big.Int // Either s1=u1 + c1x or random element
+	C1 *big.Int // Either s2=u2 + c2x or random element
+	C2 *big.Int // Challenge 1
+	S1 *big.Int // Challenge 2
+	S2 *big.Int // Sum of challenges
+}
+
+/*
+	EquivilanceORLog Proofs:
+	- Given A = xG, B = xH, D = yJ prove:
+		- that A and B both have the same discrete log OR,
+		- that we know the discrete log of D
+
+	Public: generator points G, H, and J
+
+	V									P
+	Proving A and B use x
+	know x AND/OR y						knows A = xG; B = xH; D = yJ // Can all be same base
+	selects random u1, u2, u3
+	T1 = u1G
+	T2 = u1H
+	T3 = u3J + (-u2)D // neg(u2)
+	c = HASH(G, H, J, A, B, D, T1, T2, T3)
+	deltaC = c + (-u2)
+	s = u1 + deltaC * x
+
+	T1, T2, T3, c, deltaC, u2, s, u3 -> T1, T2, T3, c, c1, c2, s1, s2
+										c ?= HASH(G, H, J, A, B, D, T1, T2, T3)
+										s1G ?= T1 + cA
+										s1H ?= T2 + cB
+										s2J ?= T3 + cD
+
+	===================================================================
+	V									P
+	To prove that we know y
+	know x AND/OR y						knows A = xG; B = xH; D = yJ // Can all be same base
+	selects random u1, u2, u3
+	T1 = u1G + (-u2)A
+	T2 = u1H + (-u2)B
+	T3 = u3J
+	c = HASH(G, H, J, A, B, D, T1, T2, T3)
+	deltaC = c + (-u2)
+	s = u1 + deltaC * x
+
+	T1, T2, T3, c, u2, deltaC, u1, s -> T1, T2, T3, c, c1, c2, s1, s2
+										c ?= HASH(G, H, J, A, B, D, T1, T2, T3)
+										s1G ?= T1 + cA
+										s1H ?= T2 + cB
+										s2J ?= T3 + cD
+
+*/
+
+func EquivilanceORLogProve(
+	Base1, Result1, Base2, Result2, Base3, Result3 ECPoint,
+	x *big.Int, option side) EquivORLogProof {
+
+	u1, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+	u2, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+	u3, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+
+	u2Neg := new(big.Int).Neg(u2)
+	u2Neg.Mod(u2Neg, zkCurve.N)
+
+	if option == left { //Proving Equivilance
+		// u1G = T1
+		T1X, T1Y := zkCurve.C.ScalarMult(Base1.X, Base1.Y, u1.Bytes())
+		// u1H = T2
+		T2X, T2Y := zkCurve.C.ScalarMult(Base2.X, Base2.Y, u1.Bytes())
+		// u3J + (-u2)D = T3
+		u3JX, u3JY := zkCurve.C.ScalarMult(Base3.X, Base3.Y, u3.Bytes())
+		nu2DX, nu2DY := zkCurve.C.ScalarMult(Result3.X, Result3.Y, u2Neg.Bytes())
+		T3X, T3Y := zkCurve.C.Add(u3JX, u3JY, nu2DX, nu2DY)
+
+		// stringToHash = (G, H, J, A, B, D, T1, T2, T3)
+		stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
+			Base2.X.String() + "," + Base2.Y.String() + ";" +
+			Base3.X.String() + "," + Base3.Y.String() + ";" +
+			Result1.X.String() + "," + Result1.Y.String() + ";" +
+			Result2.X.String() + "," + Result2.Y.String() + ";" +
+			Result3.X.String() + "," + Result3.Y.String() + ";" +
+			T1X.String() + "," + T1Y.String() + ";" +
+			T2X.String() + "," + T2Y.String() + ";" +
+			T3X.String() + "," + T3Y.String() + ";"
+
+		hasher := sha256.New()
+		hasher.Write([]byte(stringToHash))
+		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+		Challenge = Challenge.Mod(Challenge, zkCurve.N)
+
+		deltaC := new(big.Int).Add(Challenge, u2Neg)
+		deltaC.Mod(deltaC, zkCurve.N)
+
+		s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
+
+		return EquivORLogProof{
+			ECPoint{T1X, T1Y},
+			ECPoint{T2X, T2Y},
+			ECPoint{T3X, T3Y},
+			Challenge, deltaC, u2, s, u3}
+
+	} else { // Proving Discrete Log
+
+		// u1G + (-u2A) = T1
+		u1GX, u1GY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, u1.Bytes())
+		nu2AX, nu2AY := zkCurve.C.ScalarMult(Result1.X, Result1.Y, u2Neg.Bytes())
+		T1X, T1Y := zkCurve.C.Add(u1GX, u1GY, nu2AX, nu2AY)
+		// u1H + (-u2B) = T2
+		u1HX, u1HY := zkCurve.C.ScalarMult(Base2.X, Base2.Y, u1.Bytes())
+		nu2BX, nu2BY := zkCurve.C.ScalarMult(Result2.X, Result2.Y, u2Neg.Bytes())
+		T2X, T2Y := zkCurve.C.Add(u1HX, u1HY, nu2BX, nu2BY)
+
+		// u3J = T3
+		T3X, T3Y := zkCurve.C.ScalarMult(Base3.X, Base3.Y, u3.Bytes())
+
+		// stringToHash = (G, H, J, A, B, D, T1, T2, T3)
+		stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
+			Base2.X.String() + "," + Base2.Y.String() + ";" +
+			Base3.X.String() + "," + Base3.Y.String() + ";" +
+			Result1.X.String() + "," + Result1.Y.String() + ";" +
+			Result2.X.String() + "," + Result2.Y.String() + ";" +
+			Result3.X.String() + "," + Result3.Y.String() + ";" +
+			T1X.String() + "," + T1Y.String() + ";" +
+			T2X.String() + "," + T2Y.String() + ";" +
+			T3X.String() + "," + T3Y.String() + ";"
+
+		hasher := sha256.New()
+		hasher.Write([]byte(stringToHash))
+		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+		Challenge = Challenge.Mod(Challenge, zkCurve.N)
+
+		deltaC := new(big.Int).Add(Challenge, u2Neg)
+		deltaC.Mod(deltaC, zkCurve.N)
+
+		s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
+
+		return EquivORLogProof{
+			ECPoint{T1X, T1Y},
+			ECPoint{T2X, T2Y},
+			ECPoint{T3X, T3Y},
+			Challenge, u2, deltaC, u3, s}
+
+	}
+
+}
+
 // =============== DISJUNCTIVE PROOFS ========================
 
 // Referance: https://drive.google.com/file/d/0B_ndzgLH0bcvMjg3M1ROUWQwWTBCN0loQ055T212eV9JRU1v/view
@@ -478,7 +639,7 @@ type DisjunctiveProof struct {
 
 // DisjunctiveProve generates a disjunctive proof for the given x
 func DisjunctiveProve(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, side uint) *DisjunctiveProof {
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option side) *DisjunctiveProof {
 
 	// Declaring them like this because Golang crys otherwise
 	ProveBase := zkCurve.Zero()
@@ -487,18 +648,18 @@ func DisjunctiveProve(
 	OtherResult := zkCurve.Zero()
 
 	// Generate a proof for A
-	if side == 0 {
+	if option == left {
 		ProveBase = Base1
 		ProveResult = Result1
 		OtherBase = Base2
 		OtherResult = Result2
-	} else if side == 1 { // Generate a proof for B
+	} else if option == right { // Generate a proof for B
 		ProveBase = Base2
 		ProveResult = Result2
 		OtherBase = Base1
 		OtherResult = Result1
-	} else { // number for side is not correct
-		Dprintf("ERROR --- Invalid side number given for DisjunctiveProve\n")
+	} else { // number for option is not correct
+		Dprintf("ERROR --- Invalid option number given for DisjunctiveProve\n")
 		return nil
 	}
 
@@ -537,7 +698,7 @@ func DisjunctiveProve(
 		T2X.String() + "," + T2Y.String() + ";"
 
 	// If we are proving Base2 and Result2 then we must switch T1 and T2 in string
-	if side == 1 {
+	if option == 1 {
 		stringToHash = Base1.X.String() + "," + Base1.Y.String() + ";" +
 			Result1.X.String() + "," + Result1.Y.String() + ";" +
 			Base2.X.String() + "," + Base2.Y.String() + ";" +
@@ -556,7 +717,7 @@ func DisjunctiveProve(
 	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
 
 	// Look at mapping given in block comment above
-	if side == 0 {
+	if option == left {
 		return &DisjunctiveProof{
 			ECPoint{T1X, T1Y},
 			ECPoint{T2X, T2Y},
@@ -647,4 +808,15 @@ func DisjunctiveVerify(
 	}
 
 	return true
+}
+
+// ============ zkLedger Stuff =======================
+// ============ Consistance Proofs ===================
+
+type ConsistencyProof struct {
+	A1 ECPoint
+	A2 ECPoint
+	C  *big.Int
+	R1 *big.Int
+	R2 *big.Int
 }
