@@ -241,3 +241,36 @@ func TestDisjunctive(t *testing.T) {
 	fmt.Println("Passed TestDisjunctiveg")
 
 }
+
+// This is not critical to the zkLedger, holding off on building the verify and test function for more useful stuff
+// func TestEquiviOrLog
+
+func TestConsistency(t *testing.T) {
+
+	x := big.NewInt(100)
+	u, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+
+	sk, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+	pk := zkCurve.H.Mult(sk)
+
+	comm := PedCommitR(x, u)
+	y := pk.Mult(u)
+
+	conProof := ConsistencyProve(comm, y, pk, x, u)
+
+	Dprintf(" [debug] Testing correct consistency proof\n")
+	if !ConsistencyVerify(comm, y, pk, conProof) {
+		t.Fatalf("Error -- Proof should be correct\n")
+	}
+
+	conProof = ConsistencyProve(y, comm, pk, x, u)
+
+	Dprintf(" [debug] Testing incorrect consistency proof\n")
+	if ConsistencyVerify(comm, y, pk, conProof) {
+		t.Fatalf("Error -- Proof should be wrong correct\n")
+	}
+
+	fmt.Println("Passed TestConsistency")
+}

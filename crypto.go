@@ -814,9 +814,145 @@ func DisjunctiveVerify(
 // ============ Consistance Proofs ===================
 
 type ConsistencyProof struct {
-	A1 ECPoint
-	A2 ECPoint
-	C  *big.Int
-	R1 *big.Int
-	R2 *big.Int
+	T1        ECPoint
+	T2        ECPoint
+	Challenge *big.Int
+	s1        *big.Int
+	s2        *big.Int
+}
+
+/*
+	Consistency Proofs: similar to Equivilance proofs except that we
+						make some assumptions about the public info.
+						Here we want to prove that the r used in CM and
+						Y are the same.
+
+
+	Public:
+	- generator points G and H,
+	- PK (pubkey) = xH,
+	- CM (commitment) = vG + rH
+	- Y = rPK
+
+	V									P
+	know x	// secret key				knows CM = vG + rH; Y = rPK
+	selects random u1, u2
+	T1 = u1G + u2H
+	T2 = u2PK
+	c = HASH(G, H, T1, T2, PK, CM, Y)
+	s1 = u1 + c * v
+	s2 = u2 + c * r
+
+	T1, T2, c, s1, s2 ----------------->
+										c ?= HASH(G, H, T1, T2, PK, CM, Y)
+										s1G + s2H ?= T1 + cCM
+										s2PK ?= T2 + cY
+*/
+
+func ConsistencyProve(
+	Point1, Point2, PubKey ECPoint, value, randomness *big.Int) *ConsistencyProof {
+	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
+	// x trying to be proved that both G and H are raised with x
+
+	modValue := new(big.Int).Mod(value, zkCurve.N)
+
+	// do a quick correctness check to ensure the value we are testing and the
+	// randomness are correct
+	if !Point1.Equal(PedCommitR(value, randomness)) {
+		fmt.Println("Tsk tsk tsk, lying about our commitments, ay?")
+	}
+
+	if !Point2.Equal(PubKey.Mult(randomness)) {
+		fmt.Println(
+			"Such disgrace! Lying about our Randomness Token! The audacity!")
+	}
+
+	u1, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+
+	u2, err2 := rand.Int(rand.Reader, zkCurve.N)
+	check(err2)
+
+	T1 := PedCommitR(u1, u2)
+	T2 := PubKey.Mult(u2)
+
+	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
+		zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
+		Point1.X.String() + "," + Point1.Y.String() + ";" +
+		Point2.X.String() + "," + Point2.Y.String() + ";" +
+		PubKey.X.String() + "," + PubKey.Y.String() + ";" +
+		T1.X.String() + "," + T1.Y.String() + ";" +
+		T2.X.String() + "," + T2.Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	s1 := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
+	s2 := new(big.Int).Add(u2, new(big.Int).Mul(randomness, Challenge))
+	s1.Mod(s1, zkCurve.N)
+	s2.Mod(s1, zkCurve.N)
+
+	return &ConsistencyProof{T1, T2, Challenge, s1, s2}
+
+}
+
+/*
+	Give: T1, T2, c, s1, s2; Public: G, H, PK, CM, Y
+	Check the following:
+			c ?= HASH(G, H, T1, T2, PK, CM, Y)
+	s1G + s2H ?= T1 + cCM
+		 s2PK ?= T2 + cY
+*/
+
+// ConsistencyVerify checks if a proof is valid
+func ConsistencyVerify(
+	Point1, Point2, PubKey ECPoint, conProof *ConsistencyProof) bool {
+
+	// CM should be point1, Y should be point2
+
+	// Regenerate challenge string
+	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
+		zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
+		Point1.X.String() + "," + Point1.Y.String() + ";" +
+		Point2.X.String() + "," + Point2.Y.String() + ";" +
+		PubKey.X.String() + "," + PubKey.Y.String() + ";" +
+		conProof.T1.X.String() + "," + conProof.T1.Y.String() + ";" +
+		conProof.T2.X.String() + "," + conProof.T2.Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	// c ?= HASH(G, H, T1, T2, PK, CM, Y)
+	if Challenge.Cmp(conProof.Challenge) != 0 {
+		Dprintf(" [crypto] c comparison failed. proof: %v calculated: %v\n",
+			conProof.Challenge, Challenge)
+		return false
+	}
+	// lhs = left hand side, rhs = right hand side
+	// s1G + s2H ?= T1 + cCM, CM should be point1
+	lhs := PedCommitR(conProof.s1, conProof.s2)
+	temp := Point1.Mult(Challenge)
+	rhs := conProof.T1.Add(temp)
+
+	if !lhs.Equal(rhs) {
+		Dprintf("Point1 comparison is failing\n")
+		return false
+	}
+
+	// s2PK ?= T2 + cY
+	lhs = PubKey.Mult(conProof.s2)
+	temp = Point2.Mult(Challenge)
+	rhs = conProof.T2.Add(temp)
+
+	if !lhs.Equal(rhs) {
+		Dprintf("Point2 comparison is failing\n")
+		return false
+	}
+
+	// All three checks passed, proof must be correct
+	return true
+
 }

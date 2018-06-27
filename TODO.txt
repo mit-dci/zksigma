@@ -1,10 +1,13 @@
 Stuff to do:
 
- - Start EquivilanceOrLog
- - Figure out purpose of VerifyZeroSumCommitments()
- - Can EquivORLogProof be written as a super-proof of EquivProof?
- - Figure out purpose of ProveEquivalenceORLog()? Its not used anywhere...
  - Make sure that all the Challenge's had a Mod operation applied to then...
  - Does s also need to be Mod N?
-
+ - Add in Base-Result checks to EquivORLogProof
  - Check what is redundant and see what functions can be deleted
+ - EquivilanceOrLog Verify function and test function on hold, not critical
+
+
+NOTES: 
+- EquivilanceOrLog is not used but built it anyways 
+- VerifyZeroSumCommitments is not necessary anymore, removed it comepletely
+- 
