@@ -218,8 +218,8 @@ func TestDisjunctive(t *testing.T) {
 	Base2 := zkCurve.H
 	Result2 := zkCurve.H.Mult(y)
 
-	djProofLEFT := DisjunctiveProve(Base1, Result1, Base2, Result2, x, 0)
-	djProofRIGHT := DisjunctiveProve(Base1, Result1, Base2, Result2, y, 1)
+	djProofLEFT := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
+	djProofRIGHT := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
 
 	Dprintf("[debug] First djProof : ")
 	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT) {
@@ -232,7 +232,7 @@ func TestDisjunctive(t *testing.T) {
 	}
 
 	Dprintf("Passed \n [debug] Next djProof attemp should result in an error message\n")
-	djProofTEST := DisjunctiveProve(Base1, Result1, Base2, Result2, y, 0) // This should fail
+	djProofTEST := DisjunctiveProve(Base1, Result1, Base2, Result2, y, left) // This should fail
 
 	if djProofTEST != nil {
 		t.Fatalf("djProof should not have been generated\n")
