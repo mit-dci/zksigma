@@ -426,6 +426,9 @@ func EquivilanceVerify(
 
 // =============== DISJUNCTIVE PROOFS ========================
 
+// Referance: https://drive.google.com/file/d/0B_ndzgLH0bcvMjg3M1ROUWQwWTBCN0loQ055T212eV9JRU1v/view
+// see section 4.2
+
 /*
 	Disjunctive Proofs: prove that you know either x or y but do not reveal
 						which one you know
@@ -437,9 +440,9 @@ func EquivilanceVerify(
 	knows x AND/OR y					knows A = xG ; B = yH // can be yG
 	selects random u1, u2, u3
 	T1 = u1G
-	T2 = u2H - u3yH
+	T2 = u2H + (-u3)yH
 	c = HASH(T1, T2, G, A, B)
-	deltaC = c - u2
+	deltaC = c - u3
 	s = u1 + deltaC * x
 
 	(V perspective)						(P perspective)
@@ -450,7 +453,7 @@ func EquivilanceVerify(
 										s2G ?= T2 + c2A
 	To prove y instead:
 	Same as above with y in place of x
-	T2, T1, c, u3 ,deltaC, u2, s -----> T1, T2, c, c1, c2, s1, s2
+	T2, T1, c, u3, deltaC, u2, s -----> T1, T2, c, c1, c2, s1, s2
 										Same checks as above
 
 	Note:
@@ -486,10 +489,12 @@ func DisjunctiveProve(
 	// Generate a proof for A
 	if side == 0 {
 		ProveBase = Base1
+		ProveResult = Result1
 		OtherBase = Base2
 		OtherResult = Result2
 	} else if side == 1 { // Generate a proof for B
 		ProveBase = Base2
+		ProveResult = Result2
 		OtherBase = Base1
 		OtherResult = Result1
 	} else { // number for side is not correct
@@ -509,17 +514,21 @@ func DisjunctiveProve(
 	check(err)
 	u3, err := rand.Int(rand.Reader, zkCurve.N)
 	check(err)
+	// for (-u3)yH
+	u3Neg := new(big.Int).Neg(u3)
+	u3Neg.Mod(u3Neg, zkCurve.N)
 
 	// T1 = u1G
 	T1X, T1Y := zkCurve.C.ScalarMult(ProveBase.X, ProveBase.Y, u1.Bytes())
 
 	// u2H
 	tempX, tempY := zkCurve.C.ScalarMult(OtherBase.X, OtherBase.Y, u2.Bytes())
-	// u3yH
-	temp2X, temp2Y := zkCurve.C.ScalarMult(OtherResult.X, OtherResult.Y, u3.Bytes())
-	// T2 = u2H + u3yH (yH is OtherResult)
+	// (-u3)yH
+	temp2X, temp2Y := zkCurve.C.ScalarMult(OtherResult.X, OtherResult.Y, u3Neg.Bytes())
+	// T2 = u2H + (-u3)yH (yH is OtherResult)
 	T2X, T2Y := zkCurve.C.Add(tempX, tempY, temp2X, temp2Y)
 
+	// String for proving Base1 and Result1
 	stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
 		Result1.X.String() + "," + Result1.Y.String() + ";" +
 		Base2.X.String() + "," + Base2.Y.String() + ";" +
@@ -527,11 +536,21 @@ func DisjunctiveProve(
 		T1X.String() + "," + T1Y.String() + ";" +
 		T2X.String() + "," + T2Y.String() + ";"
 
+	// If we are proving Base2 and Result2 then we must switch T1 and T2 in string
+	if side == 1 {
+		stringToHash = Base1.X.String() + "," + Base1.Y.String() + ";" +
+			Result1.X.String() + "," + Result1.Y.String() + ";" +
+			Base2.X.String() + "," + Base2.Y.String() + ";" +
+			Result2.X.String() + "," + Result2.Y.String() + ";" +
+			T2X.String() + "," + T2Y.String() + ";" +
+			T1X.String() + "," + T1Y.String() + ";"
+	}
+
 	hasher := sha256.New()
 	hasher.Write([]byte(stringToHash))
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 
-	deltaC := new(big.Int).Sub(Challenge, u2)
+	deltaC := new(big.Int).Sub(Challenge, u3)
 	deltaC.Mod(deltaC, zkCurve.N)
 
 	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
@@ -571,6 +590,7 @@ func DisjunctiveProve(
 	s2G ?= T2 + c2A
 */
 
+// DisjunctiveVerify checks if a djProof is valid for the given bases and results
 func DisjunctiveVerify(
 	Base1, Result1, Base2, Result2 ECPoint, djProof *DisjunctiveProof) bool {
 
@@ -582,8 +602,6 @@ func DisjunctiveVerify(
 	S1 := djProof.S1
 	S2 := djProof.S2
 
-	hasher := sha256.New()
-
 	stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
 		Result1.X.String() + "," + Result1.Y.String() + ";" +
 		Base2.X.String() + "," + Base2.Y.String() + ";" +
@@ -591,35 +609,40 @@ func DisjunctiveVerify(
 		T1.X.String() + "," + T1.Y.String() + ";" +
 		T2.X.String() + "," + T2.Y.String() + ";"
 
+	hasher := sha256.New()
 	hasher.Write([]byte(stringToHash))
+	// C
 	checkC := new(big.Int).SetBytes(hasher.Sum(nil))
 	if checkC.Cmp(C) != 0 {
-		Dprintf("DJproof failed : checkC does not agree with proofC")
+		Dprintf("DJproof failed : checkC does not agree with proofC\n")
 		return false
 	}
 
+	// C1 + C2
 	totalC := new(big.Int).Add(C1, C2)
 	totalC.Mod(totalC, zkCurve.N)
 	if totalC.Cmp(C) != 0 {
-		Dprintf("DJproof failed : totalC does not agree with proofC")
+		Dprintf("DJproof failed : totalC does not agree with proofC\n")
 		return false
 	}
 
-	c1AX, c1AY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, C.Bytes())
+	// T1 + c1A
+	c1AX, c1AY := zkCurve.C.ScalarMult(Result1.X, Result1.Y, C1.Bytes())
 	checks1GX, checks1GY := zkCurve.C.Add(c1AX, c1AY, T1.X, T1.Y)
 	s1GX, s1GY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, S1.Bytes())
 
 	if checks1GX.Cmp(s1GX) != 0 || checks1GY.Cmp(s1GY) != 0 {
-		Dprintf("DJproof failed : s1G not equal to T1 + c1A")
+		Dprintf("DJproof failed : s1G not equal to T1 + c1A\n")
 		return false
 	}
 
-	c2AX, c2AY := zkCurve.C.ScalarMult(Base2.X, Base2.Y, C.Bytes())
+	// T2 + c2B
+	c2AX, c2AY := zkCurve.C.ScalarMult(Result2.X, Result2.Y, C2.Bytes())
 	checks2GX, checks2GY := zkCurve.C.Add(c2AX, c2AY, T2.X, T2.Y)
 	s2GX, s2GY := zkCurve.C.ScalarMult(Base2.X, Base2.Y, S2.Bytes())
 
 	if checks2GX.Cmp(s2GX) != 0 || checks2GY.Cmp(s2GY) != 0 {
-		Dprintf("DJproof failed : s2G not equal to T2 + c2A")
+		Dprintf("DJproof failed : s2G not equal to T2 + c2B\n")
 		return false
 	}
 

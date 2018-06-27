@@ -55,7 +55,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 	Dprintf("       1/vG : %v\n", InvValEC)
 
 	tempX, tempY = zkCurve.C.Add(ValEC.X, ValEC.Y, InvValEC.X, InvValEC.Y)
-	Dprintf("Added the above: %v, %v", tempX, tempY)
+	Dprintf("Added the above: %v, %v\n", tempX, tempY)
 
 	if tempX.Cmp(zkCurve.Zero().X) != 0 || tempY.Cmp(zkCurve.Zero().Y) != 0 {
 		fmt.Printf("Added the above: %v, %v", tempX, tempY)
@@ -205,5 +205,39 @@ func TestEquivilance(t *testing.T) {
 	}
 
 	fmt.Println("Passed TestEquivilance")
+
+}
+
+func TestDisjunctive(t *testing.T) {
+
+	x := big.NewInt(100)
+	y := big.NewInt(101)
+
+	Base1 := zkCurve.G
+	Result1 := zkCurve.G.Mult(x)
+	Base2 := zkCurve.H
+	Result2 := zkCurve.H.Mult(y)
+
+	djProofLEFT := DisjunctiveProve(Base1, Result1, Base2, Result2, x, 0)
+	djProofRIGHT := DisjunctiveProve(Base1, Result1, Base2, Result2, y, 1)
+
+	Dprintf("[debug] First djProof : ")
+	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT) {
+		t.Fatalf("djProof failed to generate properly for left side\n")
+	}
+
+	Dprintf("Passed \n [debug] Second djProof : ")
+	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofRIGHT) {
+		t.Fatalf("djProof failed to generate properly for right side\n")
+	}
+
+	Dprintf("Passed \n [debug] Next djProof attemp should result in an error message\n")
+	djProofTEST := DisjunctiveProve(Base1, Result1, Base2, Result2, y, 0) // This should fail
+
+	if djProofTEST != nil {
+		t.Fatalf("djProof should not have been generated\n")
+	}
+
+	fmt.Println("Passed TestDisjunctiveg")
 
 }

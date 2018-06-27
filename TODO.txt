@@ -1,9 +1,6 @@
 Stuff to do:
 
-
- - Build Equivilance testing functions
- - Test and verify Equivilance working as intended
  - Start EquivilanceOrLog
-
+ 
 
  - Check what is redundant and see what functions can be deleted
