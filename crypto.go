@@ -194,12 +194,13 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	// modValue = value mod N
 	modValue := new(big.Int).Mod(value, zkCurve.N)
 
+	// For some reason modRandom doesnt work...
 	// randomValue = rand() mod N
-	modRandom := new(big.Int).Mod(randomValue, zkCurve.N)
+	// modRandom := new(big.Int).Mod(randomValue, zkCurve.N)
 
 	// mG, rH :: lhs, rhs
 	lhsX, lhsY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, modValue.Bytes())
-	rhsX, rhsY := zkCurve.C.ScalarMult(zkCurve.H.X, zkCurve.H.Y, modRandom.Bytes())
+	rhsX, rhsY := zkCurve.C.ScalarMult(zkCurve.H.X, zkCurve.H.Y, randomValue.Bytes())
 
 	//mG + rH
 	commX, commY := zkCurve.C.Add(lhsX, lhsY, rhsX, rhsY)
@@ -830,12 +831,12 @@ type ConsistencyProof struct {
 
 	Public:
 	- generator points G and H,
-	- PK (pubkey) = xH,
+	- PK (pubkey) = skH, // sk is secret key
 	- CM (commitment) = vG + rH
 	- Y = rPK
 
 	V									P
-	know x	// secret key				knows CM = vG + rH; Y = rPK
+	selects v and r for commitment		knows CM = vG + rH; Y = rPK
 	selects random u1, u2
 	T1 = u1G + u2H
 	T2 = u2PK
@@ -855,6 +856,7 @@ func ConsistencyProve(
 	// x trying to be proved that both G and H are raised with x
 
 	modValue := new(big.Int).Mod(value, zkCurve.N)
+	//modRandom := new(big.Int).Mod(randomness, zkCurve.N)
 
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
@@ -891,7 +893,18 @@ func ConsistencyProve(
 	s1 := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
 	s2 := new(big.Int).Add(u2, new(big.Int).Mul(randomness, Challenge))
 	s1.Mod(s1, zkCurve.N)
-	s2.Mod(s1, zkCurve.N)
+	s2.Mod(s2, zkCurve.N) // this was s1 instead of s2, took me an hour to find...
+
+	// Really spammy debug statements if you want them for some reason
+	// Dprintf("Proof T1 : %v\n", T1)
+	// Dprintf("Proof T2 : %v\n", T2)
+	// Dprintf("Proof C : %v\n", Challenge)
+	// Dprintf("Proof S1 : %v\n", s1)
+	// Dprintf("Proof S2 : %v\n", s2)
+	// Dprintf("Proof T1 + cCM : %v\n", T1.Add(Point1.Mult(Challenge)))
+	// Dprintf("Proof s1G + s2H : %v", PedCommitR(s1, s2))
+	// Dprintf("Proof s2Pk : %v\n", PubKey.Mult(s2))
+	// Dprintf("Proof T2 + cY : %v", T1.Add(Point2.Mult(Challenge)))
 
 	return &ConsistencyProof{T1, T2, Challenge, s1, s2}
 
@@ -933,8 +946,11 @@ func ConsistencyVerify(
 	}
 	// lhs = left hand side, rhs = right hand side
 	// s1G + s2H ?= T1 + cCM, CM should be point1
+	// s1G + s2H from how PedCommitR works
 	lhs := PedCommitR(conProof.s1, conProof.s2)
+	// cCM
 	temp := Point1.Mult(Challenge)
+	// T1 + cCM
 	rhs := conProof.T1.Add(temp)
 
 	if !lhs.Equal(rhs) {

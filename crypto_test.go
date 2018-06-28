@@ -247,15 +247,14 @@ func TestDisjunctive(t *testing.T) {
 
 func TestConsistency(t *testing.T) {
 
-	x := big.NewInt(100)
-	u, err := rand.Int(rand.Reader, zkCurve.N)
+	x, err := rand.Int(rand.Reader, zkCurve.N)
 	check(err)
 
 	sk, err := rand.Int(rand.Reader, zkCurve.N)
 	check(err)
 	pk := zkCurve.H.Mult(sk)
 
-	comm := PedCommitR(x, u)
+	comm, u := PedCommit(x)
 	y := pk.Mult(u)
 
 	conProof := ConsistencyProve(comm, y, pk, x, u)
