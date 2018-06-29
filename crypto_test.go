@@ -273,3 +273,22 @@ func TestConsistency(t *testing.T) {
 
 	fmt.Println("Passed TestConsistency")
 }
+
+func TestAvg(t *testing.T) {
+	sk, err := rand.Int(rand.Reader, zkCurve.N)
+	pk := zkCurve.H.Mult(sk)
+	value, err := rand.Int(rand.Reader, zkCurve.N)
+
+	CM, randomness := PedCommit(value)
+	CMTok := pk.Mult(randomness)
+	check(err)
+
+	proof := averageProve(CM, CMTok, value, sk)
+
+	if !avgVerify(CM, CMTok, proof) {
+		Dprintf("avg proof not working")
+		t.Fatalf("avg proof verify should have been true\n")
+	}
+
+	fmt.Println("Passed TestAvg")
+}

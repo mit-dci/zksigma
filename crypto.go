@@ -972,3 +972,189 @@ func ConsistencyVerify(
 	return true
 
 }
+
+// =================== AVERAGES ===================
+// The following is to generate a proof if the transaction we are checking
+// involves the bank being audited
+
+/*
+	For a commitment, A = vG + rH, if v != 0 then we need to map it to 1
+	otherwise if v == 0 then we need to map it to 0
+
+	if v != 0 then B = bG + r'H  (bG = inv(v)G)
+	and C = cG + r''H (G is multiplied by 1 or c = ab = 1)
+
+	else if v == 0 then C = rH (G is multiplied by 0)
+	and B is disregarded
+
+*/
+/*
+	Proving the case where v != 0 (b = inv(v), c = ab = 1)
+
+	Public: G, H, A, B, C, Ta where
+	- A = vG + rH // we do not know r
+	- B = inv(v)G + r'H
+	- C = G + r''H
+	- Ta = rPK = r(skH) // same r from A
+
+	P 										V
+	selects u1, u2, u3 at random			knows A, B, C, Ta
+	selects ua, ub at random
+	Compute:
+	- T1 = u1G + u2Ta
+	- T2 = u1B + u3H
+	- c = HASH(G,H,A,B,C,T1,T2, Ta)
+	Compute:
+	- j = u1 + v * c		// can be though of as s1
+	- k = u2 + inv(sk) * c	// s2
+	- l = u3 + (uc - v * ub) * c // s3
+
+	B, C, T1, T2, c, j, k, l  ------------->
+											 c ?= HASH(G,H,A,B,C,T1,T2, Ta)
+											 cA + T1 ?= jG + kTa
+											 cC + T2 ?= jB + lH
+
+
+	TODO: think of speical properties of non-zero numbers
+	to simulate a case for c = 0
+*/
+
+type avgProof struct {
+	B         ECPoint
+	C         ECPoint
+	T1        ECPoint
+	T2        ECPoint
+	Challenge *big.Int
+	j         *big.Int
+	k         *big.Int
+	l         *big.Int
+}
+
+func averageProve(CM, CMTok ECPoint, value, sk *big.Int) avgProof {
+
+	u1, err := rand.Int(rand.Reader, zkCurve.N)
+	u2, err := rand.Int(rand.Reader, zkCurve.N)
+	u3, err := rand.Int(rand.Reader, zkCurve.N)
+	ub, err := rand.Int(rand.Reader, zkCurve.N)
+	uc, err := rand.Int(rand.Reader, zkCurve.N)
+	check(err)
+
+	// TODO: do I use value or modValue for this?
+	// modValue := new(big.Int).Mod(value, zkCurve.N)
+
+	// B = inv(v)G + ubH
+	B := PedCommitR(new(big.Int).ModInverse(value, zkCurve.N), ub)
+
+	// C = G + ucH
+	C := PedCommitR(big.NewInt(1), uc)
+
+	// u1G
+	u1G := zkCurve.G.Mult(u1)
+	// u2Ta
+	u2Ta := CMTok.Mult(u2)
+	// Sum the above two
+	T1X, T1Y := zkCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
+
+	//u1B
+	u1B := B.Mult(u1)
+	//u3H
+	u3H := zkCurve.H.Mult(u3)
+	// Sum of the above two
+	T2X, T2Y := zkCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
+
+	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
+		zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
+		CM.X.String() + "," + CM.Y.String() + ";" +
+		CMTok.X.String() + "," + CMTok.Y.String() + ";" +
+		B.X.String() + "," + B.Y.String() + ";" +
+		C.X.String() + "," + C.Y.String() + ";" +
+		T1X.String() + "," + T1Y.String() + ";" +
+		T2X.String() + "," + T2Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
+
+	// j = u1 + v * c		// can be though of as s1
+	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
+	j = new(big.Int).Mod(j, zkCurve.N)
+
+	// k = u2 + inv(sk) * c	// s2
+	// inv(sk)
+	isk := new(big.Int).ModInverse(sk, zkCurve.N)
+	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
+	k = new(big.Int).Mod(k, zkCurve.N)
+
+	// l = u3 + (uc - v * ub) * c // s3
+	temp := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
+	l := new(big.Int).Add(u3, new(big.Int).Mul(temp, Challenge))
+
+	return avgProof{
+		B,
+		C,
+		ECPoint{T1X, T1Y},
+		ECPoint{T2X, T2Y},
+		Challenge,
+		j, k, l}
+}
+
+/*
+	c ?= HASH(G,H,A,B,C,T1,T2, Ta)
+	cA + T1 ?= jG + kTa
+	cC + T2 ?= jB + lH
+*/
+
+func avgVerify(CM, CMTok ECPoint, aProof avgProof) bool {
+
+	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
+		zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
+		CM.X.String() + "," + CM.Y.String() + ";" +
+		CMTok.X.String() + "," + CMTok.Y.String() + ";" +
+		aProof.B.X.String() + "," + aProof.B.Y.String() + ";" +
+		aProof.C.X.String() + "," + aProof.C.Y.String() + ";" +
+		aProof.T1.X.String() + "," + aProof.T1.Y.String() + ";" +
+		aProof.T2.X.String() + "," + aProof.T2.Y.String() + ";"
+
+	hasher := sha256.New()
+	hasher.Write([]byte(stringToHash))
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
+
+	if Challenge.Cmp(aProof.Challenge) != 0 {
+		Dprintf("avgVerify: proof contains incorrect chanllenge\n")
+		return false
+	}
+
+	// cCM + T1 ?= jG + kCMTok
+	// cCM
+	chalA := CM.Mult(Challenge)
+	// + T1
+	lhs1 := chalA.Add(aProof.T1)
+	//jG
+	jG := zkCurve.G.Mult(aProof.j)
+	// kCMTok
+	kCMTok := CMTok.Mult(aProof.k)
+	// jG + kCMTok
+	rhs1 := jG.Add(kCMTok)
+
+	if !lhs1.Equal(rhs1) {
+		Dprintf("avgVerify: cCM + T1 != jG + kCMTok\n")
+		return false
+	}
+
+	// cC + T2 ?= jB + lH
+	chalC := aProof.C.Mult(Challenge)
+	lhs2 := chalC.Add(aProof.T2)
+
+	jB := aProof.B.Mult(aProof.j)
+	lH := zkCurve.H.Mult(aProof.l)
+	rhs2 := jB.Add(lH)
+
+	if !lhs2.Equal(rhs2) {
+		Dprintf("avgVerify: cC + T2 != jB + lH\n")
+		return false
+	}
+
+	return true
+}
