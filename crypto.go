@@ -1011,6 +1011,8 @@ func ConsistencyVerify(
 	- l = u3 + (uc - v * ub) * c 	// s3
 
 	B, C, T1, T2, c, j, k, l  ------------->
+											 proofA ?= true
+	 										 proofC ?= true
 											 c ?= HASH(G,H,A,B,C,T1,T2, Ta)
 											 cCM + T1 ?= jG + kCMTok
 											 cC + T2 ?= jB + lH
@@ -1100,17 +1102,17 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 		Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
-		// j = u1 + v * c		// can be though of as s1, v = 0
+		// j = u1 + v * c , v = 0
 		j := u1
 		j = new(big.Int).Mod(j, zkCurve.N)
 
-		// k = u2 + inv(sk) * c	// s2
+		// k = u2 + inv(sk) * c
 		// inv(sk)
 		isk := new(big.Int).ModInverse(sk, zkCurve.N)
 		k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
 		k = new(big.Int).Mod(k, zkCurve.N)
 
-		// l = u3 + (uc - v * ub) * c // s3, v = 0
+		// l = u3 + (uc - v * ub) * c , v = 0
 		l := new(big.Int).Add(u3, new(big.Int).Mul(uc, Challenge))
 
 		return avgProof{
@@ -1123,6 +1125,11 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 			proofA, proofC}, true // TODO: fix the nils
 
 	} else if option == right {
+
+		if value.Cmp(big.NewInt(0)) == 0 {
+			Dprintf("We are lying about value of tx and trying to generate inccorect proof")
+			return avgProof{}, false
+		}
 
 		// TODO: do I use value or modValue for this?
 		// modValue := new(big.Int).Mod(value, zkCurve.N)
@@ -1166,17 +1173,17 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 		Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
-		// j = u1 + v * c		// can be though of as s1
+		// j = u1 + v * c , can be though of as s1
 		j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
 		j = new(big.Int).Mod(j, zkCurve.N)
 
-		// k = u2 + inv(sk) * c	// s2
+		// k = u2 + inv(sk) * c
 		// inv(sk)
 		isk := new(big.Int).ModInverse(sk, zkCurve.N)
 		k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
 		k = new(big.Int).Mod(k, zkCurve.N)
 
-		// l = u3 + (uc - v * ub) * c // s3
+		// l = u3 + (uc - v * ub) * c
 		temp := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
 		l := new(big.Int).Add(u3, new(big.Int).Mul(temp, Challenge))
 
@@ -1196,12 +1203,24 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 }
 
 /*
+	proofA ?= true
+	proofC ?= true
 	c ?= HASH(G,H,A,B,C,T1,T2, Ta)
 	cA + T1 ?= jG + kTa
 	cC + T2 ?= jB + lH
 */
 
 func avgVerify(CM, CMTok ECPoint, aProof avgProof) bool {
+
+	if !GSPFSVerify(CM, aProof.proofA) {
+		Dprintf("avgProof for proofA is false")
+		return false
+	}
+
+	if !GSPFSVerify(aProof.C, aProof.proofC) {
+		Dprintf("avgProof for proofC is false")
+		return false
+	}
 
 	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
 		zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
