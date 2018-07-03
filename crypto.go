@@ -991,46 +991,61 @@ func ConsistencyVerify(
 /*
 	Proving the case where v != 0 (b = inv(v), c = ab = 1)
 
-	Public: G, H, A, B, C, Ta where
-	- A = vG + rH // we do not know r
+	Public: G, H, CM, B, C, CMTok where
+	- CM = vG + rH // we do not know r, only v
 	- B = inv(v)G + r'H
 	- C = G + r''H
-	- Ta = rPK = r(skH) // same r from A
+	- CMTok = rPK = r(skH) // same r from A
 
 	P 										V
-	selects u1, u2, u3 at random			knows A, B, C, Ta
+	(Proving true statement)
+	selects u1, u2, u3 at random			knows CM, B, C, CMTok
 	selects ua, ub at random
 	Compute:
 	- T1 = u1G + u2Ta
 	- T2 = u1B + u3H
 	- c = HASH(G,H,A,B,C,T1,T2, Ta)
 	Compute:
-	- j = u1 + v * c		// can be though of as s1
-	- k = u2 + inv(sk) * c	// s2
-	- l = u3 + (uc - v * ub) * c // s3
+	- j = u1 + v * c				// can be though of as s1
+	- k = u2 + inv(sk) * c			// s2
+	- l = u3 + (uc - v * ub) * c 	// s3
 
 	B, C, T1, T2, c, j, k, l  ------------->
 											 c ?= HASH(G,H,A,B,C,T1,T2, Ta)
-											 cA + T1 ?= jG + kTa
+											 cCM + T1 ?= jG + kCMTok
 											 cC + T2 ?= jB + lH
+
+
+	(proving false statement)
+	Everything is the same except v = 0 and inv(v) replaced with 0
+	Compute:
+	- T1 = u1G + u2Ta
+	- T2 = (ub * u1 + u3)H
 
 
 	TODO: think of speical properties of non-zero numbers
 	to simulate a case for c = 0
 */
 
+// TODO: differnt name for avgProof
 type avgProof struct {
-	B         ECPoint
-	C         ECPoint
-	T1        ECPoint
-	T2        ECPoint
+	B         ECPoint // commitment for b = 0 OR inv(a)
+	C         ECPoint // commitment for c = 0 OR 1
+	T1        ECPoint // commitment to test if ab = c
+	T2        ECPoint // commitment to test if ab = c
 	Challenge *big.Int
 	j         *big.Int
 	k         *big.Int
 	l         *big.Int
+	proofA    *GSPFSProof // proof that we know value of tx
+	proofC    *GSPFSProof // proof that we know value of c
 }
 
-func averageProve(CM, CMTok ECPoint, value, sk *big.Int) avgProof {
+// TODO: add true and false flags to all proof gens incase of proof gen failure
+
+// option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
+// option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
+func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof, bool) {
 
 	u1, err := rand.Int(rand.Reader, zkCurve.N)
 	u2, err := rand.Int(rand.Reader, zkCurve.N)
@@ -1039,64 +1054,145 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int) avgProof {
 	uc, err := rand.Int(rand.Reader, zkCurve.N)
 	check(err)
 
-	// TODO: do I use value or modValue for this?
-	// modValue := new(big.Int).Mod(value, zkCurve.N)
+	if option == left {
 
-	// B = inv(v)G + ubH
-	B := PedCommitR(new(big.Int).ModInverse(value, zkCurve.N), ub)
+		if value.Cmp(big.NewInt(0)) != 0 {
+			Dprintf("We are lying about value of tx and trying to generate inccorect proof")
+			return avgProof{}, false
+		}
 
-	// C = G + ucH
-	C := PedCommitR(big.NewInt(1), uc)
+		// true statement and correct proofs for left side of OR
+		proofA := GSPFSProve(value)
+		proofC := GSPFSProve(big.NewInt(0))
 
-	// u1G
-	u1G := zkCurve.G.Mult(u1)
-	// u2Ta
-	u2Ta := CMTok.Mult(u2)
-	// Sum the above two
-	T1X, T1Y := zkCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
+		// starting false statemetn and correct proofs for right side of OR statement
 
-	//u1B
-	u1B := B.Mult(u1)
-	//u3H
-	u3H := zkCurve.H.Mult(u3)
-	// Sum of the above two
-	T2X, T2Y := zkCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
+		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
+		B := PedCommitR(new(big.Int).ModInverse(big.NewInt(0), zkCurve.N), ub)
 
-	stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
-		zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
-		CM.X.String() + "," + CM.Y.String() + ";" +
-		CMTok.X.String() + "," + CMTok.Y.String() + ";" +
-		B.X.String() + "," + B.Y.String() + ";" +
-		C.X.String() + "," + C.Y.String() + ";" +
-		T1X.String() + "," + T1Y.String() + ";" +
-		T2X.String() + "," + T2Y.String() + ";"
+		// C = 0 + ucH
+		C := PedCommitR(big.NewInt(0), uc)
 
-	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
-	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
-	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
+		// T1 = u1G + u2Ta
+		// u1G
+		u1G := zkCurve.G.Mult(u1)
+		// u2Ta
+		u2Ta := CMTok.Mult(u2)
+		// Sum the above two
+		T1X, T1Y := zkCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
 
-	// j = u1 + v * c		// can be though of as s1
-	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
-	j = new(big.Int).Mod(j, zkCurve.N)
+		// T2 = (ub * u1 + u3)H
+		// s = ub * u1 + u3
+		s := new(big.Int).Add(u3, new(big.Int).Mul(ub, u1))
+		T2 := zkCurve.H.Mult(s)
 
-	// k = u2 + inv(sk) * c	// s2
-	// inv(sk)
-	isk := new(big.Int).ModInverse(sk, zkCurve.N)
-	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-	k = new(big.Int).Mod(k, zkCurve.N)
+		stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
+			zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
+			CM.X.String() + "," + CM.Y.String() + ";" +
+			CMTok.X.String() + "," + CMTok.Y.String() + ";" +
+			B.X.String() + "," + B.Y.String() + ";" +
+			C.X.String() + "," + C.Y.String() + ";" +
+			T1X.String() + "," + T1Y.String() + ";" +
+			T2.X.String() + "," + T2.Y.String() + ";"
 
-	// l = u3 + (uc - v * ub) * c // s3
-	temp := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
-	l := new(big.Int).Add(u3, new(big.Int).Mul(temp, Challenge))
+		hasher := sha256.New()
+		hasher.Write([]byte(stringToHash))
+		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+		Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
-	return avgProof{
-		B,
-		C,
-		ECPoint{T1X, T1Y},
-		ECPoint{T2X, T2Y},
-		Challenge,
-		j, k, l}
+		// j = u1 + v * c		// can be though of as s1, v = 0
+		j := u1
+		j = new(big.Int).Mod(j, zkCurve.N)
+
+		// k = u2 + inv(sk) * c	// s2
+		// inv(sk)
+		isk := new(big.Int).ModInverse(sk, zkCurve.N)
+		k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
+		k = new(big.Int).Mod(k, zkCurve.N)
+
+		// l = u3 + (uc - v * ub) * c // s3, v = 0
+		l := new(big.Int).Add(u3, new(big.Int).Mul(uc, Challenge))
+
+		return avgProof{
+			B,
+			C,
+			ECPoint{T1X, T1Y},
+			ECPoint{T2.X, T2.Y},
+			Challenge,
+			j, k, l,
+			proofA, proofC}, true // TODO: fix the nils
+
+	} else if option == right {
+
+		// TODO: do I use value or modValue for this?
+		// modValue := new(big.Int).Mod(value, zkCurve.N)
+
+		proofA := GSPFSProve(value)
+		proofC := GSPFSProve(big.NewInt(1))
+
+		// B = inv(v)G + ubH
+		B := PedCommitR(new(big.Int).ModInverse(value, zkCurve.N), ub)
+
+		// C = G + ucH
+		C := PedCommitR(big.NewInt(1), uc)
+
+		// T1 = u1G + u2Ta
+		// u1G
+		u1G := zkCurve.G.Mult(u1)
+		// u2Ta
+		u2Ta := CMTok.Mult(u2)
+		// Sum the above two
+		T1X, T1Y := zkCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
+
+		// T2 = u1B + u3H
+		// u1B
+		u1B := B.Mult(u1)
+		// u3H
+		u3H := zkCurve.H.Mult(u3)
+		// Sum of the above two
+		T2X, T2Y := zkCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
+
+		stringToHash := zkCurve.G.X.String() + "," + zkCurve.G.Y.String() + ";" +
+			zkCurve.H.X.String() + "," + zkCurve.H.Y.String() + ";" +
+			CM.X.String() + "," + CM.Y.String() + ";" +
+			CMTok.X.String() + "," + CMTok.Y.String() + ";" +
+			B.X.String() + "," + B.Y.String() + ";" +
+			C.X.String() + "," + C.Y.String() + ";" +
+			T1X.String() + "," + T1Y.String() + ";" +
+			T2X.String() + "," + T2Y.String() + ";"
+
+		hasher := sha256.New()
+		hasher.Write([]byte(stringToHash))
+		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+		Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
+
+		// j = u1 + v * c		// can be though of as s1
+		j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
+		j = new(big.Int).Mod(j, zkCurve.N)
+
+		// k = u2 + inv(sk) * c	// s2
+		// inv(sk)
+		isk := new(big.Int).ModInverse(sk, zkCurve.N)
+		k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
+		k = new(big.Int).Mod(k, zkCurve.N)
+
+		// l = u3 + (uc - v * ub) * c // s3
+		temp := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
+		l := new(big.Int).Add(u3, new(big.Int).Mul(temp, Challenge))
+
+		return avgProof{
+			B,
+			C,
+			ECPoint{T1X, T1Y},
+			ECPoint{T2X, T2Y},
+			Challenge,
+			j, k, l,
+			proofA, proofC}, true
+
+	} else {
+		Dprintf("avgProof: side passed is not valid")
+		return avgProof{}, false
+	}
 }
 
 /*
