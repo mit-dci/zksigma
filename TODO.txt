@@ -6,6 +6,7 @@ Stuff to do:
  - Check what is redundant and see what functions can be deleted
  - EquivilanceOrLog Verify function and test function on hold, not critical
  - add true and false flags to all proof gens incase of proof gen failure
+ - all values should be modValue
 
 
 NOTES: 

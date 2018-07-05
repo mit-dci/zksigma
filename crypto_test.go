@@ -264,31 +264,72 @@ func TestConsistency(t *testing.T) {
 		t.Fatalf("Error -- Proof should be correct\n")
 	}
 
+	Dprintf(" [debug] Next proof should fail\n")
+
 	conProof = ConsistencyProve(y, comm, pk, x, u)
 
 	Dprintf(" [debug] Testing incorrect consistency proof\n")
 	if ConsistencyVerify(comm, y, pk, conProof) {
-		t.Fatalf("Error -- Proof should be wrong correct\n")
+		t.Fatalf("Error -- Proof should be wrong\n")
 	}
 
 	fmt.Println("Passed TestConsistency")
 }
 
-// func TestAvg(t *testing.T) {
-// 	sk, err := rand.Int(rand.Reader, zkCurve.N)
-// 	pk := zkCurve.H.Mult(sk)
-// 	value, err := rand.Int(rand.Reader, zkCurve.N)
+func TestAvg(t *testing.T) {
+	sk, err := rand.Int(rand.Reader, zkCurve.N)
+	pk := zkCurve.H.Mult(sk)
+	value, err := rand.Int(rand.Reader, zkCurve.N)
 
-// 	CM, randomness := PedCommit(value)
-// 	CMTok := pk.Mult(randomness)
-// 	check(err)
+	CM, randomness := PedCommit(value)
+	CMTok := pk.Mult(randomness)
+	check(err)
 
-// 	proof := averageProve(CM, CMTok, value, sk)
+	Dprintf(" [debug] TRUE-RIGHT Next proof should pass\n")
 
-// 	if !avgVerify(CM, CMTok, proof) {
-// 		Dprintf("avg proof not working")
-// 		t.Fatalf("avg proof verify should have been true\n")
-// 	}
+	proof, status := averageProve(CM, CMTok, value, sk, right)
 
-// 	fmt.Println("Passed TestAvg")
-// }
+	if !status {
+		Dprintf("avgProof: status is false but should be true")
+	}
+
+	if !avgVerify(CM, CMTok, proof) {
+		Dprintf("avg proof not working\n")
+		t.Fatalf("avg proof verify should have been true\n")
+	}
+
+	Dprintf(" [debug] FALSE-LEFT Next proof should fail\n")
+
+	proof, status = averageProve(CM, CMTok, value, sk, left)
+
+	if !status {
+		Dprintf("avgProof: status is true but should be false\n")
+	}
+
+	value = big.NewInt(0)
+	CM, randomness = PedCommit(value)
+	CMTok = pk.Mult(randomness)
+
+	Dprintf(" [debug] TRUE-LEFT Next proof should pass\n")
+
+	proof, status = averageProve(CM, CMTok, value, sk, left)
+
+	if !status {
+		Dprintf("avgProof: status is false but should be true\n")
+	}
+
+	if !avgVerify(CM, CMTok, proof) {
+		Dprintf("avg proof not working\n")
+		t.Fatalf("avg proof verify should have been true\n")
+	}
+
+	Dprintf(" [debug] FALSE-RIGHT Next proof should fail\n")
+
+	proof, status = averageProve(CM, CMTok, value, sk, right)
+
+	if !status {
+		Dprintf("avgProof: status is true but should be false\n")
+	}
+
+	fmt.Println("Passed TestAvg")
+}
