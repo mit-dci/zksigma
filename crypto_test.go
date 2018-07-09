@@ -276,7 +276,7 @@ func TestConsistency(t *testing.T) {
 	fmt.Println("Passed TestConsistency")
 }
 
-func TestAvg(t *testing.T) {
+func TestAbc(t *testing.T) {
 	sk, err := rand.Int(rand.Reader, zkCurve.N)
 	pk := zkCurve.H.Mult(sk)
 	value, err := rand.Int(rand.Reader, zkCurve.N)
@@ -287,20 +287,20 @@ func TestAvg(t *testing.T) {
 
 	Dprintf(" [debug] TRUE-RIGHT Next proof should pass\n")
 
-	proof, status := averageProve(CM, CMTok, value, sk, right)
+	proof, status := abcProve(CM, CMTok, value, sk, right)
 
 	if !status {
 		Dprintf("avgProof: status is false but should be true")
 	}
 
-	if !avgVerify(CM, CMTok, proof) {
+	if !abcVerify(CM, CMTok, proof) {
 		Dprintf("avg proof not working\n")
 		t.Fatalf("avg proof verify should have been true\n")
 	}
 
 	Dprintf(" [debug] FALSE-LEFT Next proof should fail\n")
 
-	proof, status = averageProve(CM, CMTok, value, sk, left)
+	proof, status = abcProve(CM, CMTok, value, sk, left)
 
 	if !status {
 		Dprintf("avgProof: status is true but should be false\n")
@@ -312,20 +312,20 @@ func TestAvg(t *testing.T) {
 
 	Dprintf(" [debug] TRUE-LEFT Next proof should pass\n")
 
-	proof, status = averageProve(CM, CMTok, value, sk, left)
+	proof, status = abcProve(CM, CMTok, value, sk, left)
 
 	if !status {
 		Dprintf("avgProof: status is false but should be true\n")
 	}
 
-	if !avgVerify(CM, CMTok, proof) {
+	if !abcVerify(CM, CMTok, proof) {
 		Dprintf("avg proof not working\n")
 		t.Fatalf("avg proof verify should have been true\n")
 	}
 
 	Dprintf(" [debug] FALSE-RIGHT Next proof should fail\n")
 
-	proof, status = averageProve(CM, CMTok, value, sk, right)
+	proof, status = abcProve(CM, CMTok, value, sk, right)
 
 	if !status {
 		Dprintf("avgProof: status is true but should be false\n")

@@ -85,7 +85,6 @@ func (p ECPoint) Neg() ECPoint {
 
 // ============= BASIC zklCrypto OPERATIONS ==================
 // These functions are not directly used in the code base much
-// TODO: Remove the following functions and just use PedCommits
 
 // CommitR uses the Public Key (pk) and a random number (r mod e.N) to generate a commitment of r as an ECPoint
 // A commitment is the locking of a value with a public key that can be posted publically and verifed by everyone
@@ -165,9 +164,7 @@ func Init() {
 
 // =============== PEDERSEN COMMITMENTS ================
 
-// TODO: figure out if CommitR and PedCommit/R are redundant
-
-// Commit generates a pedersen commitment of (value) using agreeded upon generators of (zkCurve),
+// PedCommit generates a pedersen commitment of (value) using agreeded upon generators of (zkCurve),
 // also returns the random value generated for the commitment
 func PedCommit(value *big.Int) (ECPoint, *big.Int) {
 
@@ -249,8 +246,10 @@ type GSPFSProof struct {
 // GSPFSProve generates a Schnorr proof for the value x
 func GSPFSProve(x *big.Int) *GSPFSProof {
 
+	modValue := new(big.Int).Mod(x, zkCurve.N)
+
 	// res = xG
-	resX, resY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, x.Bytes())
+	resX, resY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, modValue.Bytes())
 
 	// u is a raondom number
 	u, err := rand.Int(rand.Reader, zkCurve.N)
@@ -270,13 +269,11 @@ func GSPFSProve(x *big.Int) *GSPFSProof {
 	Challenge := new(big.Int).SetBytes(stringHashed[:])
 
 	// v = u - c * x
-	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, x))
+	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
 	HiddenValue.Mod(HiddenValue, zkCurve.N)
 
 	return &GSPFSProof{ECPoint{uX, uY}, HiddenValue, Challenge}
 }
-
-// TODO: check if result should be within the proof
 
 // GSPFSVerify checks if a proof-commit pair is valid
 func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
@@ -341,11 +338,13 @@ func EquivilanceProve(
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
-	checkX, checkY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
+	modValue := new(big.Int).Mod(x, zkCurve.N)
+
+	checkX, checkY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, modValue.Bytes())
 	if checkX.Cmp(Result1.X) != 0 || checkY.Cmp(Result1.Y) != 0 {
 		Dprintf("EquivProof check: Base1 and Result1 are not related by x... \n")
 	}
-	checkX, checkY = zkCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
+	checkX, checkY = zkCurve.C.ScalarMult(Base2.X, Base2.Y, modValue.Bytes())
 	if checkX.Cmp(Result2.X) != 0 || checkY.Cmp(Result2.Y) != 0 {
 		Dprintf("EquivProof check: Base2 and Result2 are not related by x... \n")
 	}
@@ -372,7 +371,7 @@ func EquivilanceProve(
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 
-	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, x))
+	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, modValue))
 	HiddenValue.Mod(HiddenValue, zkCurve.N)
 
 	return EquivProof{
@@ -492,7 +491,9 @@ type EquivORLogProof struct {
 
 func EquivilanceORLogProve(
 	Base1, Result1, Base2, Result2, Base3, Result3 ECPoint,
-	x *big.Int, option side) EquivORLogProof {
+	x *big.Int, option side) (EquivORLogProof, bool) {
+
+	modValue := new(big.Int).Mod(x, zkCurve.N)
 
 	u1, err := rand.Int(rand.Reader, zkCurve.N)
 	check(err)
@@ -504,7 +505,23 @@ func EquivilanceORLogProve(
 	u2Neg := new(big.Int).Neg(u2)
 	u2Neg.Mod(u2Neg, zkCurve.N)
 
-	if option == left { //Proving Equivilance
+	if option == left {
+
+		testX, testY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
+
+		if testX.Cmp(Result1.X) != 0 || testY.Cmp(Result1.Y) != 0 {
+			fmt.Println("We are lying about Base1-Result1 relationship in equivOrLog")
+			return EquivORLogProof{}, false
+		}
+
+		testX, testY = zkCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
+
+		if testX.Cmp(Result2.X) != 0 || testY.Cmp(Result2.Y) != 0 {
+			fmt.Println("We are lying about Base1-Result1 relationship in equivOrLog")
+			return EquivORLogProof{}, false
+		}
+
+		//Proving Equivilance
 		// u1G = T1
 		T1X, T1Y := zkCurve.C.ScalarMult(Base1.X, Base1.Y, u1.Bytes())
 		// u1H = T2
@@ -533,15 +550,23 @@ func EquivilanceORLogProve(
 		deltaC := new(big.Int).Add(Challenge, u2Neg)
 		deltaC.Mod(deltaC, zkCurve.N)
 
-		s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
+		s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, modValue))
 
 		return EquivORLogProof{
 			ECPoint{T1X, T1Y},
 			ECPoint{T2X, T2Y},
 			ECPoint{T3X, T3Y},
-			Challenge, deltaC, u2, s, u3}
+			Challenge, deltaC, u2, s, u3}, true
 
 	}
+
+	testX, testY := zkCurve.C.ScalarMult(Base3.X, Base3.Y, x.Bytes())
+
+	if testX.Cmp(Result3.X) != 0 || testY.Cmp(Result3.Y) != 0 {
+		fmt.Println("We are lying about Base13-Result3 relationship in equivOrLog")
+		return EquivORLogProof{}, false
+	}
+
 	// Proving discrete log
 
 	// u1G + (-u2A) = T1
@@ -575,13 +600,13 @@ func EquivilanceORLogProve(
 	deltaC := new(big.Int).Add(Challenge, u2Neg)
 	deltaC.Mod(deltaC, zkCurve.N)
 
-	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
+	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, modValue))
 
 	return EquivORLogProof{
 		ECPoint{T1X, T1Y},
 		ECPoint{T2X, T2Y},
 		ECPoint{T3X, T3Y},
-		Challenge, u2, deltaC, u3, s}
+		Challenge, u2, deltaC, u3, s}, true
 
 }
 
@@ -639,7 +664,9 @@ type DisjunctiveProof struct {
 
 // DisjunctiveProve generates a disjunctive proof for the given x
 func DisjunctiveProve(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option side) *DisjunctiveProof {
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option side) (*DisjunctiveProof, bool) {
+
+	modValue := new(big.Int).Mod(x, zkCurve.N)
 
 	// Declaring them like this because Golang crys otherwise
 	ProveBase := zkCurve.Zero()
@@ -660,13 +687,12 @@ func DisjunctiveProve(
 		OtherResult = Result1
 	} else { // number for option is not correct
 		Dprintf("ERROR --- Invalid option number given for DisjunctiveProve\n")
-		return nil
+		return &DisjunctiveProof{}, false
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
-		Dprintf("Seems like we're lying about values we know...", x, ProveBase, ProveResult)
-		// TODO: do something with error checking or whatever
-		return nil
+		Dprintf("Seems like we're lying about values we know...", modValue, ProveBase, ProveResult)
+		return &DisjunctiveProof{}, false
 	}
 
 	u1, err := rand.Int(rand.Reader, zkCurve.N)
@@ -714,7 +740,7 @@ func DisjunctiveProve(
 	deltaC := new(big.Int).Sub(Challenge, u3)
 	deltaC.Mod(deltaC, zkCurve.N)
 
-	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, x))
+	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, modValue))
 
 	// Look at mapping given in block comment above
 	if option == left {
@@ -725,7 +751,7 @@ func DisjunctiveProve(
 			deltaC,
 			u3,
 			s,
-			u2}
+			u2}, true
 	}
 
 	return &DisjunctiveProof{
@@ -735,11 +761,7 @@ func DisjunctiveProve(
 		u3,
 		deltaC,
 		u2,
-		s}
-
-	// // Should never reach this statement, best not to have undefined behaviour though
-	// Dprintf("ERROR --- Should not be here loc: AAA")
-	// return nil
+		s}, true
 }
 
 /*
@@ -850,7 +872,7 @@ type ConsistencyProof struct {
 */
 
 func ConsistencyProve(
-	Point1, Point2, PubKey ECPoint, value, randomness *big.Int) *ConsistencyProof {
+	Point1, Point2, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, bool) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
@@ -861,11 +883,12 @@ func ConsistencyProve(
 	// randomness are correct
 	if !Point1.Equal(PedCommitR(value, randomness)) {
 		fmt.Println("Tsk tsk tsk, lying about our commitments, ay?")
+		return &ConsistencyProof{}, false
 	}
 
 	if !Point2.Equal(PubKey.Mult(randomness)) {
-		fmt.Println(
-			"Such disgrace! Lying about our Randomness Token! The audacity!")
+		fmt.Println("Such disgrace! Lying about our Randomness Token! The audacity!")
+		return &ConsistencyProof{}, false
 	}
 
 	u1, err := rand.Int(rand.Reader, zkCurve.N)
@@ -905,7 +928,7 @@ func ConsistencyProve(
 	// Dprintf("Proof s2Pk : %v\n", PubKey.Mult(s2))
 	// Dprintf("Proof T2 + cY : %v", T1.Add(Point2.Mult(Challenge)))
 
-	return &ConsistencyProof{T1, T2, Challenge, s1, s2}
+	return &ConsistencyProof{T1, T2, Challenge, s1, s2}, true
 
 }
 
@@ -977,7 +1000,7 @@ func ConsistencyVerify(
 // involves the bank being audited
 
 /*
-	avgProof: generate a proof that commitment C is either 0 or 1
+	abcProof: generate a proof that commitment C is either 0 or 1
 			  depending on if we are involved in a tx. This will later
 			  be used to generate a sum to preform an average calculation
 
@@ -1013,8 +1036,8 @@ func ConsistencyVerify(
 											 cC + T2 ?= jB + lH
 */
 
-// TODO: differnt name for avgProof
-type avgProof struct {
+// TODO: differnt name for abcProof
+type abcProof struct {
 	B         ECPoint  // commitment for b = 0 OR inv(v)
 	C         ECPoint  // commitment for c = 0 OR 1 ONLY
 	T1        ECPoint  // T1 = u1G + u2MTok
@@ -1027,11 +1050,11 @@ type avgProof struct {
 	// proofC    *GSPFSProof // proof that we know value of c
 }
 
-// TODO: add true and false flags to all proof gens incase of proof gen failure
-
 // option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
-func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof, bool) {
+func abcProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (abcProof, bool) {
+
+	modValue := new(big.Int).Mod(value, zkCurve.N)
 
 	u1, err := rand.Int(rand.Reader, zkCurve.N)
 	u2, err := rand.Int(rand.Reader, zkCurve.N)
@@ -1043,9 +1066,9 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 	if option == left {
 
 		// v = 0
-		if value.Cmp(big.NewInt(0)) != 0 {
+		if modValue.Cmp(big.NewInt(0)) != 0 {
 			Dprintf("We are lying about value of tx and trying to generate inccorect proof")
-			return avgProof{}, false
+			return abcProof{}, false
 		}
 
 		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
@@ -1054,7 +1077,7 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 		// C = 0 + ucH
 		C := PedCommitR(big.NewInt(0), uc)
 
-		// proofA := GSPFSProve(value)
+		// proofA := GSPFSProve(modValue)
 		// proofC := GSPFSProve(big.NewInt(0))
 
 		// CMTok is Ta for the rest of the proof
@@ -1097,7 +1120,7 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 		// l = u3 + (uc - v * ub) * c , v = 0
 		l := new(big.Int).Add(u3, new(big.Int).Mul(uc, Challenge))
 
-		return avgProof{
+		return abcProof{
 			B,
 			C,
 			ECPoint{T1X, T1Y},
@@ -1108,13 +1131,13 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 	} else if option == right {
 
 		// v != 0
-		if value.Cmp(big.NewInt(0)) == 0 {
+		if modValue.Cmp(big.NewInt(0)) == 0 {
 			Dprintf("We are lying about value of tx and trying to generate inccorect proof")
-			return avgProof{}, false
+			return abcProof{}, false
 		}
 
 		// B = inv(v)G + ubH
-		B := PedCommitR(new(big.Int).ModInverse(value, zkCurve.N), ub)
+		B := PedCommitR(new(big.Int).ModInverse(modValue, zkCurve.N), ub)
 
 		// C = G + ucH
 		C := PedCommitR(big.NewInt(1), uc)
@@ -1153,7 +1176,7 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 		Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 		// j = u1 + v * c , can be though of as s1
-		j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
+		j := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
 		j = new(big.Int).Mod(j, zkCurve.N)
 
 		// k = u2 + inv(sk) * c
@@ -1163,10 +1186,10 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 		k = new(big.Int).Mod(k, zkCurve.N)
 
 		// l = u3 + (uc - v * ub) * c
-		temp := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
+		temp := new(big.Int).Sub(uc, new(big.Int).Mul(modValue, ub))
 		l := new(big.Int).Add(u3, new(big.Int).Mul(temp, Challenge))
 
-		return avgProof{
+		return abcProof{
 			B,
 			C,
 			ECPoint{T1X, T1Y},
@@ -1175,8 +1198,8 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 			j, k, l}, true
 
 	} else {
-		Dprintf("avgProof: side passed is not valid")
-		return avgProof{}, false
+		Dprintf("abcProof: side passed is not valid")
+		return abcProof{}, false
 	}
 }
 
@@ -1188,15 +1211,15 @@ func averageProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (avgProof,
 	cC + T2 ?= jB + lH
 */
 
-func avgVerify(CM, CMTok ECPoint, aProof avgProof) bool {
+func abcVerify(CM, CMTok ECPoint, aProof abcProof) bool {
 
 	// if !GSPFSVerify(CM, aProof.proofA) {
-	// 	Dprintf("avgProof for proofA is false\n")
+	// 	Dprintf("abcProof for proofA is false\n")
 	// 	return false
 	// }
 
 	// if !GSPFSVerify(aProof.C, aProof.proofC) {
-	// 	Dprintf("avgProof for proofC is false\n")
+	// 	Dprintf("abcProof for proofC is false\n")
 	// 	return false
 	// }
 
@@ -1216,7 +1239,7 @@ func avgVerify(CM, CMTok ECPoint, aProof avgProof) bool {
 
 	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
 	if Challenge.Cmp(aProof.Challenge) != 0 {
-		Dprintf("avgVerify: proof contains incorrect chanllenge\n")
+		Dprintf("abcVerify: proof contains incorrect chanllenge\n")
 		return false
 	}
 
@@ -1233,7 +1256,7 @@ func avgVerify(CM, CMTok ECPoint, aProof avgProof) bool {
 	rhs1 := jG.Add(kCMTok)
 
 	if !lhs1.Equal(rhs1) {
-		Dprintf("avgVerify: cCM + T1 != jG + kCMTok\n")
+		Dprintf("abcVerify: cCM + T1 != jG + kCMTok\n")
 		return false
 	}
 
@@ -1246,7 +1269,7 @@ func avgVerify(CM, CMTok ECPoint, aProof avgProof) bool {
 	rhs2 := jB.Add(lH)
 
 	if !lhs2.Equal(rhs2) {
-		Dprintf("avgVerify: cC + T2 != jB + lH\n")
+		Dprintf("abcVerify: cC + T2 != jB + lH\n")
 		return false
 	}
 
