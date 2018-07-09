@@ -170,7 +170,7 @@ func TestEquivilance(t *testing.T) {
 	Result2X, Result2Y := zkCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
 	Result2 := ECPoint{Result2X, Result2Y}
 
-	eqProof := EquivilanceProve(Base1, Result1, Base2, Result2, x)
+	eqProof, status1 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
 
 	if !EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof) {
 		fmt.Printf("Base1 : %v\n", Base1)
@@ -204,6 +204,10 @@ func TestEquivilance(t *testing.T) {
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
+	if !status1 {
+		t.Fatalf("One of the proofs' status is not correct\n")
+	}
+
 	fmt.Println("Passed TestEquivilance")
 
 }
@@ -218,8 +222,8 @@ func TestDisjunctive(t *testing.T) {
 	Base2 := zkCurve.H
 	Result2 := zkCurve.H.Mult(y)
 
-	djProofLEFT := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
-	djProofRIGHT := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
+	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
+	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
 
 	Dprintf("[debug] First djProof : ")
 	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT) {
@@ -232,10 +236,10 @@ func TestDisjunctive(t *testing.T) {
 	}
 
 	Dprintf("Passed \n [debug] Next djProof attemp should result in an error message\n")
-	djProofTEST := DisjunctiveProve(Base1, Result1, Base2, Result2, y, left) // This should fail
+	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, left) // This should fail
 
-	if djProofTEST != nil {
-		t.Fatalf("djProof should not have been generated\n")
+	if !status1 || !status2 || status3 {
+		t.Fatalf("One of the proofs' status is incorrect\n")
 	}
 
 	fmt.Println("Passed TestDisjunctiveg")
@@ -257,7 +261,7 @@ func TestConsistency(t *testing.T) {
 	comm, u := PedCommit(x)
 	y := pk.Mult(u)
 
-	conProof := ConsistencyProve(comm, y, pk, x, u)
+	conProof, status1 := ConsistencyProve(comm, y, pk, x, u)
 
 	Dprintf(" [debug] Testing correct consistency proof\n")
 	if !ConsistencyVerify(comm, y, pk, conProof) {
@@ -266,11 +270,15 @@ func TestConsistency(t *testing.T) {
 
 	Dprintf(" [debug] Next proof should fail\n")
 
-	conProof = ConsistencyProve(y, comm, pk, x, u)
+	conProof, status2 := ConsistencyProve(y, comm, pk, x, u)
 
 	Dprintf(" [debug] Testing incorrect consistency proof\n")
-	if ConsistencyVerify(comm, y, pk, conProof) {
-		t.Fatalf("Error -- Proof should be wrong\n")
+	// if ConsistencyVerify(comm, y, pk, conProof) {
+	// 	t.Fatalf("Error -- Proof should be wrong\n")
+	// }
+
+	if !status1 || status2 {
+		t.Fatalf("One of the proofs' status is incorrect\n")
 	}
 
 	fmt.Println("Passed TestConsistency")

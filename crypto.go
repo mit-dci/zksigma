@@ -267,6 +267,7 @@ func GSPFSProve(x *big.Int) *GSPFSProof {
 
 	// c = bigInt(SHA256(stringToHash))
 	Challenge := new(big.Int).SetBytes(stringHashed[:])
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 	// v = u - c * x
 	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
@@ -288,6 +289,7 @@ func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
 	// testC is the challenge string generated from the Proof and commitment being verified
 	hasher.Write([]byte(stringToHash))
 	testC := new(big.Int).SetBytes(hasher.Sum(nil))
+	testC = new(big.Int).Mod(testC, zkCurve.N)
 
 	// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
 	sX, sY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, proof.HiddenValue.Bytes())
@@ -334,7 +336,7 @@ type EquivProof struct {
 
 // EquivilanceProve generates an equivilance proof that Result1 and Result2 use the same discrete log x
 func EquivilanceProve(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) EquivProof {
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (EquivProof, bool) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
@@ -343,10 +345,12 @@ func EquivilanceProve(
 	checkX, checkY := zkCurve.C.ScalarMult(Base1.X, Base1.Y, modValue.Bytes())
 	if checkX.Cmp(Result1.X) != 0 || checkY.Cmp(Result1.Y) != 0 {
 		Dprintf("EquivProof check: Base1 and Result1 are not related by x... \n")
+		return EquivProof{}, false
 	}
 	checkX, checkY = zkCurve.C.ScalarMult(Base2.X, Base2.Y, modValue.Bytes())
 	if checkX.Cmp(Result2.X) != 0 || checkY.Cmp(Result2.Y) != 0 {
 		Dprintf("EquivProof check: Base2 and Result2 are not related by x... \n")
+		return EquivProof{}, false
 	}
 
 	// random number
@@ -370,6 +374,7 @@ func EquivilanceProve(
 	hasher.Write([]byte(stringToHash))
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, modValue))
 	HiddenValue.Mod(HiddenValue, zkCurve.N)
@@ -378,7 +383,7 @@ func EquivilanceProve(
 		ECPoint{uBase1X, uBase1Y}, // uG
 		ECPoint{uBase2X, uBase2Y}, // uH
 		Challenge,
-		HiddenValue} //Kinda dumb this bracket cannot be on the next line...
+		HiddenValue}, true
 
 }
 
@@ -397,6 +402,7 @@ func EquivilanceVerify(
 	hasher.Write([]byte(stringToHash))
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 	if Challenge.Cmp(eqProof.Challenge) != 0 {
 		Dprintf(" [crypto] c comparison failed. proof: %v calculated: %v\n",
@@ -736,6 +742,7 @@ func DisjunctiveProve(
 	hasher := sha256.New()
 	hasher.Write([]byte(stringToHash))
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 	deltaC := new(big.Int).Sub(Challenge, u3)
 	deltaC.Mod(deltaC, zkCurve.N)
@@ -796,6 +803,8 @@ func DisjunctiveVerify(
 	hasher.Write([]byte(stringToHash))
 	// C
 	checkC := new(big.Int).SetBytes(hasher.Sum(nil))
+	checkC = new(big.Int).Mod(checkC, zkCurve.N)
+
 	if checkC.Cmp(C) != 0 {
 		Dprintf("DJproof failed : checkC does not agree with proofC\n")
 		return false
@@ -882,12 +891,12 @@ func ConsistencyProve(
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
 	if !Point1.Equal(PedCommitR(value, randomness)) {
-		fmt.Println("Tsk tsk tsk, lying about our commitments, ay?")
+		Dprintf("Tsk tsk tsk, lying about our commitments, ay?\n")
 		return &ConsistencyProof{}, false
 	}
 
 	if !Point2.Equal(PubKey.Mult(randomness)) {
-		fmt.Println("Such disgrace! Lying about our Randomness Token! The audacity!")
+		Dprintf("Such disgrace! Lying about our Randomness Token! The audacity!\n")
 		return &ConsistencyProof{}, false
 	}
 
@@ -911,6 +920,7 @@ func ConsistencyProve(
 	hasher := sha256.New()
 	hasher.Write([]byte(stringToHash))
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 	s1 := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
 	s2 := new(big.Int).Add(u2, new(big.Int).Mul(randomness, Challenge))
@@ -959,6 +969,7 @@ func ConsistencyVerify(
 	hasher.Write([]byte(stringToHash))
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, zkCurve.N)
 
 	// c ?= HASH(G, H, T1, T2, PK, CM, Y)
 	if Challenge.Cmp(conProof.Challenge) != 0 {

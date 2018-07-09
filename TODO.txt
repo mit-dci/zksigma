@@ -2,14 +2,13 @@ Stuff to do:
 
  - Make sure that all the Challenge's had a Mod operation applied to then...
  - Add in Base-Result checks to EquivORLogProof
- - Check what is redundant and see what functions can be deleted
  - EquivilanceOrLog Verify function and test function on hold, not critical
- - add true and false flags to all proof gens incase of proof gen failure
- - all values should be modValue
  - generelize proofs that use zkCurve G and H to use whatever is passed into them?
+ - add in range proofs to crpyto.go? 
+ - more consistant error and fatalf messages 
 
 
 NOTES: 
 - EquivilanceOrLog is not used but built it anyways 
 - VerifyZeroSumCommitments is not necessary anymore, removed it comepletely
-- 
+- DO NOT CHECK PROOF THAT HAS NOT BEEN FILLED IN, do initial checks with the status booleans
