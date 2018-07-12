@@ -6,6 +6,12 @@ Stuff to do:
  - generelize proofs that use zkCurve G and H to use whatever is passed into them?
  - add in range proofs to crpyto.go? 
  - more consistant error and fatalf messages 
+ - make the audtiing functionality abstract, currently it is hardcoded just for sum audits
+ - REALLY LONG TERM: 
+    - for the auditRep, replace sum and eProof with []*bigInt for multiple returns
+    - same for the eProof, replace it with []*Proofs
+    - this would mean all proofs have to be derived from a "parent" proof class... 
+
 
 
 NOTES: 

@@ -14,10 +14,10 @@ func TestInit(t *testing.T) {
 
 func TestECPointMethods(t *testing.T) {
 	v := big.NewInt(3)
-	p := zkCurve.G.Mult(v)
+	p := ZKCurve.G.Mult(v)
 	negp := p.Neg()
 	sum := p.Add(negp)
-	if !sum.Equal(zkCurve.Zero()) {
+	if !sum.Equal(ZKCurve.Zero()) {
 		fmt.Printf("p : %v\n", p)
 		fmt.Printf("negp : %v\n", negp)
 		fmt.Printf("sum : %v\n", sum)
@@ -29,13 +29,13 @@ func TestECPointMethods(t *testing.T) {
 		fmt.Printf("negnegp : %v\n", negnegp)
 		t.Fatalf("-(-p) should be p\n")
 	}
-	sum = p.Add(zkCurve.Zero())
+	sum = p.Add(ZKCurve.Zero())
 	if !sum.Equal(p) {
 		fmt.Printf("p : %v\n", p)
 		fmt.Printf("sum : %v\n", sum)
 		t.Fatalf("p + 0 should be p\n")
 	}
-	fmt.Println("Passed TestzkCurveMethods")
+	fmt.Println("Passed TestZKCurveMethods")
 }
 
 func TestZkpCryptoStuff(t *testing.T) {
@@ -44,27 +44,27 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 	testCommit, randomValue := PedCommit(value) // xG + rH
 
-	value = new(big.Int).Mod(value, zkCurve.N)
+	value = new(big.Int).Mod(value, ZKCurve.N)
 
 	// vG
-	tempX, tempY := zkCurve.C.ScalarMult(zkCurve.G.X, zkCurve.G.Y, value.Bytes())
+	tempX, tempY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, value.Bytes())
 
 	ValEC := ECPoint{tempX, tempY}          // vG
-	InvValEC := zkCurve.G.Mult(value).Neg() // 1/vG (acutally mod operation but whatever you get it)
+	InvValEC := ZKCurve.G.Mult(value).Neg() // 1/vG (acutally mod operation but whatever you get it)
 	Dprintf("         vG : %v --- value : %v \n", ValEC, value)
 	Dprintf("       1/vG : %v\n", InvValEC)
 
-	tempX, tempY = zkCurve.C.Add(ValEC.X, ValEC.Y, InvValEC.X, InvValEC.Y)
+	tempX, tempY = ZKCurve.C.Add(ValEC.X, ValEC.Y, InvValEC.X, InvValEC.Y)
 	Dprintf("Added the above: %v, %v\n", tempX, tempY)
 
-	if tempX.Cmp(zkCurve.Zero().X) != 0 || tempY.Cmp(zkCurve.Zero().Y) != 0 {
+	if tempX.Cmp(ZKCurve.Zero().X) != 0 || tempY.Cmp(ZKCurve.Zero().Y) != 0 {
 		fmt.Printf("Added the above: %v, %v", tempX, tempY)
 		fmt.Printf("The above should have been (0,0)")
 		t.Fatalf("Failed Addition of inverse points failed")
 	}
 
 	testOpen := InvValEC.Add(testCommit)                                               // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
-	tempX, tempY = zkCurve.C.ScalarMult(zkCurve.H.X, zkCurve.H.Y, randomValue.Bytes()) // rH
+	tempX, tempY = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, randomValue.Bytes()) // rH
 	RandEC := ECPoint{tempX, tempY}
 
 	if !RandEC.Equal(testOpen) {
@@ -79,14 +79,14 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 func TestZkpCryptoCommitR(t *testing.T) {
 
-	u, err := rand.Int(rand.Reader, zkCurve.N)
+	u, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
-	testCommit := zkCurve.CommitR(zkCurve.H, u)
+	testCommit := ZKCurve.CommitR(ZKCurve.H, u)
 
-	if !(zkCurve.VerifyR(testCommit, zkCurve.H, u)) {
+	if !(ZKCurve.VerifyR(testCommit, ZKCurve.H, u)) {
 		fmt.Printf("testCommit: %v\n", testCommit)
-		fmt.Printf("zkCurve.H: %v, \n", zkCurve.H)
+		fmt.Printf("ZKCurve.H: %v, \n", ZKCurve.H)
 		fmt.Printf("u : %v\n", u)
 		t.Fatalf("testCommit should have passed verification\n")
 	}
@@ -130,11 +130,11 @@ func TestPedersenCommit(t *testing.T) {
 
 func TestGSPFS(t *testing.T) {
 
-	x, err := rand.Int(rand.Reader, zkCurve.N)
+	x, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
 	// MUST use G here becuase of GSPFSProve implementation
-	randPoint := zkCurve.G.Mult(x)
+	randPoint := ZKCurve.G.Mult(x)
 
 	testProof := GSPFSProve(x)
 
@@ -146,7 +146,7 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	// Using H here should break the proof
-	randPoint = zkCurve.H.Mult(x)
+	randPoint = ZKCurve.H.Mult(x)
 
 	if GSPFSVerify(randPoint, testProof) {
 		fmt.Printf("x : %v\n", x)
@@ -162,12 +162,12 @@ func TestGSPFS(t *testing.T) {
 func TestEquivilance(t *testing.T) {
 
 	x := big.NewInt(100)
-	Base1 := zkCurve.G
-	Result1X, Result1Y := zkCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
+	Base1 := ZKCurve.G
+	Result1X, Result1Y := ZKCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
 	Result1 := ECPoint{Result1X, Result1Y}
 
-	Base2 := zkCurve.H
-	Result2X, Result2Y := zkCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
+	Base2 := ZKCurve.H
+	Result2X, Result2Y := ZKCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
 	Result2 := ECPoint{Result2X, Result2Y}
 
 	eqProof, status1 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
@@ -217,10 +217,10 @@ func TestDisjunctive(t *testing.T) {
 	x := big.NewInt(100)
 	y := big.NewInt(101)
 
-	Base1 := zkCurve.G
-	Result1 := zkCurve.G.Mult(x)
-	Base2 := zkCurve.H
-	Result2 := zkCurve.H.Mult(y)
+	Base1 := ZKCurve.G
+	Result1 := ZKCurve.G.Mult(x)
+	Base2 := ZKCurve.H
+	Result2 := ZKCurve.H.Mult(y)
 
 	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
 	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
@@ -251,12 +251,12 @@ func TestDisjunctive(t *testing.T) {
 
 func TestConsistency(t *testing.T) {
 
-	x, err := rand.Int(rand.Reader, zkCurve.N)
+	x, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
-	sk, err := rand.Int(rand.Reader, zkCurve.N)
+	sk, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
-	pk := zkCurve.H.Mult(sk)
+	pk := ZKCurve.H.Mult(sk)
 
 	comm, u := PedCommit(x)
 	y := pk.Mult(u)
@@ -284,10 +284,10 @@ func TestConsistency(t *testing.T) {
 	fmt.Println("Passed TestConsistency")
 }
 
-func TestAbc(t *testing.T) {
-	sk, err := rand.Int(rand.Reader, zkCurve.N)
-	pk := zkCurve.H.Mult(sk)
-	value, err := rand.Int(rand.Reader, zkCurve.N)
+func TestABC(t *testing.T) {
+	sk, err := rand.Int(rand.Reader, ZKCurve.N)
+	pk := ZKCurve.H.Mult(sk)
+	value, err := rand.Int(rand.Reader, ZKCurve.N)
 
 	CM, randomness := PedCommit(value)
 	CMTok := pk.Mult(randomness)
@@ -295,20 +295,20 @@ func TestAbc(t *testing.T) {
 
 	Dprintf(" [debug] TRUE-RIGHT Next proof should pass\n")
 
-	proof, status := abcProve(CM, CMTok, value, sk, right)
+	proof, status, _ := ABCProve(CM, CMTok, value, sk, 1)
 
 	if !status {
 		Dprintf("avgProof: status is false but should be true")
 	}
 
-	if !abcVerify(CM, CMTok, proof) {
+	if !ABCVerify(CM, CMTok, proof) {
 		Dprintf("avg proof not working\n")
 		t.Fatalf("avg proof verify should have been true\n")
 	}
 
 	Dprintf(" [debug] FALSE-LEFT Next proof should fail\n")
 
-	proof, status = abcProve(CM, CMTok, value, sk, left)
+	proof, status, _ = ABCProve(CM, CMTok, value, sk, 0)
 
 	if !status {
 		Dprintf("avgProof: status is true but should be false\n")
@@ -320,24 +320,119 @@ func TestAbc(t *testing.T) {
 
 	Dprintf(" [debug] TRUE-LEFT Next proof should pass\n")
 
-	proof, status = abcProve(CM, CMTok, value, sk, left)
+	proof, status, _ = ABCProve(CM, CMTok, value, sk, 0)
 
 	if !status {
 		Dprintf("avgProof: status is false but should be true\n")
 	}
 
-	if !abcVerify(CM, CMTok, proof) {
+	if !ABCVerify(CM, CMTok, proof) {
 		Dprintf("avg proof not working\n")
 		t.Fatalf("avg proof verify should have been true\n")
 	}
 
 	Dprintf(" [debug] FALSE-RIGHT Next proof should fail\n")
 
-	proof, status = abcProve(CM, CMTok, value, sk, right)
+	proof, status, _ = ABCProve(CM, CMTok, value, sk, 1)
 
 	if !status {
 		Dprintf("avgProof: status is true but should be false\n")
 	}
 
-	fmt.Println("Passed TestAvg")
+	fmt.Println("Passed TestABC")
+}
+
+func TestAverages(t *testing.T) {
+
+	var TxCommits []ECPoint
+	var TxRands []ECPoint
+	var AvgCommits []ECPoint
+	var AvgRands []ECPoint
+
+	// total_rToken := big.NewInt(0)
+	// total_crToken := big.NewInt(0)
+
+	var numTx int64
+	numTx = 10
+	var TxValues []*big.Int
+
+	TxValues = make([]*big.Int, numTx)
+	TxCommits = make([]ECPoint, numTx)
+	TxRands = make([]ECPoint, numTx)
+	AvgCommits = make([]ECPoint, numTx)
+	AvgRands = make([]ECPoint, numTx)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	pk := ZKCurve.H.Mult(sk)
+
+	var temp *big.Int
+
+	// Generating random transactions
+	for ii := int64(0); ii < numTx; ii++ {
+		value, _ := rand.Int(rand.Reader, big.NewInt(1000))
+		TxValues[ii] = new(big.Int).Set(value)
+
+		TxCommits[ii], temp = PedCommit(value)
+		TxRands[ii] = pk.Mult(temp)
+		// total_rToken = new(big.Int).Add(total_rToken, temp)
+
+		aProof, status, uc := ABCProve(TxCommits[ii], TxRands[ii], value, sk, 1)
+		if !status {
+			Dprintf("Something went wrong...\n")
+		}
+
+		AvgCommits[ii] = aProof.C
+		AvgRands[ii] = pk.Mult(uc)
+		// total_crToken = new(big.Int).Add(total_crToken, temp)
+	}
+
+	var TxAgg ECPoint
+	var RandAgg ECPoint
+	var AvgAgg ECPoint
+	var CRandAgg ECPoint
+	TotalClear := big.NewInt(0)
+	NonZeroTx := big.NewInt(0)
+
+	TxAgg = ZKCurve.Zero()
+	RandAgg = ZKCurve.Zero()
+	AvgAgg = ZKCurve.Zero()
+	CRandAgg = ZKCurve.Zero()
+
+	for ii := int64(0); ii < numTx; ii++ {
+		TxAgg = TxAgg.Add(TxCommits[ii])
+		RandAgg = RandAgg.Add(TxRands[ii])
+		AvgAgg = AvgAgg.Add(AvgCommits[ii])
+		CRandAgg = CRandAgg.Add(AvgRands[ii])
+		TotalClear = TotalClear.Add(TotalClear, TxValues[ii])
+		if TxValues[ii].Cmp(big.NewInt(0)) == 0 {
+			numTx--
+		}
+
+	}
+
+	NonZeroTx = big.NewInt(numTx)
+	ClearAverage := new(big.Int).Quo(TotalClear, NonZeroTx)
+
+	// TOTAL CLEAR WILL BE REPLACED WITH BANK ANSWER
+	gv := ZKCurve.G.Mult(TotalClear).Neg()
+	T := TxAgg.Add(gv)
+
+	EProofSum, _ := EquivilanceProve(T, RandAgg, ZKCurve.H, pk, sk)
+	Dprintf("EProofSum : %v\n", EProofSum)
+
+	if !EquivilanceVerify(T, RandAgg, ZKCurve.H, pk, EProofSum) {
+		fmt.Printf("Something wrongs... avg : %v\n", ClearAverage)
+	}
+
+	// TXCOUNT WILL BE REPLACED WITH BANK ANSWER
+	nv := ZKCurve.G.Mult(NonZeroTx).Neg()
+	L := AvgAgg.Add(nv)
+
+	EProofAvg, _ := EquivilanceProve(L, CRandAgg, ZKCurve.H, pk, sk)
+	Dprintf("EProofSum : %v\n", EProofAvg)
+
+	if !EquivilanceVerify(L, CRandAgg, ZKCurve.H, pk, EProofAvg) {
+		fmt.Printf("Something wrongs... avg : %v\n", ClearAverage)
+	}
+
 }
