@@ -4,7 +4,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"math/big"
@@ -15,7 +14,8 @@ import (
 // MAKE SURE TO CALL init() BEFORE DOING ANYTHING
 // Global vars used to maintain all the crypto constants
 var ZKCurve zkpCrypto // look for init()
-var H2tothe []ECPoint // look for init()
+var GPoints []ECPoint
+var HPoints []ECPoint // look for init()
 
 type side int
 
@@ -117,21 +117,14 @@ func (e zkpCrypto) Zero() ECPoint {
 // I trust that the keygen stuff works, if it doesnt ask Willy
 
 func NewECPrimeGroupKey() zkpCrypto {
-	curValue := btcec.S256().Gx
+	curValue := ECPoint{btcec.S256().Gx, btcec.S256().Gy}
 	s256 := sha256.New()
-	s256.Write(new(big.Int).Add(curValue, big.NewInt(2)).Bytes()) // hash G_x + 2 which
+	hashedString := s256.Sum([]byte("This is the new Random point and stuff"))
 
-	potentialXValue := make([]byte, 33)
-	binary.LittleEndian.PutUint32(potentialXValue, 2)
-	for i, elem := range s256.Sum(nil) {
-		potentialXValue[i+1] = elem
-	}
-
-	gen2, err := btcec.ParsePubKey(potentialXValue, btcec.S256())
-	check(err)
+	HX, HY := btcec.S256().ScalarMult(curValue.X, curValue.Y, hashedString)
 
 	return zkpCrypto{btcec.S256(), ECPoint{btcec.S256().Gx,
-		btcec.S256().Gy}, ECPoint{gen2.X, gen2.Y}, btcec.S256().N}
+		btcec.S256().Gy}, ECPoint{HX, HY}, btcec.S256().N}
 }
 
 func KeyGen() (ECPoint, *big.Int) {
@@ -143,26 +136,73 @@ func KeyGen() (ECPoint, *big.Int) {
 	return ECPoint{pkX, pkY}, sk
 }
 
-func DeterministicKeyGen(id int) (ECPoint, *big.Int) {
-	idb := big.NewInt(int64(id + 1))
-	pkX, pkY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, idb.Bytes())
-	return ECPoint{pkX, pkY}, idb
-}
+// func GenerateGPoints() []ECPoint {
+// 	GSlice := make([]ECPoint, 64)
 
-func GenerateH2tothe() []ECPoint {
-	Hslice := make([]ECPoint, 64)
-	for i := range Hslice {
-		// mv := new(big.Int).Exp(new(big.Int).SetInt64(2), big.NewInt(int64(len(bValue)-i-1)), EC.C.Params().N)
-		// This does the same thing.
-		m := big.NewInt(1 << uint(i))
-		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
-	}
-	return Hslice
-}
+// 	for i := range GSlice {
+// 		m := big.NewInt(1 << uint(i))
+// 		GSlice[i].X, GSlice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
+// 	}
+// 	return GSlice
+// }
+
+// func GenerateH2tothe() []ECPoint {
+// 	Hslice := make([]ECPoint, 64)
+// 	for i := range Hslice {
+// 		// mv := new(big.Int).Exp(new(big.Int).SetInt64(2), big.NewInt(int64(len(bValue)-i-1)), EC.C.Params().N)
+// 		// This does the same thing.
+// 		m := big.NewInt(1 << uint(i))
+// 		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
+// 	}
+// 	return Hslice
+// }
+
+// func FSBM_G(x []byte) ECPoint {
+
+// 	//Bz := new(big.Int).SetInt64(1)
+// 	//x, y, z := new(big.Int), new(big.Int), new(big.Int)
+
+// 	finalValue := ZKCurve.Zero()
+
+// 	for i, byte := range x {
+// 		for bitNum := 0; bitNum < 8; bitNum++ {
+// 			// x, y, z = curve.doubleJacobian(x, y, z)
+// 			if byte&0x80 == 0x80 {
+// 				finalValue = finalValue.Add(GPoints[i*8+bitNum])
+// 			}
+// 			byte <<= 1
+// 		}
+// 	}
+
+// 	return ECPoint{}
+
+// }
+
+// func FSBM_H(x []byte) ECPoint {
+
+// 	//Bz := new(big.Int).SetInt64(1)
+// 	//x, y, z := new(big.Int), new(big.Int), new(big.Int)
+
+// 	finalValue := ZKCurve.Zero()
+
+// 	for i, byte := range x {
+// 		for bitNum := 0; bitNum < 8; bitNum++ {
+// 			// x, y, z = curve.doubleJacobian(x, y, z)
+// 			if byte&0x80 == 0x80 {
+// 				finalValue = finalValue.Add(HPoints[i*8+bitNum])
+// 			}
+// 			byte <<= 1
+// 		}
+// 	}
+
+// 	return ECPoint{}
+
+// }
 
 func Init() {
 	ZKCurve = NewECPrimeGroupKey()
-	H2tothe = GenerateH2tothe()
+	GPoints = GenerateGPoints()
+	HPoints = GenerateH2tothe()
 }
 
 // =============== PEDERSEN COMMITMENTS ================
@@ -180,11 +220,11 @@ func PedCommit(value *big.Int) (ECPoint, *big.Int) {
 
 	// mG, rH :: lhs, rhs
 	// mG, rH :: lhs, rhs
-	lhs := ZKCurve.G.Mult(modValue)
+	lhsX, lhsY := ZKCurve.C.ScalarBaseMult(modValue.Bytes())
 	rhs := ZKCurve.H.Mult(randomValue)
 
 	//mG + rH
-	return lhs.Add(rhs), randomValue
+	return ECPoint{lhsX, lhsY}.Add(rhs), randomValue
 }
 
 // CommitWithR generates a pedersen commitment with a given random value
