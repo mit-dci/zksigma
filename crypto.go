@@ -30,11 +30,10 @@ type ECPoint struct {
 
 // zkpCrypto is zero knowledge proof curve and params struct, only one instance should be used
 type zkpCrypto struct {
-	C  elliptic.Curve      // Curve, this is primarily used for it's operations, the Curve itself is not used
-	KC *btcec.KoblitzCurve // Curve, this is the Curve used for
-	G  ECPoint             // generator 1
-	H  ECPoint             // generator 2
-	N  *big.Int            // exponent prime
+	C elliptic.Curve // Curve, this is primarily used for it's operations, the Curve itself is not used
+	G ECPoint        // generator 1
+	H ECPoint        // generator 2
+	N *big.Int       // exponent prime
 }
 
 // Geeric stuff
@@ -83,6 +82,10 @@ func (p ECPoint) Neg() ECPoint {
 	return ECPoint{p.X, modValue}
 }
 
+func (p ECPoint) Bytes() []byte {
+	return append(p.X.Bytes(), p.Y.Bytes()...)
+}
+
 // ============= BASIC zklCrypto OPERATIONS ==================
 // These functions are not directly used in the code base much
 
@@ -127,7 +130,7 @@ func NewECPrimeGroupKey() zkpCrypto {
 	gen2, err := btcec.ParsePubKey(potentialXValue, btcec.S256())
 	check(err)
 
-	return zkpCrypto{btcec.S256(), btcec.S256(), ECPoint{btcec.S256().Gx,
+	return zkpCrypto{btcec.S256(), ECPoint{btcec.S256().Gx,
 		btcec.S256().Gy}, ECPoint{gen2.X, gen2.Y}, btcec.S256().N}
 }
 
@@ -176,13 +179,12 @@ func PedCommit(value *big.Int) (ECPoint, *big.Int) {
 	check(err)
 
 	// mG, rH :: lhs, rhs
-	lhsX, lhsY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, modValue.Bytes())
-	rhsX, rhsY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, randomValue.Bytes())
+	// mG, rH :: lhs, rhs
+	lhs := ZKCurve.G.Mult(modValue)
+	rhs := ZKCurve.H.Mult(randomValue)
 
 	//mG + rH
-	commX, commY := ZKCurve.C.Add(lhsX, lhsY, rhsX, rhsY)
-
-	return ECPoint{commX, commY}, randomValue
+	return lhs.Add(rhs), randomValue
 }
 
 // CommitWithR generates a pedersen commitment with a given random value
@@ -197,13 +199,11 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	// modRandom := new(big.Int).Mod(randomValue, ZKCurve.N)
 
 	// mG, rH :: lhs, rhs
-	lhsX, lhsY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, modValue.Bytes())
-	rhsX, rhsY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, modRandom.Bytes())
+	lhs := ZKCurve.G.Mult(modValue)
+	rhs := ZKCurve.H.Mult(modRandom)
 
 	//mG + rH
-	commX, commY := ZKCurve.C.Add(lhsX, lhsY, rhsX, rhsY)
-
-	return ECPoint{commX, commY}
+	return lhs.Add(rhs)
 }
 
 // Open checks if the values given result in the PedComm being varifed
@@ -221,9 +221,9 @@ func Open(value, randomValue *big.Int, PedComm ECPoint) bool {
 
 // GSPFSProof is proof of knowledge of x
 type GSPFSProof struct {
-	RandCommit  ECPoint  `json:"T"` // this is H = uG, where u is random value and G is a generator point
-	HiddenValue *big.Int `json:"R"` // s = x * c + u, here c is the challenge and x is what we want to prove knowledge of
-	Challenge   *big.Int `json:"C"` // challenge string hash sum, only use for sanity checks
+	RandCommit  ECPoint  // this is H = uG, where u is random value and G is a generator point
+	HiddenValue *big.Int // s = x * c + u, here c is the challenge and x is what we want to prove knowledge of
+	Challenge   *big.Int // challenge string hash sum, only use for sanity checks
 }
 
 /*
@@ -245,36 +245,44 @@ type GSPFSProof struct {
 */
 
 // GSPFSProve generates a Schnorr proof for the value x
-func GSPFSProve(x *big.Int) *GSPFSProof {
+// TODO: this should also take in the pulic commit rather than generating it internal
+func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
 
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
 
+	testX, testY := ZKCurve.C.ScalarBaseMult(modValue.Bytes())
+
 	// res = xG
-	resX, resY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, modValue.Bytes())
+	if testX.Cmp(result.X) != 0 || testY.Cmp(result.Y) != 0 {
+		Dprintf("GSPFSProve: the point given is not xG\n")
+		return &GSPFSProof{}
+	}
 
 	// u is a raondom number
 	u, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
 	// generate random point uG
-	uX, uY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, u.Bytes())
+	uGX, uGY := ZKCurve.C.ScalarBaseMult(u.Bytes())
 
 	// genereate string to hash for challenge
-	stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + "," +
-		resX.String() + "," + resY.String() + "," +
-		uX.String() + "," + uY.String()
+	temp := [][]byte{result.Bytes(), uGX.Bytes(), uGY.Bytes()}
 
-	stringHashed := sha256.Sum256([]byte(stringToHash))
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
-	// c = bigInt(SHA256(stringToHash))
-	Challenge := new(big.Int).SetBytes(stringHashed[:])
+	hasher := sha256.New()
+	hasher.Write(bytesToHash)
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
 	// v = u - c * x
 	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
-	HiddenValue.Mod(HiddenValue, ZKCurve.N)
+	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
 
-	return &GSPFSProof{ECPoint{uX, uY}, HiddenValue, Challenge}
+	return &GSPFSProof{ECPoint{uGX, uGY}, HiddenValue, Challenge}
 }
 
 // GSPFSVerify checks if a proof-commit pair is valid
@@ -283,23 +291,31 @@ func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
 
 	hasher := sha256.New()
 
-	stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + "," +
-		result.X.String() + "," + result.Y.String() + "," +
-		proof.RandCommit.X.String() + "," + proof.RandCommit.Y.String()
+	temp := [][]byte{result.Bytes(), proof.RandCommit.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	// testC is the challenge string generated from the Proof and commitment being verified
-	hasher.Write([]byte(stringToHash))
+	hasher.Write(bytesToHash)
 	testC := new(big.Int).SetBytes(hasher.Sum(nil))
 	testC = new(big.Int).Mod(testC, ZKCurve.N)
 
+	if testC.Cmp(proof.Challenge) != 0 {
+		Dprintf("GSPFSVerify: testC and proof's challenge do not agree!\n")
+		return false
+	}
+
 	// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
-	sX, sY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, proof.HiddenValue.Bytes())
+	sX, sY := ZKCurve.C.ScalarBaseMult(proof.HiddenValue.Bytes())
 
 	// cResult = c(xG), we use testC as that follows the proof verficaion process more closely than using Challenge
-	cX, cY := ZKCurve.C.ScalarMult(result.X, result.Y, testC.Bytes())
+	c := result.Mult(proof.Challenge)
 
 	// cxG + (u - cx)G = uG
-	totX, totY := ZKCurve.C.Add(sX, sY, cX, cY)
+	totX, totY := ZKCurve.C.Add(sX, sY, c.X, c.Y)
 
 	if proof.RandCommit.X.Cmp(totX) != 0 || proof.RandCommit.Y.Cmp(totY) != 0 {
 		return false
@@ -343,13 +359,15 @@ func EquivilanceProve(
 
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
 
-	checkX, checkY := ZKCurve.C.ScalarMult(Base1.X, Base1.Y, modValue.Bytes())
-	if checkX.Cmp(Result1.X) != 0 || checkY.Cmp(Result1.Y) != 0 {
+	check1 := Base1.Mult(modValue)
+
+	if check1.X.Cmp(Result1.X) != 0 || check1.Y.Cmp(Result1.Y) != 0 {
 		Dprintf("EquivProof check: Base1 and Result1 are not related by x... \n")
 		return EquivProof{}, false
 	}
-	checkX, checkY = ZKCurve.C.ScalarMult(Base2.X, Base2.Y, modValue.Bytes())
-	if checkX.Cmp(Result2.X) != 0 || checkY.Cmp(Result2.Y) != 0 {
+
+	check2 := Base2.Mult(modValue)
+	if check2.X.Cmp(Result2.X) != 0 || check2.Y.Cmp(Result2.Y) != 0 {
 		Dprintf("EquivProof check: Base2 and Result2 are not related by x... \n")
 		return EquivProof{}, false
 	}
@@ -359,30 +377,31 @@ func EquivilanceProve(
 	check(err)
 
 	// uG
-	uBase1X, uBase1Y := ZKCurve.C.ScalarMult(Base1.X, Base1.Y, u.Bytes())
+	uBase1 := Base1.Mult(u)
 	// uH
-	uBase2X, uBase2Y := ZKCurve.C.ScalarMult(Base2.X, Base2.Y, u.Bytes())
+	uBase2 := Base2.Mult(u)
 
-	// HASH(G, H, xG, xH, kG, kH)
-	stringToHash := Base1.X.String() + "||" + Base1.Y.String() + ";" +
-		Base2.X.String() + "||" + Base2.Y.String() + ";" +
-		Result1.X.String() + "||" + Result1.Y.String() + ";" +
-		Result2.X.String() + "||" + Result2.Y.String() + ";" +
-		uBase1X.String() + "||" + uBase1Y.String() + ";" +
-		uBase2X.String() + "||" + uBase2Y.String() + ";"
+	// HASH(G, H, xG, xH, uG, uH)
+	temp := [][]byte{Base1.Bytes(), Result1.Bytes(), Base2.Bytes(), Result2.Bytes(), uBase1.Bytes(), uBase2.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
+	hasher.Write(bytesToHash)
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
+	// s = u + c * x
 	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, modValue))
-	HiddenValue.Mod(HiddenValue, ZKCurve.N)
+	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
 
 	return EquivProof{
-		ECPoint{uBase1X, uBase1Y}, // uG
-		ECPoint{uBase2X, uBase2Y}, // uH
+		uBase1, // uG
+		uBase2, // uH
 		Challenge,
 		HiddenValue}, true
 
@@ -392,15 +411,15 @@ func EquivilanceProve(
 func EquivilanceVerify(
 	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) bool {
 	// Regenerate challenge string
-	stringToHash := Base1.X.String() + "||" + Base1.Y.String() + ";" +
-		Base2.X.String() + "||" + Base2.Y.String() + ";" +
-		Result1.X.String() + "||" + Result1.Y.String() + ";" +
-		Result2.X.String() + "||" + Result2.Y.String() + ";" +
-		eqProof.UG.X.String() + "||" + eqProof.UG.Y.String() + ";" +
-		eqProof.UH.X.String() + "||" + eqProof.UH.Y.String() + ";"
+	temp := [][]byte{Base1.Bytes(), Result1.Bytes(), Base2.Bytes(), Result2.Bytes(), eqProof.UG.Bytes(), eqProof.UH.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
+	hasher.Write(bytesToHash)
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
@@ -411,25 +430,25 @@ func EquivilanceVerify(
 		return false
 	}
 
-	// sG ?= uG + cG
-	sGX, sGY := ZKCurve.C.ScalarMult(Base1.X, Base1.Y, eqProof.HiddenValue.Bytes())
-	cGX, cGY := ZKCurve.C.ScalarMult(Result1.X, Result1.Y, eqProof.Challenge.Bytes())
-	testX, testY := ZKCurve.C.Add(eqProof.UG.X, eqProof.UG.Y, cGX, cGY)
+	// sG ?= uG + cA
+	sG := Base1.Mult(eqProof.HiddenValue)
+	cG := Result1.Mult(eqProof.Challenge)
+	testX, testY := ZKCurve.C.Add(eqProof.UG.X, eqProof.UG.Y, cG.X, cG.Y)
 
-	if sGX.Cmp(testX) != 0 || sGY.Cmp(testY) != 0 {
-		Dprintf(" [crypto] lhs/rhs cmp failed. lhsX %v lhsY %v rhsX %v rhsY %v\n",
-			sGX, sGY, testX, testY)
+	if sG.X.Cmp(testX) != 0 || sG.Y.Cmp(testY) != 0 {
+		Dprintf(" [crypto] sG: lhs/rhs cmp failed. lhsX %v lhsY %v rhsX %v rhsY %v\n",
+			sG.X, sG.Y, testX, testY)
 		return false
 	}
 
-	// sH ?= uH + cH
-	sHX, sHY := ZKCurve.C.ScalarMult(Base2.X, Base2.Y, eqProof.HiddenValue.Bytes())
-	cHX, cHY := ZKCurve.C.ScalarMult(Result2.X, Result2.Y, eqProof.Challenge.Bytes())
-	testX, testY = ZKCurve.C.Add(eqProof.UH.X, eqProof.UH.Y, cHX, cHY)
+	// sH ?= uH + cB
+	sH := Base2.Mult(eqProof.HiddenValue)
+	cH := Result2.Mult(eqProof.Challenge)
+	testX, testY = ZKCurve.C.Add(eqProof.UH.X, eqProof.UH.Y, cH.X, cH.Y)
 
-	if sHX.Cmp(testX) != 0 || sHY.Cmp(testY) != 0 {
-		Dprintf(" [crypto] lhs/rhs cmp failed. lhsX %v lhsY %v rhsX %v rhsY %v\n",
-			sHX, sHY, testX, testY)
+	if sH.X.Cmp(testX) != 0 || sH.Y.Cmp(testY) != 0 {
+		Dprintf(" [crypto] sH: lhs/rhs cmp failed. lhsX %v lhsY %v rhsX %v rhsY %v\n",
+			sH.X, sH.Y, testX, testY)
 		return false
 	}
 
@@ -723,25 +742,19 @@ func DisjunctiveProve(
 	T2X, T2Y := ZKCurve.C.Add(tempX, tempY, temp2X, temp2Y)
 
 	// String for proving Base1 and Result1
-	stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
-		Result1.X.String() + "," + Result1.Y.String() + ";" +
-		Base2.X.String() + "," + Base2.Y.String() + ";" +
-		Result2.X.String() + "," + Result2.Y.String() + ";" +
-		T1X.String() + "," + T1Y.String() + ";" +
-		T2X.String() + "," + T2Y.String() + ";"
-
+	temp := [][]byte{Base1.Bytes(), Result1.Bytes(), Base2.Bytes(), Result2.Bytes(), T1X.Bytes(), T1Y.Bytes(), T2X.Bytes(), T2Y.Bytes()}
 	// If we are proving Base2 and Result2 then we must switch T1 and T2 in string
 	if option == 1 {
-		stringToHash = Base1.X.String() + "," + Base1.Y.String() + ";" +
-			Result1.X.String() + "," + Result1.Y.String() + ";" +
-			Base2.X.String() + "," + Base2.Y.String() + ";" +
-			Result2.X.String() + "," + Result2.Y.String() + ";" +
-			T2X.String() + "," + T2Y.String() + ";" +
-			T1X.String() + "," + T1Y.String() + ";"
+		temp = [][]byte{Base1.Bytes(), Result1.Bytes(), Base2.Bytes(), Result2.Bytes(), T2X.Bytes(), T2Y.Bytes(), T1X.Bytes(), T1Y.Bytes()}
+	}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
 	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
+	hasher.Write(bytesToHash)
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
@@ -793,16 +806,15 @@ func DisjunctiveVerify(
 	S1 := djProof.S1
 	S2 := djProof.S2
 
-	stringToHash := Base1.X.String() + "," + Base1.Y.String() + ";" +
-		Result1.X.String() + "," + Result1.Y.String() + ";" +
-		Base2.X.String() + "," + Base2.Y.String() + ";" +
-		Result2.X.String() + "," + Result2.Y.String() + ";" +
-		T1.X.String() + "," + T1.Y.String() + ";" +
-		T2.X.String() + "," + T2.Y.String() + ";"
+	temp := [][]byte{Base1.Bytes(), Result1.Bytes(), Base2.Bytes(), Result2.Bytes(), T1.Bytes(), T2.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
-	// C
+	hasher.Write(bytesToHash)
 	checkC := new(big.Int).SetBytes(hasher.Sum(nil))
 	checkC = new(big.Int).Mod(checkC, ZKCurve.N)
 
@@ -910,16 +922,15 @@ func ConsistencyProve(
 	T1 := PedCommitR(u1, u2)
 	T2 := PubKey.Mult(u2)
 
-	stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + ";" +
-		ZKCurve.H.X.String() + "," + ZKCurve.H.Y.String() + ";" +
-		Point1.X.String() + "," + Point1.Y.String() + ";" +
-		Point2.X.String() + "," + Point2.Y.String() + ";" +
-		PubKey.X.String() + "," + PubKey.Y.String() + ";" +
-		T1.X.String() + "," + T1.Y.String() + ";" +
-		T2.X.String() + "," + T2.Y.String() + ";"
+	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), Point1.Bytes(), Point2.Bytes(), PubKey.Bytes(), T1.Bytes(), T2.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
+	hasher.Write(bytesToHash)
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
@@ -958,17 +969,15 @@ func ConsistencyVerify(
 	// CM should be point1, Y should be point2
 
 	// Regenerate challenge string
-	stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + ";" +
-		ZKCurve.H.X.String() + "," + ZKCurve.H.Y.String() + ";" +
-		Point1.X.String() + "," + Point1.Y.String() + ";" +
-		Point2.X.String() + "," + Point2.Y.String() + ";" +
-		PubKey.X.String() + "," + PubKey.Y.String() + ";" +
-		conProof.T1.X.String() + "," + conProof.T1.Y.String() + ";" +
-		conProof.T2.X.String() + "," + conProof.T2.Y.String() + ";"
+	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), Point1.Bytes(), Point2.Bytes(), PubKey.Bytes(), conProof.T1.Bytes(), conProof.T2.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
-
+	hasher.Write(bytesToHash)
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
@@ -983,9 +992,9 @@ func ConsistencyVerify(
 	// s1G + s2H from how PedCommitR works
 	lhs := PedCommitR(conProof.s1, conProof.s2)
 	// cCM
-	temp := Point1.Mult(Challenge)
+	temp1 := Point1.Mult(Challenge)
 	// T1 + cCM
-	rhs := conProof.T1.Add(temp)
+	rhs := conProof.T1.Add(temp1)
 
 	if !lhs.Equal(rhs) {
 		Dprintf("Point1 comparison is failing\n")
@@ -994,8 +1003,8 @@ func ConsistencyVerify(
 
 	// s2PK ?= T2 + cY
 	lhs = PubKey.Mult(conProof.s2)
-	temp = Point2.Mult(Challenge)
-	rhs = conProof.T2.Add(temp)
+	temp1 = Point2.Mult(Challenge)
+	rhs = conProof.T2.Add(temp1)
 
 	if !lhs.Equal(rhs) {
 		Dprintf("Point2 comparison is failing\n")
@@ -1058,9 +1067,12 @@ type ABCProof struct {
 	j         *big.Int // j = u1 + v * c
 	k         *big.Int // k = u2 + inv(sk) * c
 	l         *big.Int // l = u3 + (uc - v * ub) * c
+	CToken    ECPoint
 	// proofA    *GSPFSProof // proof that we know value of tx
 	// proofC    *GSPFSProof // proof that we know value of c
 }
+
+// TODO: REMOVE uc RETURN FROM BELOW
 
 // option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
@@ -1107,17 +1119,15 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 		T2 := ZKCurve.H.Mult(s)
 
 		// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
-		stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + ";" +
-			ZKCurve.H.X.String() + "," + ZKCurve.H.Y.String() + ";" +
-			CM.X.String() + "," + CM.Y.String() + ";" +
-			CMTok.X.String() + "," + CMTok.Y.String() + ";" +
-			B.X.String() + "," + B.Y.String() + ";" +
-			C.X.String() + "," + C.Y.String() + ";" +
-			T1X.String() + "," + T1Y.String() + ";" +
-			T2.X.String() + "," + T2.Y.String() + ";"
+		temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), B.Bytes(), C.Bytes(), T1X.Bytes(), T1Y.Bytes(), T2.X.Bytes(), T2.Y.Bytes()}
+
+		var bytesToHash []byte
+		for _, v := range temp {
+			bytesToHash = append(bytesToHash, v...)
+		}
 
 		hasher := sha256.New()
-		hasher.Write([]byte(stringToHash))
+		hasher.Write(bytesToHash)
 		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 		Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
@@ -1132,13 +1142,15 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 		// l = u3 + (uc - v * ub) * c , v = 0
 		l := new(big.Int).Add(u3, new(big.Int).Mul(uc, Challenge))
 
+		CToken := ZKCurve.H.Mult(sk).Mult(uc)
+
 		return &ABCProof{
 			B,
 			C,
 			ECPoint{T1X, T1Y},
 			T2,
 			Challenge,
-			j, k, l}, true, uc
+			j, k, l, CToken}, true, uc
 
 	} else if option == 1 {
 
@@ -1173,17 +1185,15 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 		// Sum of the above two
 		T2X, T2Y := ZKCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
 
-		stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + ";" +
-			ZKCurve.H.X.String() + "," + ZKCurve.H.Y.String() + ";" +
-			CM.X.String() + "," + CM.Y.String() + ";" +
-			CMTok.X.String() + "," + CMTok.Y.String() + ";" +
-			B.X.String() + "," + B.Y.String() + ";" +
-			C.X.String() + "," + C.Y.String() + ";" +
-			T1X.String() + "," + T1Y.String() + ";" +
-			T2X.String() + "," + T2Y.String() + ";"
+		temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), B.Bytes(), C.Bytes(), T1X.Bytes(), T1Y.Bytes(), T2X.Bytes(), T2Y.Bytes()}
+
+		var bytesToHash []byte
+		for _, v := range temp {
+			bytesToHash = append(bytesToHash, v...)
+		}
 
 		hasher := sha256.New()
-		hasher.Write([]byte(stringToHash))
+		hasher.Write(bytesToHash)
 		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 		Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 
@@ -1198,8 +1208,12 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 		k = new(big.Int).Mod(k, ZKCurve.N)
 
 		// l = u3 + (uc - v * ub) * c
-		temp := new(big.Int).Sub(uc, new(big.Int).Mul(modValue, ub))
-		l := new(big.Int).Add(u3, new(big.Int).Mul(temp, Challenge))
+		temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(modValue, ub))
+		l := new(big.Int).Add(u3, new(big.Int).Mul(temp1, Challenge))
+
+		CToken := ZKCurve.H.Mult(sk)
+		uc = new(big.Int).Mod(uc, ZKCurve.N)
+		CToken = CToken.Mult(uc)
 
 		return &ABCProof{
 			B,
@@ -1207,7 +1221,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 			ECPoint{T1X, T1Y},
 			ECPoint{T2X, T2Y},
 			Challenge,
-			j, k, l}, true, uc
+			j, k, l, CToken}, true, uc
 
 	} else {
 		Dprintf("ABCProof: side passed is not valid")
@@ -1235,17 +1249,15 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 	// 	return false
 	// }
 
-	stringToHash := ZKCurve.G.X.String() + "," + ZKCurve.G.Y.String() + ";" +
-		ZKCurve.H.X.String() + "," + ZKCurve.H.Y.String() + ";" +
-		CM.X.String() + "," + CM.Y.String() + ";" +
-		CMTok.X.String() + "," + CMTok.Y.String() + ";" +
-		aProof.B.X.String() + "," + aProof.B.Y.String() + ";" +
-		aProof.C.X.String() + "," + aProof.C.Y.String() + ";" +
-		aProof.T1.X.String() + "," + aProof.T1.Y.String() + ";" +
-		aProof.T2.X.String() + "," + aProof.T2.Y.String() + ";"
+	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), aProof.B.Bytes(), aProof.C.Bytes(), aProof.T1.Bytes(), aProof.T2.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(stringToHash))
+	hasher.Write(bytesToHash)
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
 

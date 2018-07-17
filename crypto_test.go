@@ -18,21 +18,21 @@ func TestECPointMethods(t *testing.T) {
 	negp := p.Neg()
 	sum := p.Add(negp)
 	if !sum.Equal(ZKCurve.Zero()) {
-		fmt.Printf("p : %v\n", p)
-		fmt.Printf("negp : %v\n", negp)
-		fmt.Printf("sum : %v\n", sum)
+		Dprintf("p : %v\n", p)
+		Dprintf("negp : %v\n", negp)
+		Dprintf("sum : %v\n", sum)
 		t.Fatalf("p + -p should be 0\n")
 	}
 	negnegp := negp.Neg()
 	if !negnegp.Equal(p) {
-		fmt.Printf("p : %v\n", p)
-		fmt.Printf("negnegp : %v\n", negnegp)
+		Dprintf("p : %v\n", p)
+		Dprintf("negnegp : %v\n", negnegp)
 		t.Fatalf("-(-p) should be p\n")
 	}
 	sum = p.Add(ZKCurve.Zero())
 	if !sum.Equal(p) {
-		fmt.Printf("p : %v\n", p)
-		fmt.Printf("sum : %v\n", sum)
+		Dprintf("p : %v\n", p)
+		Dprintf("sum : %v\n", sum)
 		t.Fatalf("p + 0 should be p\n")
 	}
 	fmt.Println("Passed TestZKCurveMethods")
@@ -58,8 +58,8 @@ func TestZkpCryptoStuff(t *testing.T) {
 	Dprintf("Added the above: %v, %v\n", tempX, tempY)
 
 	if tempX.Cmp(ZKCurve.Zero().X) != 0 || tempY.Cmp(ZKCurve.Zero().Y) != 0 {
-		fmt.Printf("Added the above: %v, %v", tempX, tempY)
-		fmt.Printf("The above should have been (0,0)")
+		Dprintf("Added the above: %v, %v", tempX, tempY)
+		Dprintf("The above should have been (0,0)")
 		t.Fatalf("Failed Addition of inverse points failed")
 	}
 
@@ -68,8 +68,8 @@ func TestZkpCryptoStuff(t *testing.T) {
 	RandEC := ECPoint{tempX, tempY}
 
 	if !RandEC.Equal(testOpen) {
-		fmt.Printf("RandEC : %v\n", RandEC)
-		fmt.Printf("testOpen : %v\n", testOpen)
+		Dprintf("RandEC : %v\n", RandEC)
+		Dprintf("testOpen : %v\n", testOpen)
 		t.Fatalf("RandEC should have been equal to testOpen\n")
 	}
 
@@ -85,9 +85,9 @@ func TestZkpCryptoCommitR(t *testing.T) {
 	testCommit := ZKCurve.CommitR(ZKCurve.H, u)
 
 	if !(ZKCurve.VerifyR(testCommit, ZKCurve.H, u)) {
-		fmt.Printf("testCommit: %v\n", testCommit)
-		fmt.Printf("ZKCurve.H: %v, \n", ZKCurve.H)
-		fmt.Printf("u : %v\n", u)
+		Dprintf("testCommit: %v\n", testCommit)
+		Dprintf("ZKCurve.H: %v, \n", ZKCurve.H)
+		Dprintf("u : %v\n", u)
 		t.Fatalf("testCommit should have passed verification\n")
 	}
 
@@ -104,23 +104,23 @@ func TestPedersenCommit(t *testing.T) {
 	commitR := PedCommitR(x, u)
 
 	if !commit.Equal(commitR) {
-		fmt.Printf("x : %v --- u : %v\n", x, u)
-		fmt.Printf("commit: %v\n", commit)
-		fmt.Printf("commitR: %v\n", commitR)
+		Dprintf("x : %v --- u : %v\n", x, u)
+		Dprintf("commit: %v\n", commit)
+		Dprintf("commitR: %v\n", commitR)
 		t.Fatalf("commit and commitR should be equal")
 	}
 
 	if !Open(x, u, commit) || !Open(x, u, commitR) {
-		fmt.Printf("x : %v --- u : %v\n", x, u)
-		fmt.Printf("commit: %v\n", commit)
-		fmt.Printf("commitR: %v\n", commitR)
+		Dprintf("x : %v --- u : %v\n", x, u)
+		Dprintf("commit: %v\n", commit)
+		Dprintf("commitR: %v\n", commitR)
 		t.Fatalf("commit and/or commitR did not successfully open")
 	}
 
 	if Open(badx, u.Neg(u), commit) || Open(badx, u.Neg(u), commitR) {
-		fmt.Printf("x : %v --- u : %v\n", x, u)
-		fmt.Printf("commit: %v\n", commit)
-		fmt.Printf("commitR: %v\n", commitR)
+		Dprintf("x : %v --- u : %v\n", x, u)
+		Dprintf("commit: %v\n", commit)
+		Dprintf("commitR: %v\n", commitR)
 		t.Fatalf("commit and/or commitR should not have opened properly")
 	}
 
@@ -134,25 +134,27 @@ func TestGSPFS(t *testing.T) {
 	check(err)
 
 	// MUST use G here becuase of GSPFSProve implementation
-	randPoint := ZKCurve.G.Mult(x)
+	rX, rY := ZKCurve.C.ScalarBaseMult(x.Bytes())
+	result := ECPoint{rX, rY}
 
-	testProof := GSPFSProve(x)
+	testProof := GSPFSProve(result, x)
 
-	if !GSPFSVerify(randPoint, testProof) {
-		fmt.Printf("x : %v\n", x)
-		fmt.Printf("randPoint : %v\n", randPoint)
-		fmt.Printf("testProof : %v\n", testProof)
-		t.Fatalf("GSPFS Proof didnt generate properly\n")
+	if !GSPFSVerify(result, testProof) {
+		Dprintf("x : %v\n", x)
+		Dprintf("randPoint : %v\n", result)
+		Dprintf("testProof : %v\n", testProof)
+		t.Fatalf("GSPFS Proof didnt generate properly - 1\n")
 	}
 
 	// Using H here should break the proof
-	randPoint = ZKCurve.H.Mult(x)
+	result = ZKCurve.H.Mult(x)
 
-	if GSPFSVerify(randPoint, testProof) {
-		fmt.Printf("x : %v\n", x)
-		fmt.Printf("randPoint : %v\n", randPoint)
-		fmt.Printf("testProof : %v\n", testProof)
-		t.Fatalf("GSPFS Proof should not have worked\n")
+	Dprintf("Next GSPFSVerify should fail\n")
+	if GSPFSVerify(result, testProof) {
+		Dprintf("x : %v\n", x)
+		Dprintf("randPoint : %v\n", result)
+		Dprintf("testProof : %v\n", testProof)
+		t.Fatalf("GSPFS Proof should not have worked - 2\n")
 	}
 
 	fmt.Println("Passed TestGSPFS")
@@ -161,34 +163,32 @@ func TestGSPFS(t *testing.T) {
 
 func TestEquivilance(t *testing.T) {
 
-	x := big.NewInt(100)
+	x, _ := rand.Int(rand.Reader, ZKCurve.N)
 	Base1 := ZKCurve.G
-	Result1X, Result1Y := ZKCurve.C.ScalarMult(Base1.X, Base1.Y, x.Bytes())
-	Result1 := ECPoint{Result1X, Result1Y}
+	Result1 := Base1.Mult(x)
 
 	Base2 := ZKCurve.H
-	Result2X, Result2Y := ZKCurve.C.ScalarMult(Base2.X, Base2.Y, x.Bytes())
-	Result2 := ECPoint{Result2X, Result2Y}
+	Result2 := Base2.Mult(x)
 
 	eqProof, status1 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
 
 	if !EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof) {
-		fmt.Printf("Base1 : %v\n", Base1)
-		fmt.Printf("Result1 : %v\n", Result1)
-		fmt.Printf("Base2 : %v\n", Base2)
-		fmt.Printf("Result2 : %v\n", Result2)
-		fmt.Printf("Proof : %v \n", eqProof)
+		Dprintf("Base1 : %v\n", Base1)
+		Dprintf("Result1 : %v\n", Result1)
+		Dprintf("Base2 : %v\n", Base2)
+		Dprintf("Result2 : %v\n", Result2)
+		Dprintf("Proof : %v \n", eqProof)
 		t.Fatalf("Equivilance Proof verification failed")
 	}
 
 	Dprintf("Next comparison should fail\n")
 	// Bases swapped shouldnt work
 	if EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof) {
-		fmt.Printf("Base1 : %v\n", Base1)
-		fmt.Printf("Result1 : %v\n", Result1)
-		fmt.Printf("Base2 : %v\n", Base2)
-		fmt.Printf("Result2 : %v\n", Result2)
-		fmt.Printf("Proof : %v \n", eqProof)
+		Dprintf("Base1 : %v\n", Base1)
+		Dprintf("Result1 : %v\n", Result1)
+		Dprintf("Base2 : %v\n", Base2)
+		Dprintf("Result2 : %v\n", Result2)
+		Dprintf("Proof : %v \n", eqProof)
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
@@ -196,11 +196,11 @@ func TestEquivilance(t *testing.T) {
 	// Bad proof
 	eqProof.HiddenValue = big.NewInt(-1)
 	if EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof) {
-		fmt.Printf("Base1 : %v\n", Base1)
-		fmt.Printf("Result1 : %v\n", Result1)
-		fmt.Printf("Base2 : %v\n", Base2)
-		fmt.Printf("Result2 : %v\n", Result2)
-		fmt.Printf("Proof : %v \n", eqProof)
+		Dprintf("Base1 : %v\n", Base1)
+		Dprintf("Result1 : %v\n", Result1)
+		Dprintf("Base2 : %v\n", Base2)
+		Dprintf("Result2 : %v\n", Result2)
+		Dprintf("Proof : %v \n", eqProof)
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
@@ -421,7 +421,7 @@ func TestAverages(t *testing.T) {
 	Dprintf("EProofSum : %v\n", EProofSum)
 
 	if !EquivilanceVerify(T, RandAgg, ZKCurve.H, pk, EProofSum) {
-		fmt.Printf("Something wrongs... avg : %v\n", ClearAverage)
+		t.Fatalf("Something wrongs... avg : %v\n", ClearAverage)
 	}
 
 	// TXCOUNT WILL BE REPLACED WITH BANK ANSWER
@@ -432,7 +432,9 @@ func TestAverages(t *testing.T) {
 	Dprintf("EProofSum : %v\n", EProofAvg)
 
 	if !EquivilanceVerify(L, CRandAgg, ZKCurve.H, pk, EProofAvg) {
-		fmt.Printf("Something wrongs... avg : %v\n", ClearAverage)
+		t.Fatalf("Something wrongs... avg : %v\n", ClearAverage)
 	}
+
+	fmt.Println("Passed TestAverages")
 
 }

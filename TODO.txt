@@ -14,6 +14,14 @@ Stuff to do:
 
 
 
+ - Add in the ScalarBaseMultH() func
+ - See where ScalarBaseMult can be used
+ - symmetric points/compressed points
+ - Range/bullet proofs?
+ - fix hashing strings to byte arrrays and stuff
+
+
+
 NOTES: 
 - EquivilanceOrLog is not used but built it anyways 
 - VerifyZeroSumCommitments is not necessary anymore, removed it comepletely
