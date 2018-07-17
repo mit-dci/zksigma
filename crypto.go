@@ -201,8 +201,8 @@ func KeyGen() (ECPoint, *big.Int) {
 
 func Init() {
 	ZKCurve = NewECPrimeGroupKey()
-	GPoints = GenerateGPoints()
-	HPoints = GenerateH2tothe()
+	// GPoints = GenerateGPoints()
+	// HPoints = GenerateH2tothe()
 }
 
 // =============== PEDERSEN COMMITMENTS ================

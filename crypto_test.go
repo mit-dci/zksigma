@@ -439,28 +439,28 @@ func TestAverages(t *testing.T) {
 
 }
 
-func BenchmarkScalarBaseMult(t *testing.B) {
+// func BenchmarkScalarBaseMult(t *testing.B) {
 
-	Init()
+// 	Init()
 
-	limit := big.NewInt(67093456)
+// 	limit := big.NewInt(67093456)
 
-	for ii := 0; ii < 1000000; ii++ {
-		u, _ := rand.Int(rand.Reader, limit)
+// 	for ii := 0; ii < 1000000; ii++ {
+// 		u, _ := rand.Int(rand.Reader, limit)
 
-		ZKCurve.C.ScalarBaseMult(u.Bytes())
-	}
-}
+// 		ZKCurve.C.ScalarBaseMult(u.Bytes())
+// 	}
+// }
 
-func BenchmarkFSBM_G(t *testing.B) {
+// func BenchmarkFSBM_G(t *testing.B) {
 
-	Init()
+// 	Init()
 
-	limit := big.NewInt(67093456)
+// 	limit := big.NewInt(67093456)
 
-	for ii := 0; ii < 1000000; ii++ {
-		u, _ := rand.Int(rand.Reader, limit)
+// 	for ii := 0; ii < 1000000; ii++ {
+// 		u, _ := rand.Int(rand.Reader, limit)
 
-		FSBM_G(u.Bytes())
-	}
-}
+// 		FSBM_G(u.Bytes())
+// 	}
+// }
