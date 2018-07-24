@@ -1,6 +1,5 @@
 Stuff to do:
 
- - Make sure that all the Challenge's had a Mod operation applied to then...
  - Add in Base-Result checks to EquivORLogProof
  - EquivilanceOrLog Verify function and test function on hold, not critical
  - generelize proofs that use zkCurve G and H to use whatever is passed into them?
@@ -13,12 +12,8 @@ Stuff to do:
     - this would mean all proofs have to be derived from a "parent" proof class... 
 
 
-
- - Add in the ScalarBaseMultH() func
- - See where ScalarBaseMult can be used
  - symmetric points/compressed points
  - Range/bullet proofs?
- - fix hashing strings to byte arrrays and stuff
 
 
 
