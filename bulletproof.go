@@ -95,11 +95,11 @@ func binaryDecomp(value *big.Int) []*big.Int {
 	for ii := 0; ii < int(numBits); ii++ {
 		if new(big.Int).Rem(value, big.NewInt(2)).Cmp(big.NewInt(1)) == 0 {
 			result[ii] = big.NewInt(1)
-			value = new(big.Int).Quo(value, big.NewInt(2))
+			value.Quo(value, big.NewInt(2))
 			continue
 		}
 		result[ii] = big.NewInt(0)
-		value = new(big.Int).Quo(value, big.NewInt(2))
+		value.Quo(value, big.NewInt(2))
 	}
 
 	return result
@@ -173,12 +173,13 @@ func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 	return x[0 : len(x)/2-1], x[len(x)/2 : len(x)]
 }
 
-func genVec(x *big.Int) {
+func genVec(x *big.Int) []*big.Int {
 	res := make([]*big.Int, numBits)
 
 	for ii := int64(0); ii < int64(numBits); ii++ {
 		res[ii] = new(big.Int).Exp(x, big.NewInt(ii), ZKCurve.N)
 	}
+	return res
 }
 
 func scalarMult(x []*big.Int, y *big.Int) []*big.Int {
