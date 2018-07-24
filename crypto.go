@@ -1112,8 +1112,6 @@ type ABCProof struct {
 	// proofC    *GSPFSProof // proof that we know value of c
 }
 
-// TODO: REMOVE uc RETURN FROM BELOW
-
 // option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
 func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, bool, *big.Int) {

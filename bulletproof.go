@@ -7,8 +7,8 @@ import (
 )
 
 type Generator struct {
-	n    uint64
-	m    uint64
+	N    uint64
+	M    uint64
 	VecG []ECPoint
 	VecH []ECPoint
 }
@@ -34,8 +34,8 @@ func BPInit() {
 func NewGen(n, m uint64) *Generator {
 	BPGen := Generator{}
 
-	BPGen.n = n
-	BPGen.m = m
+	BPGen.N = n
+	BPGen.M = m
 
 	u1, _ := rand.Int(rand.Reader, ZKCurve.N)
 	u2, _ := rand.Int(rand.Reader, ZKCurve.N)
@@ -89,16 +89,19 @@ func fillVecs() {
 // could probably optimize this somehow since its only 0/1
 func binaryDecomp(value *big.Int) []*big.Int {
 
-	result := make([]*big.Int, 64)
+	result := make([]*big.Int, numBits)
 
-	for ii := numBits - 1; ii > 0; ii-- {
-		if big.NewInt(1<<ii).Cmp(value) > 0 {
-			result[ii] = big.NewInt(0)
+	// GENERATES BIG ENDIAN
+	for ii := 0; ii < int(numBits); ii++ {
+		if new(big.Int).Rem(value, big.NewInt(2)).Cmp(big.NewInt(1)) == 0 {
+			result[ii] = big.NewInt(1)
+			value = new(big.Int).Quo(value, big.NewInt(2))
 			continue
 		}
-		result[ii] = big.NewInt(1)
-		value = new(big.Int).Mod(new(big.Int).Sub(value, big.NewInt(1<<ii)), ZKCurve.N)
+		result[ii] = big.NewInt(0)
+		value = new(big.Int).Quo(value, big.NewInt(2))
 	}
+
 	return result
 }
 
@@ -110,7 +113,7 @@ func dotProd(x, y []*big.Int) *big.Int {
 
 	acc := big.NewInt(0)
 	for ii := uint64(0); ii < numBits; ii++ {
-		acc = acc.Add(acc, new(big.Int).Add(x[ii], y[ii]))
+		acc.Add(new(big.Int).Mul(x[ii], y[ii]), big.NewInt(0))
 	}
 	return acc
 }
