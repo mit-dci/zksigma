@@ -59,11 +59,25 @@ func TestDotProd(t *testing.T) {
 
 	if big.NewInt(42*42).Cmp(dotProd(Giant64, Giant64)) != 0 {
 		Dprintf("dotProd not working properly:\n")
-		Dprintf("expected: %v\n", big.NewInt(10*10+42*42))
+		Dprintf("expected: %v\n", big.NewInt(42*42))
 		Dprintf("Giant64 .* temp: %v\n", check)
 		t.Fatalf("Failed TestDotProd\n")
 	}
 
 	fmt.Println("Passed TestDotProd")
 
+}
+
+// Not sure how to test some of these since going through the math by hand is difficult
+// For now if nothing seg-faults Ill just assume it is working as intended until further notice
+func TestCallEachFunc(t *testing.T) {
+	binaryDecomp(big.NewInt(1234567))
+	dotProd(Giant64, Giant64)
+	ecDotProd(Giant64, ZKGen.VecG)
+	vecPedComm(Giant64, ZKGen.VecG, ZKGen.VecH)
+	vecMult(Giant64, Giant64)
+	splitVec(Giant64)
+	genVec(big.NewInt(1))
+
+	fmt.Println("Passed TestCallEachFunc")
 }

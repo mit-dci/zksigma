@@ -93,13 +93,8 @@ func binaryDecomp(value *big.Int) []*big.Int {
 
 	// GENERATES BIG ENDIAN
 	for ii := 0; ii < int(numBits); ii++ {
-		if new(big.Int).Rem(value, big.NewInt(2)).Cmp(big.NewInt(1)) == 0 {
-			result[ii] = big.NewInt(1)
-			value.Quo(value, big.NewInt(2))
-			continue
-		}
 		result[ii] = big.NewInt(0)
-		value.Quo(value, big.NewInt(2))
+		value.QuoRem(value, big.NewInt(2), result[ii])
 	}
 
 	return result
@@ -118,20 +113,22 @@ func dotProd(x, y []*big.Int) *big.Int {
 	return acc
 }
 
-func ecDotProd(x []*big.Int, y []ECPoint) []ECPoint {
+func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 	if len(x) != len(y) || len(x) != int(numBits) || len(y) != int(numBits) {
-		return []ECPoint{}
+		return ECPoint{}
 	}
 
-	res := make([]ECPoint, numBits)
+	acc := ZKCurve.Zero()
+	temp := ZKCurve.Zero()
 	for ii := uint64(0); ii < numBits; ii++ {
-		res[ii].X, res[ii].Y = ZKCurve.C.ScalarMult(y[ii].X, y[ii].Y, x[ii].Bytes())
+		temp.X, temp.Y = ZKCurve.C.ScalarMult(y[ii].X, y[ii].Y, x[ii].Bytes())
+		acc.X.Add(acc.X, temp.X)
+		acc.Y.Add(acc.Y, temp.Y)
 	}
-	return res
-
+	return acc
 }
 
-// COM(vec1, vec2, uH) -> <vec1, G> + <vec2, H> + uB', where B' is the ped commit blinder, G and H are chain vecots
+// COM(vec1, vec2, u) -> <vec1, G> + <vec2, H> + uB', where B' is the ped commit blinder, G and H are chain vecots
 func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) ([]ECPoint, *big.Int) {
 	if len(a) != len(G) || len(a) != len(H) || len(a) != int(numBits) {
 		return []ECPoint{}, nil
@@ -159,7 +156,7 @@ func vecMult(x, y []*big.Int) []*big.Int {
 
 	res := make([]*big.Int, numBits)
 	for ii := uint64(0); ii < numBits; ii++ {
-		res[ii] = new(big.Int).Mul(x[ii], y[ii])
+		res[ii] = new(big.Int).Mul(x[ii], y[ii]) // res is not declared yet so we need assignment statement
 	}
 	return res
 }
@@ -207,6 +204,7 @@ func (p *TwoDegPoly) EvalAt(x *big.Int) []*big.Int {
 	res := make([]*big.Int, numBits)
 	// I know this looks nasty
 	for ii := uint64(0); ii < numBits; ii++ {
+		//						( + 			( +						 b * x			c)					( a * x		*		x * 1	))
 		res[ii] = new(big.Int).Add(new(big.Int).Add(new(big.Int).Mul(p.b[ii], x), p.c[ii]), new(big.Int).Mul(p.a[ii], x).Mul(x, big.NewInt(1)))
 	}
 
