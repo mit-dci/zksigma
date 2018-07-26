@@ -71,6 +71,11 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 
 // Add adds points p and p2 and returns the resulting point
 func (p ECPoint) Add(p2 ECPoint) ECPoint {
+	if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+		Dprintf("ECPoint.Add():\n - p and/or p2 is not on the curve\n")
+		Dprintf(" -  POINT: %v\n - POINT2: %v", p, p2)
+		return ECPoint{nil, nil}
+	}
 	X, Y := ZKCurve.C.Add(p.X, p.Y, p2.X, p2.Y)
 	return ECPoint{X, Y}
 }

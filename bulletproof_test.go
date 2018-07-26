@@ -9,6 +9,7 @@ import (
 func TestSetup(t *testing.T) {
 	Init()
 	BPInit()
+	// Dprintf("ZKGEN CHECK: \n\n\n%v\n\n\n", ZKGen)
 	fmt.Println("Bulletproof setup completed")
 }
 
@@ -70,14 +71,30 @@ func TestDotProd(t *testing.T) {
 
 // Not sure how to test some of these since going through the math by hand is difficult
 // For now if nothing seg-faults Ill just assume it is working as intended until further notice
+/*
 func TestCallEachFunc(t *testing.T) {
 	binaryDecomp(big.NewInt(1234567))
+	fmt.Println(" - binaryDecomp runs")
 	dotProd(Giant64, Giant64)
-	ecDotProd(Giant64, ZKGen.VecG)
+	fmt.Println(" - dotProd runs")
+	 ecDotProd(Giant64, ZKGen.VecG)
+	fmt.Println(" - ecDotProd runs")
 	vecPedComm(Giant64, ZKGen.VecG, ZKGen.VecH)
+	fmt.Println(" - vecPedComm runs")
 	vecMult(Giant64, Giant64)
+	fmt.Println(" - vecMult runs")
 	splitVec(Giant64)
+	fmt.Println(" - splitVec runs")
 	genVec(big.NewInt(1))
+	fmt.Println(" - genVec runs")
 
 	fmt.Println("Passed TestCallEachFunc")
+}
+*/
+
+func TestInProdProve(t *testing.T) {
+
+	a := binaryDecomp(big.NewInt(21354))
+	b := binaryDecomp(big.NewInt(76547))
+	InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
 }
