@@ -8,7 +8,9 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	Init()
+	if ZKCurve.C == nil {
+		Init()
+	}
 	fmt.Println("Global Variables Initialized")
 }
 

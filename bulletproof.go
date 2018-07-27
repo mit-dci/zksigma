@@ -3,8 +3,6 @@ package zkCrypto
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
-	"math"
 	"math/big"
 )
 
@@ -21,8 +19,9 @@ type GeneratorView struct {
 }
 
 const (
-	numBits uint64 = 64
-	numVals uint64 = 1
+	numBits     uint64 = 64
+	numVals     uint64 = 1
+	rootNumBits uint64 = 6
 )
 
 var ZKGen Generator
@@ -30,6 +29,7 @@ var ZKView GeneratorView
 
 func BPInit() {
 	ZKGen = NewGen(numBits, numVals)
+	fillVecs()
 }
 
 // NewGen generates a new chain of ECPoints that are linked by consecutive hashes
@@ -82,9 +82,13 @@ func (g Generator) Share(j uint64) GeneratorView {
 var PowsOf2 []*big.Int
 var ZeroVec []*big.Int
 var OnesVec []*big.Int
+var RandVec []*big.Int
 
 func fillVecs() {
+	ZeroVec, OnesVec, PowsOf2, RandVec = make([]*big.Int, numBits), make([]*big.Int, numBits),
+		make([]*big.Int, numBits), make([]*big.Int, numBits)
 	for ii := int64(0); ii < int64(numBits); ii++ {
+
 		// Probably can save space here
 		ZeroVec[ii] = big.NewInt(0)
 		OnesVec[ii] = big.NewInt(1)
@@ -110,27 +114,29 @@ func binaryDecomp(value *big.Int) []*big.Int {
 
 func dotProd(x, y []*big.Int) *big.Int {
 
-	if len(x) != len(y) || len(x) != int(numBits) {
+	if len(x) != len(y) {
 		return big.NewInt(0)
 	}
 
 	acc := big.NewInt(0)
-	for ii := uint64(0); ii < numBits; ii++ {
+
+	for ii := 0; ii < len(x); ii++ {
 		acc.Add(new(big.Int).Mul(x[ii], y[ii]), big.NewInt(0))
 	}
 	return acc
 }
 
+// x[] cannot contain 0 or 1 in any entry?
 func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
-	if len(x) != len(y) || len(x) != int(numBits) || len(y) != int(numBits) {
-		return ECPoint{}
+	if len(x) != len(y) {
+		return ZKCurve.Zero()
 	}
 
-	accX, accY := ZKCurve.C.ScalarMult(y[0].X, y[0].Y, x[0].Bytes())
-	acc := ECPoint{accX, accY}
+	acc := ZKCurve.Zero()
+	acc.X, acc.Y = ZKCurve.C.ScalarMult(y[0].X, y[0].Y, x[0].Bytes())
 	temp := ZKCurve.Zero()
 
-	for ii := uint64(1); ii < numBits; ii++ {
+	for ii := 1; ii < len(x); ii++ {
 		temp.X, temp.Y = ZKCurve.C.ScalarMult(y[ii].X, y[ii].Y, x[ii].Bytes())
 		acc = acc.Add(temp)
 	}
@@ -139,16 +145,15 @@ func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 
 // COM(vec1, vec2, u) -> <vec1, G> + <vec2, H> + uB', where B' is the ped commit blinder, G and H are chain vecots
 func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) (ECPoint, *big.Int) {
-	if len(a) != len(G) || len(a) != len(H) || len(a) != int(numBits) {
-		return ECPoint{}, big.NewInt(0)
+	if len(a) != len(G) || len(a) != len(H) {
+		return ZKCurve.Zero(), big.NewInt(0)
 	}
 
 	randomness, _ := rand.Int(rand.Reader, ZKCurve.N)
-	temp1 := ecDotProd(a, G)
-	temp2 := ecDotProd(a, H)
-	temp3X, temp3Y := ZKCurve.C.ScalarBaseMult(randomness.Bytes())
-	res := temp1.Add(temp2)
-	res = res.Add(ECPoint{temp3X, temp3Y})
+	res := ecDotProd(a, G).Add(ecDotProd(a, H))
+	temp := ZKCurve.Zero()
+	temp.X, temp.Y = ZKCurve.C.ScalarBaseMult(randomness.Bytes())
+	res = res.Add(temp)
 
 	return res, randomness
 
@@ -156,36 +161,39 @@ func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) (ECPoint, *big.Int) {
 
 func vecMult(x, y []*big.Int) []*big.Int {
 
-	if len(x) != len(y) || len(x) != int(numBits) {
+	if len(x) != len(y) {
 		return []*big.Int{}
 	}
 
-	res := make([]*big.Int, numBits)
-	for ii := uint64(0); ii < numBits; ii++ {
+	res := make([]*big.Int, len(x))
+
+	for ii := 0; ii < len(x); ii++ {
 		res[ii] = new(big.Int).Mul(x[ii], y[ii]) // res is not declared yet so we need assignment statement
 	}
 	return res
 }
 
 func vecAdd(x, y []*big.Int) []*big.Int {
-	if len(x) != len(y) || len(x) != int(numBits) {
+	if len(x) != len(y) {
 		return []*big.Int{}
 	}
 
-	res := make([]*big.Int, numBits)
-	for ii := uint64(0); ii < numBits; ii++ {
+	res := make([]*big.Int, len(x))
+
+	for ii := 0; ii < len(x); ii++ {
 		res[ii] = new(big.Int).Add(x[ii], y[ii]) // res is not declared yet so we need assignment statement
 	}
 	return res
 }
 
 func vecAddEC(G []ECPoint, H []ECPoint) []ECPoint {
-	if len(G) != len(H) || len(G) != int(numBits) {
+	if len(G) != len(H) {
 		return []ECPoint{}
 	}
 
-	res := make([]ECPoint, numBits)
-	for ii := uint64(0); ii < numBits; ii++ {
+	res := make([]ECPoint, len(G))
+
+	for ii := 0; ii < len(G); ii++ {
 		res[ii].X, res[ii].Y = ZKCurve.C.Add(G[ii].X, G[ii].Y, H[ii].X, H[ii].Y) // res is not declared yet so we need assignment statement
 	}
 	return res
@@ -193,12 +201,12 @@ func vecAddEC(G []ECPoint, H []ECPoint) []ECPoint {
 }
 
 func vecSub(x, y []*big.Int) []*big.Int {
-	if len(x) != len(y) || len(x) != int(numBits) {
+	if len(x) != len(y) {
 		return []*big.Int{}
 	}
 
-	res := make([]*big.Int, numBits)
-	for ii := uint64(0); ii < numBits; ii++ {
+	res := make([]*big.Int, len(x))
+	for ii := 0; ii < len(x); ii++ {
 		res[ii] = new(big.Int).Sub(x[ii], y[ii]) // res is not declared yet so we need assignment statement
 	}
 	return res
@@ -207,10 +215,14 @@ func vecSub(x, y []*big.Int) []*big.Int {
 func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 
 	if len(x)%2 != 0 {
+		Dprintf("splitVec:\n - input arrays are not multiple of 2\n")
 		return []*big.Int{}, []*big.Int{}
 	}
 
-	return x[0 : len(x)/2-1], x[len(x)/2 : len(x)]
+	left, right := make([]*big.Int, len(x)/2), make([]*big.Int, len(x)/2)
+	left, right = x[0:len(x)/2], x[len(x)/2:len(x)] // WHY DOES IT HAVE TO BE SLICES AND NOT INDEXES
+
+	return left, right
 }
 
 func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
@@ -219,7 +231,7 @@ func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
 		return []ECPoint{}, []ECPoint{}
 	}
 
-	return x[0 : len(x)/2-1], x[len(x)/2 : len(x)]
+	return x[0 : len(x)/2], x[len(x)/2 : len(x)]
 }
 
 func genVec(x *big.Int) []*big.Int {
@@ -236,8 +248,8 @@ func scalar(x []*big.Int, y *big.Int) []*big.Int {
 		return []*big.Int{}
 	}
 
-	res := make([]*big.Int, numBits)
-	for ii := uint64(0); ii < numBits; ii++ {
+	res := make([]*big.Int, len(x))
+	for ii := 0; ii < len(x); ii++ {
 		res[ii] = new(big.Int).Mul(x[ii], y)
 	}
 	return res
@@ -249,8 +261,8 @@ func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
 		return []ECPoint{}
 	}
 
-	res := make([]ECPoint, numBits)
-	for ii := uint64(0); ii < numBits; ii++ {
+	res := make([]ECPoint, len(G))
+	for ii := 0; ii < len(G); ii++ {
 		res[ii].X, res[ii].Y = ZKCurve.C.ScalarMult(G[ii].X, G[ii].Y, x.Bytes())
 	}
 	return res
@@ -318,7 +330,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		return InProdProof{}, false
 	}
 
-	k := int(math.Log2(float64(numBits)))
+	k := rootNumBits
 
 	proof := InProdProof{big.NewInt(0),
 		big.NewInt(0),
@@ -330,7 +342,6 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	// Commitments we want to prove
 	temp1 := ecDotProd(a, G)
 	temp2 := ecDotProd(a, H)
-	fmt.Printf("temp1: %v\n\ntemp2: %v\n\n", temp1, temp2)
 	P := temp1.Add(temp2)
 	c := dotProd(a, b)
 
@@ -349,7 +360,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	hasher := sha256.New()
 
-	for ii := 0; ii < k; ii++ {
+	for ii := uint64(0); ii < k; ii++ {
 		// split the vectors for reduction later
 		aL, aR := splitVec(a)
 		bL, bR := splitVec(b)
@@ -357,8 +368,9 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		HL, HR := splitVecEC(H)
 
 		// Prover calcualtes L and R
-		proof.LeftVec[ii] = ecDotProd(aL, GR).Add(ecDotProd(bR, HL)).Add(Q.Mult(dotProd(aL, bR)))
-		proof.RightVec[ii] = ecDotProd(aR, GL).Add(ecDotProd(bL, HR)).Add(Q.Mult(dotProd(aR, bL)))
+		proof.LeftVec[ii] = ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(Q.Mult(dotProd(aL, bR))))
+		proof.RightVec[ii] = ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(Q.Mult(dotProd(aR, bL))))
+		Dprintf("EEE\n")
 		// FS-Transform to make this non interactive is to write in each L and R into the buffer
 		// stringing these consecutive hashes locks in each value of L and R to the previous ones
 		hasher.Write(proof.LeftVec[ii].Bytes())

@@ -1,6 +1,7 @@
 package zkCrypto
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"testing"
@@ -71,15 +72,15 @@ func TestDotProd(t *testing.T) {
 
 // Not sure how to test some of these since going through the math by hand is difficult
 // For now if nothing seg-faults Ill just assume it is working as intended until further notice
-/*
+
 func TestCallEachFunc(t *testing.T) {
 	binaryDecomp(big.NewInt(1234567))
 	fmt.Println(" - binaryDecomp runs")
 	dotProd(Giant64, Giant64)
 	fmt.Println(" - dotProd runs")
-	 ecDotProd(Giant64, ZKGen.VecG)
+	ecDotProd(OnesVec, ZKGen.VecG)
 	fmt.Println(" - ecDotProd runs")
-	vecPedComm(Giant64, ZKGen.VecG, ZKGen.VecH)
+	vecPedComm(OnesVec, ZKGen.VecG, ZKGen.VecH)
 	fmt.Println(" - vecPedComm runs")
 	vecMult(Giant64, Giant64)
 	fmt.Println(" - vecMult runs")
@@ -90,11 +91,16 @@ func TestCallEachFunc(t *testing.T) {
 
 	fmt.Println("Passed TestCallEachFunc")
 }
-*/
 
 func TestInProdProve(t *testing.T) {
 
-	a := binaryDecomp(big.NewInt(21354))
-	b := binaryDecomp(big.NewInt(76547))
+	a := make([]*big.Int, numBits)
+	b := make([]*big.Int, numBits)
+
+	for ii, _ := range a {
+		a[ii], _ = rand.Int(rand.Reader, ZKCurve.N)
+		b[ii], _ = rand.Int(rand.Reader, ZKCurve.N)
+	}
+
 	InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
 }
