@@ -86,6 +86,23 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 	return ECPoint{X, Y}
 }
 
+func (p ECPoint) Sub(p2 ECPoint) ECPoint {
+	if p.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+		return p2.Neg()
+	} else if p2.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
+		return p
+	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+		Dprintf("ECPoint.Add():\n - p and p2 is not on the curve\n")
+		Dprintf(" -  POINT: %v\n - POINT2: %v\n", p, p2)
+		return ECPoint{nil, nil}
+	}
+
+	temp := p2.Neg()
+	X, Y := ZKCurve.C.Add(p.X, p.Y, temp.X, temp.Y)
+
+	return ECPoint{X, Y}
+}
+
 // Neg returns the addadtive inverse of point p
 func (p ECPoint) Neg() ECPoint {
 	negY := new(big.Int).Neg(p.Y)
