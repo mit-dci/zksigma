@@ -102,5 +102,15 @@ func TestInProdProve(t *testing.T) {
 		b[ii], _ = rand.Int(rand.Reader, ZKCurve.N)
 	}
 
-	InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
+	proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
+
+	if !status {
+		t.Fatalf("InProdProof did not generate properly!\n")
+	}
+
+	if !InProdVerify(ZKGen.VecG, ZKGen.VecH, proof) {
+		t.Fatalf("InProdProof did not verify!\n")
+	}
+
+	fmt.Println("Passed TestInProdProve")
 }

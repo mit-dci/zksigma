@@ -3,6 +3,7 @@ package zkCrypto
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"math"
 	"math/big"
 )
 
@@ -244,7 +245,7 @@ func genVec(x *big.Int) []*big.Int {
 }
 
 func scalar(x []*big.Int, y *big.Int) []*big.Int {
-	if len(x)%2 != 0 {
+	if len(x)%2 != 0 && len(x) != 1 {
 		return []*big.Int{}
 	}
 
@@ -257,7 +258,7 @@ func scalar(x []*big.Int, y *big.Int) []*big.Int {
 }
 
 func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
-	if len(G)%2 != 0 {
+	if len(G)%2 != 0 && len(G) != 1 {
 		return []ECPoint{}
 	}
 
@@ -269,32 +270,33 @@ func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
 
 }
 
-// t(x) = ax^2 bx + c
-type TwoDegPoly struct {
-	a []*big.Int
-	b []*big.Int
-	c []*big.Int
-}
+// // t(x) = ax^2 bx + c
+// type TwoDegPoly struct {
+// 	A []*big.Int
+// 	B []*big.Int
+// 	C []*big.Int
+// }
 
-// evalualte t(x)
-func (p *TwoDegPoly) EvalAt(x *big.Int) []*big.Int {
-	res := make([]*big.Int, numBits)
-	// I know this looks nasty
-	for ii := uint64(0); ii < numBits; ii++ {
-		res[ii] = new(big.Int).Add(new(big.Int).Add(new(big.Int).Mul(p.b[ii], x), p.c[ii]),
-			new(big.Int).Mul(p.a[ii], x).Mul(x, big.NewInt(1)))
-	}
+// // evalualte t(x)
+// func (p *TwoDegPoly) EvalAt(x *big.Int) []*big.Int {
+// 	res := make([]*big.Int, numBits)
+// 	// I know this looks nasty
+// 	for ii := uint64(0); ii < numBits; ii++ {
+// 		res[ii] = new(big.Int).Add(new(big.Int).Add(new(big.Int).Mul(p.b[ii], x), p.c[ii]), new(big.Int).Mul(p.a[ii], x).Mul(x, big.NewInt(1)))
+// 	}
 
-	return res
-}
+// 	return res
+// }
 
 //========== INNER PRODUCT PROOF =========
 
 type InProdProof struct {
-	a        *big.Int
-	b        *big.Int
-	u        []*big.Int
+	A        *big.Int
+	B        *big.Int
+	U        []*big.Int
+	UInv     []*big.Int
 	P        ECPoint
+	Q        ECPoint
 	LeftVec  []ECPoint
 	RightVec []ECPoint
 }
@@ -326,7 +328,7 @@ type InProdProof struct {
 func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	if len(a)%2 != 0 || len(a) != len(b) || len(a) != len(G) || len(a) != len(H) {
-		Dprintf("InProdProof:\n - lengths of arrays do not agree/not multiple of 2")
+		Dprintf("InProdProof:\n - lengths of arrays do not agree/not multiple of 2\n")
 		return InProdProof{}, false
 	}
 
@@ -335,6 +337,8 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	proof := InProdProof{big.NewInt(0),
 		big.NewInt(0),
 		make([]*big.Int, k),
+		make([]*big.Int, k),
+		ZKCurve.Zero(),
 		ZKCurve.Zero(),
 		make([]ECPoint, k),
 		make([]ECPoint, k)}
@@ -351,6 +355,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	// Multiple by the G of pedersen commitment, which is BaseMult
 	QX, QY := ZKCurve.C.ScalarBaseMult(w.Bytes())
 	Q := ECPoint{QX, QY}
+	proof.Q = Q
 
 	// c * wB
 	temp1X, temp1Y := ZKCurve.C.ScalarMult(QX, QY, c.Bytes())
@@ -370,21 +375,21 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		// Prover calcualtes L and R
 		proof.LeftVec[ii] = ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(Q.Mult(dotProd(aL, bR))))
 		proof.RightVec[ii] = ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(Q.Mult(dotProd(aR, bL))))
-		Dprintf("EEE\n")
 		// FS-Transform to make this non interactive is to write in each L and R into the buffer
 		// stringing these consecutive hashes locks in each value of L and R to the previous ones
 		hasher.Write(proof.LeftVec[ii].Bytes())
 		hasher.Write(proof.RightVec[ii].Bytes())
 		u := new(big.Int).SetBytes(hasher.Sum(nil))
 		uinv := new(big.Int).ModInverse(u, ZKCurve.N)
-		proof.u[ii] = u
+		proof.U[ii] = new(big.Int).Mul(u, u)          // we need it squred for verification
+		proof.UInv[ii] = new(big.Int).Mul(uinv, uinv) //need squared for verification
 
 		// reduce vectors by half
 		// a, b are computed by verifier only
 		a = vecAdd(scalar(aL, u), scalar(aR, uinv))
 		b = vecAdd(scalar(bR, u), scalar(bL, uinv))
 		// G, H are computed by both parites
-		G = vecAddEC(scalarEC(uinv, GL), scalarEC(u, GR))
+		G = vecAddEC(scalarEC(u, GR), scalarEC(uinv, GL))
 		H = vecAddEC(scalarEC(u, HL), scalarEC(uinv, HR))
 
 	}
@@ -392,13 +397,53 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	if len(a) != 1 || len(a) != len(b) {
 		Dprintf("InProdProof:\n - len(a) is not 1 and/or len(a) != len(b)\n")
 		Dprintf(" - Proof failed to generate\n")
+		Dprintf(" - a: %v\n - b: %v\n", a, b)
 		return InProdProof{}, false
 	}
 
-	proof.a = a[0]
-	proof.b = b[0]
+	proof.A = a[0]
+	proof.B = b[0]
 
-	return InProdProof{}, false
+	return proof, true
+}
+
+func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
+
+	s := make([]*big.Int, numBits)
+	sInv := make([]*big.Int, numBits)
+	for ii := 1; ii < int(numBits)+1; ii++ { //cant do log(0)... so gotta start at 1 and compensate for it later
+		lgI := uint64(math.Log2(float64(ii)))
+		k := 1 << lgI
+		if ii-k < 6 && k != 64 {
+			s[ii-1] = new(big.Int).Mul(proof.UInv[ii-k], proof.U[rootNumBits-1-lgI])
+		} else {
+			s[ii-1] = new(big.Int).Mul(s[ii-k], proof.U[rootNumBits-lgI])
+		}
+		sInv[int(numBits)-ii] = s[ii-1] // reverse order of s provides multiplicative inverses
+	}
+
+	// temp1 = <a * s, G>
+	// temp2 = <b / s, H>
+	// temp3 = abQ
+	// temp4 = - SUM(uL + uinvR) for j = 0 -> k-1
+
+	temp1 := ecDotProd(scalar(s, proof.A), G)
+	temp2 := ecDotProd(scalar(sInv, proof.B), H)
+	temp3 := proof.Q.Mult(proof.A.Mul(proof.A, proof.B))
+
+	temps := temp1.Add(temp2.Add(temp3))
+
+	sumTemp := ZKCurve.Zero()
+
+	for ii, _ := range proof.U {
+		sumTemp = sumTemp.Add(proof.LeftVec[ii].Mult(proof.U[ii]).Add(proof.RightVec[ii].Mult(proof.UInv[ii])))
+	}
+
+	if !proof.P.Equal(temps.Add(sumTemp)) {
+		return false
+	}
+
+	return true
 }
 
 /* RANDOM STUFF I WROTE FOR SOME REASON
