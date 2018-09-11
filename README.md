@@ -1,4 +1,4 @@
-# zkCrypto
+# zkSigma
 
 This is a library for zero-knowledge proof of knowledge cryptography.
 

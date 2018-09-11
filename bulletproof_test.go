@@ -1,4 +1,4 @@
-package zkCrypto
+package zkSigma
 
 import (
 	"crypto/rand"

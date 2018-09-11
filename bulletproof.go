@@ -1,4 +1,4 @@
-package zkCrypto
+package zkSigma
 
 import (
 	"crypto/rand"
@@ -345,14 +345,14 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	// Commitments we want to prove
 	temp1 := ecDotProd(a, G)
-	temp2 := ecDotProd(a, H)
+	temp2 := ecDotProd(b, H)
 	P := temp1.Add(temp2)
-	c := dotProd(a, b)
+	c := new(big.Int).Mod(dotProd(a, b), ZKCurve.N)
 
 	// Blinding factor for c
 	w, _ := rand.Int(rand.Reader, ZKCurve.N)
 
-	// Multiple by the G of pedersen commitment, which is BaseMult
+	// wG where G is from the ped commit:
 	QX, QY := ZKCurve.C.ScalarBaseMult(w.Bytes())
 	Q := ECPoint{QX, QY}
 	proof.Q = Q
@@ -366,7 +366,8 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	s := make([]*big.Int, k)
 	hasher := sha256.New()
 
-	for ii := uint64(0); ii < k; ii++ {
+	for ii := k - 1; ii >= uint64(0); ii-- {
+		Dprintf("ii: %v\n", ii)
 		// split the vectors for reduction later
 		aL, aR := splitVec(a)
 		bL, bR := splitVec(b)
@@ -381,10 +382,11 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		hasher.Write(proof.LeftVec[ii].Bytes())
 		hasher.Write(proof.RightVec[ii].Bytes())
 		u := new(big.Int).SetBytes(hasher.Sum(nil))
+		u.Mod(u, ZKCurve.N)
 		uinv := new(big.Int).ModInverse(u, ZKCurve.N)
 		s[ii] = uinv
-		proof.U[ii] = new(big.Int).Mul(u, u)          // we need it squred for verification
-		proof.UInv[ii] = new(big.Int).Mul(uinv, uinv) //need squared for verification
+		proof.U[ii] = new(big.Int).Mod(new(big.Int).Mul(u, u), ZKCurve.N)          // we need it squared for verification
+		proof.UInv[ii] = new(big.Int).Mod(new(big.Int).Mul(uinv, uinv), ZKCurve.N) //need squared for verification
 
 		// reduce vectors by half
 		// a, b are computed by verifier only
@@ -393,6 +395,11 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		// G, H are computed by both parites
 		G = vecAddEC(scalarEC(u, GR), scalarEC(uinv, GL))
 		H = vecAddEC(scalarEC(u, HL), scalarEC(uinv, HR))
+
+		// Without this you will get overflow on uint64(-1) and stuff breaks...
+		if ii == 0 {
+			break
+		}
 
 	}
 
@@ -406,6 +413,22 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	proof.A = a[0]
 	proof.B = b[0]
 
+	test1 := G[0].Mult(a[0])
+	test2 := H[0].Mult(b[0])
+	test3 := Q.Mult(c)
+
+	sumTemp := ZKCurve.Zero()
+	for ii := range proof.LeftVec {
+		sumTemp = sumTemp.Add(proof.LeftVec[ii].Mult(proof.U[ii]).Add(proof.RightVec[ii].Mult(proof.UInv[ii])))
+	}
+
+	total := test1.Add(test2.Add(test3.Sub(sumTemp)))
+
+	if !proof.P.Equal(total) {
+		Dprintf("Internal check did not verify!\n")
+		return InProdProof{}, false
+	}
+
 	return proof, true
 }
 
@@ -413,14 +436,13 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 
 	s := make([]*big.Int, numBits)
 	sInv := make([]*big.Int, numBits)
-	s[0] = proof.UInv[0] // not sure if I take square root of this num here...?
+	s[0] = proof.UInv[0]
 	sInv[numBits-1] = s[0]
 	for ii := 1; ii < int(numBits); ii++ {
 		lgI := uint64(math.Log2(float64(ii)))
 		k := 1 << lgI
-		Dprintf("\n%v\n%v\n%v", ii, k, lgI)
-		s[ii] = new(big.Int).Mul(proof.UInv[ii-k], proof.U[rootNumBits-1-lgI]) // indexing for proof.U is off...
-		sInv[int(numBits-1)-ii] = s[ii]                                        // reverse order of s provides multiplicative inverses
+		s[ii] = new(big.Int).Mod(new(big.Int).Mul(s[ii-k], proof.U[rootNumBits-1-lgI]), ZKCurve.N)
+		sInv[int(numBits-1)-ii] = s[ii] // reverse order of s provides multiplicative inverse of s
 	}
 
 	// temp1 = <a * s, G>
@@ -429,15 +451,17 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 
 	temp1 := ecDotProd(scalar(s, proof.A), G)
 	temp2 := ecDotProd(scalar(sInv, proof.B), H)
-	temp3 := proof.Q.Mult(new(big.Int).Mul(proof.A, proof.B))
+	temp3 := proof.Q.Mult(new(big.Int).Mod(new(big.Int).Mul(proof.A, proof.B), ZKCurve.N))
 
 	temps := temp1.Add(temp2.Add(temp3))
 
 	// sumTemp = SUM(uL + uinvR) for j = 0 -> k-1
 	sumTemp := ZKCurve.Zero()
-	for ii := range proof.U {
+	for ii := range proof.LeftVec {
 		sumTemp = sumTemp.Add(proof.LeftVec[ii].Mult(proof.U[ii]).Add(proof.RightVec[ii].Mult(proof.UInv[ii])))
 	}
+
+	Dprintf("\n\nP: %v\nP': %v\n", proof.P, temps.Sub(sumTemp))
 
 	// P ?= temps - sumTemp
 	if !proof.P.Equal(temps.Sub(sumTemp)) {
