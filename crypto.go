@@ -294,6 +294,13 @@ type GSPFSProof struct {
 	Challenge   *big.Int // challenge string hash sum, only use for sanity checks
 }
 
+type GSPAnyBaseProof struct {
+	Base        ECPoint  // Base point
+	RandCommit  ECPoint  // this is H = uG, where u is random value and G is a generator point
+	HiddenValue *big.Int // s = x * c + u, here c is the challenge and x is what we want to prove knowledge of
+	Challenge   *big.Int // challenge string hash sum, only use for sanity checks
+}
+
 /*
 	Schnorr Proof: prove that we know x withot revealing x
 
@@ -351,6 +358,45 @@ func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
 	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
 
 	return &GSPFSProof{ECPoint{uGX, uGY}, HiddenValue, Challenge}
+}
+
+func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPAnyBaseProof {
+
+	modValue := new(big.Int).Mod(x, ZKCurve.N)
+
+	testX, testY := ZKCurve.C.ScalarMult(base.X, base.Y, modValue.Bytes())
+
+	// res = xG, G is any base point in this proof
+	if testX.Cmp(result.X) != 0 || testY.Cmp(result.Y) != 0 {
+		Dprintf("GSPFSProve: the point given is not xG\n")
+		return &GSPAnyBaseProof{}
+	}
+
+	// u is a raondom number
+	u, err := rand.Int(rand.Reader, ZKCurve.N)
+	check(err)
+
+	// generate random point uG
+	uGX, uGY := ZKCurve.C.ScalarMult(base.X, base.Y, u.Bytes())
+
+	// genereate string to hash for challenge
+	temp := [][]byte{result.Bytes(), uGX.Bytes(), uGY.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
+
+	hasher := sha256.New()
+	hasher.Write(bytesToHash)
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
+
+	// v = u - c * x
+	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
+	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
+
+	return &GSPAnyBaseProof{base, ECPoint{uGX, uGY}, HiddenValue, Challenge}
 }
 
 // GSPFSVerify checks if a proof-commit pair is valid
@@ -713,7 +759,7 @@ func EquivilanceORLogProve(
 	Disjunctive Proofs: prove that you know either x or y but do not reveal
 						which one you know
 
-	Public: generator points G and H
+	Public: generator points G and H, A, B
 
 	V			 						P
 	(proving x)
@@ -785,7 +831,7 @@ func DisjunctiveProve(
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
-		Dprintf("Seems like we're lying about values we know...", modValue, ProveBase, ProveResult)
+		Dprintf("Seems like we're lying about values we know...\n", ProveBase.Mult(modValue), ProveResult)
 		return &DisjunctiveProof{}, false
 	}
 
@@ -1127,6 +1173,7 @@ func ConsistencyVerify(
 
 // TODO: differnt name for ABCProof
 type ABCProof struct {
+	// A         ECPoint  // fresh commit of vG without any blinding
 	B         ECPoint  // commitment for b = 0 OR inv(v)
 	C         ECPoint  // commitment for c = 0 OR 1 ONLY
 	T1        ECPoint  // T1 = u1G + u2MTok
@@ -1167,8 +1214,8 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 		// C = 0 + ucH
 		C := PedCommitR(big.NewInt(0), uc)
 
-		// proofA := GSPFSProve(modValue)
-		// proofC := GSPFSProve(big.NewInt(0))
+		// proofA := GSPFSProve(CM, modValue)
+		// proofC := GSPFSProve(C, big.NewInt(0))
 
 		// CMTok is Ta for the rest of the proof
 		// T1 = u1G + u2Ta
@@ -1232,8 +1279,8 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 		// C = G + ucH
 		C := PedCommitR(big.NewInt(1), uc)
 
-		// proofA := GSPFSProve(value)
-		// proofC := GSPFSProve(big.NewInt(1))
+		// proofA := GSPFSProve(CM, value)
+		// proofC := GSPFSProve(C, big.NewInt(1))
 
 		// T1 = u1G + u2Ta
 		// u1G

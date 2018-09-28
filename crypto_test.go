@@ -344,7 +344,8 @@ func TestABC(t *testing.T) {
 	fmt.Println("Passed TestABC")
 }
 
-func TestAverages(t *testing.T) {
+/*
+func TestABCProof(t *testing.T) {
 
 	var TxCommits []ECPoint
 	var TxRands []ECPoint
@@ -437,6 +438,6 @@ func TestAverages(t *testing.T) {
 		t.Fatalf("Something wrongs... avg : %v\n", ClearAverage)
 	}
 
-	fmt.Println("Passed TestAverages")
+	fmt.Println("Passed TestABCProof")
 
-}
+}*/

@@ -22,3 +22,15 @@ NOTES:
 - EquivilanceOrLog is not used but built it anyways 
 - VerifyZeroSumCommitments is not necessary anymore, removed it comepletely
 - DO NOT CHECK PROOF THAT HAS NOT BEEN FILLED IN, do initial checks with the status booleans
+
+
+
+
+NEW STUFF:
+- ABCProof1 generates for calse tx != 0, verification not working at the moment
+- Try to fix git branches
+
+FIX NEXT TIME:
+>> ABCVerify: cCM + T1 != jG + kCMTok
+>> Proof Failed to verify!
+>> aProof:
