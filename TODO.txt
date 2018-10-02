@@ -29,8 +29,4 @@ NOTES:
 NEW STUFF:
 - ABCProof1 generates for calse tx != 0, verification not working at the moment
 - Try to fix git branches
-
-FIX NEXT TIME:
->> ABCVerify: cCM + T1 != jG + kCMTok
->> Proof Failed to verify!
->> aProof:
+- Check if I am overwriting any values that need to be maintianed
