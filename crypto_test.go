@@ -286,157 +286,39 @@ func TestConsistency(t *testing.T) {
 	fmt.Println("Passed TestConsistency")
 }
 
-func TestABC(t *testing.T) {
-	sk, err := rand.Int(rand.Reader, ZKCurve.N)
-	pk := ZKCurve.H.Mult(sk)
-	value, err := rand.Int(rand.Reader, ZKCurve.N)
+// TODO: make a toooooon more test cases
+func TestABCProof(t *testing.T) {
 
-	CM, randomness := PedCommit(value)
-	CMTok := pk.Mult(randomness)
-	check(err)
-
-	Dprintf(" [debug] TRUE-RIGHT Next proof should pass\n")
-
-	proof, status, _ := ABCProve(CM, CMTok, value, sk, 1)
-
-	if !status {
-		Dprintf("avgProof: status is false but should be true")
+	if ZKCurve.C == nil {
+		Init()
 	}
-
-	if !ABCVerify(CM, CMTok, proof) {
-		Dprintf("avg proof not working\n")
-		t.Fatalf("avg proof verify should have been true\n")
-	}
-
-	Dprintf(" [debug] FALSE-LEFT Next proof should fail\n")
-
-	proof, status, _ = ABCProve(CM, CMTok, value, sk, 0)
-
-	if !status {
-		Dprintf("avgProof: status is true but should be false\n")
-	}
-
-	value = big.NewInt(0)
-	CM, randomness = PedCommit(value)
-	CMTok = pk.Mult(randomness)
-
-	Dprintf(" [debug] TRUE-LEFT Next proof should pass\n")
-
-	proof, status, _ = ABCProve(CM, CMTok, value, sk, 0)
-
-	if !status {
-		Dprintf("avgProof: status is false but should be true\n")
-	}
-
-	if !ABCVerify(CM, CMTok, proof) {
-		Dprintf("avg proof not working\n")
-		t.Fatalf("avg proof verify should have been true\n")
-	}
-
-	Dprintf(" [debug] FALSE-RIGHT Next proof should fail\n")
-
-	proof, status, _ = ABCProve(CM, CMTok, value, sk, 1)
-
-	if !status {
-		Dprintf("avgProof: status is true but should be false\n")
-	}
-
-	fmt.Println("Passed TestABC")
-}
-
-func TestAverages(t *testing.T) {
-
-	var TxCommits []ECPoint
-	var TxRands []ECPoint
-	var AvgCommits []ECPoint
-	var AvgRands []ECPoint
-
-	// total_rToken := big.NewInt(0)
-	// total_crToken := big.NewInt(0)
-
-	var numTx int64
-	numTx = 10
-	var TxValues []*big.Int
-
-	TxValues = make([]*big.Int, numTx)
-	TxCommits = make([]ECPoint, numTx)
-	TxRands = make([]ECPoint, numTx)
-	AvgCommits = make([]ECPoint, numTx)
-	AvgRands = make([]ECPoint, numTx)
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
-	pk := ZKCurve.H.Mult(sk)
+	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	ua, _ := rand.Int(rand.Reader, ZKCurve.N)
 
-	var temp *big.Int
+	PK := ZKCurve.H.Mult(sk)
+	A := ZKCurve.H.Mult(ua)       // ua * (sk * H)
+	temp := ZKCurve.G.Mult(value) // value(G); ZKCurve.C.ScalarBaseMult(value.Bytes())
 
-	// Generating random transactions
-	for ii := int64(0); ii < numTx; ii++ {
-		value, _ := rand.Int(rand.Reader, big.NewInt(1000))
-		TxValues[ii] = new(big.Int).Set(value)
+	// A = vG + ua (sk * H)
+	A.X, A.Y = ZKCurve.C.Add(A.X, A.Y, temp.X, temp.Y)
+	AToken := PK.Mult(ua) //ZKCurve.H.Mult(ua), where can I get uaH?
 
-		TxCommits[ii], temp = PedCommit(value)
-		TxRands[ii] = pk.Mult(temp)
-		// total_rToken = new(big.Int).Add(total_rToken, temp)
+	aProof, status := ABCProve(A, AToken, value, sk, right)
 
-		aProof, status, uc := ABCProve(TxCommits[ii], TxRands[ii], value, sk, 1)
-		if !status {
-			Dprintf("Something went wrong...\n")
-		}
-
-		AvgCommits[ii] = aProof.C
-		AvgRands[ii] = pk.Mult(uc)
-		// total_crToken = new(big.Int).Add(total_crToken, temp)
+	if !status {
+		Dprintf("ABCProof1 failed to generate!\n")
+		fmt.Printf("aProof: \n\n %v \n\n", aProof)
+		t.Fatalf("ABCProof1 failed\n")
 	}
 
-	var TxAgg ECPoint
-	var RandAgg ECPoint
-	var AvgAgg ECPoint
-	var CRandAgg ECPoint
-	TotalClear := big.NewInt(0)
-	NonZeroTx := big.NewInt(0)
-
-	TxAgg = ZKCurve.Zero()
-	RandAgg = ZKCurve.Zero()
-	AvgAgg = ZKCurve.Zero()
-	CRandAgg = ZKCurve.Zero()
-
-	for ii := int64(0); ii < numTx; ii++ {
-		TxAgg = TxAgg.Add(TxCommits[ii])
-		RandAgg = RandAgg.Add(TxRands[ii])
-		AvgAgg = AvgAgg.Add(AvgCommits[ii])
-		CRandAgg = CRandAgg.Add(AvgRands[ii])
-		TotalClear = TotalClear.Add(TotalClear, TxValues[ii])
-		if TxValues[ii].Cmp(big.NewInt(0)) == 0 {
-			numTx--
-		}
-
+	if !ABCVerify(A, AToken, aProof) {
+		Dprintf("Proof Failed to verify!\n")
+		Dprintf("aProof: \n\n %v \n\n", aProof)
+		t.Fatalf("ABCVerify1 failed\n")
 	}
 
-	NonZeroTx = big.NewInt(numTx)
-	ClearAverage := new(big.Int).Quo(TotalClear, NonZeroTx)
-
-	// TOTAL CLEAR WILL BE REPLACED WITH BANK ANSWER
-	gv := ZKCurve.G.Mult(TotalClear).Neg()
-	T := TxAgg.Add(gv)
-
-	EProofSum, _ := EquivilanceProve(T, RandAgg, ZKCurve.H, pk, sk)
-	Dprintf("EProofSum : %v\n", EProofSum)
-
-	if !EquivilanceVerify(T, RandAgg, ZKCurve.H, pk, EProofSum) {
-		t.Fatalf("Something wrongs... avg : %v\n", ClearAverage)
-	}
-
-	// TXCOUNT WILL BE REPLACED WITH BANK ANSWER
-	nv := ZKCurve.G.Mult(NonZeroTx).Neg()
-	L := AvgAgg.Add(nv)
-
-	EProofAvg, _ := EquivilanceProve(L, CRandAgg, ZKCurve.H, pk, sk)
-	Dprintf("EProofSum : %v\n", EProofAvg)
-
-	if !EquivilanceVerify(L, CRandAgg, ZKCurve.H, pk, EProofAvg) {
-		t.Fatalf("Something wrongs... avg : %v\n", ClearAverage)
-	}
-
-	fmt.Println("Passed TestAverages")
+	fmt.Println("TestABCProof1 Passed")
 
 }

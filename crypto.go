@@ -164,73 +164,21 @@ func KeyGen() (ECPoint, *big.Int) {
 	return ECPoint{pkX, pkY}, sk
 }
 
-// func GenerateGPoints() []ECPoint {
-// 	GSlice := make([]ECPoint, 64)
-
-// 	for i := range GSlice {
-// 		m := big.NewInt(1 << uint(i))
-// 		GSlice[i].X, GSlice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
-// 	}
-// 	return GSlice
-// }
-
-// func GenerateH2tothe() []ECPoint {
-// 	Hslice := make([]ECPoint, 64)
-// 	for i := range Hslice {
-// 		// mv := new(big.Int).Exp(new(big.Int).SetInt64(2), big.NewInt(int64(len(bValue)-i-1)), EC.C.Params().N)
-// 		// This does the same thing.
-// 		m := big.NewInt(1 << uint(i))
-// 		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
-// 	}
-// 	return Hslice
-// }
-
-// func FSBM_G(x []byte) ECPoint {
-
-// 	//Bz := new(big.Int).SetInt64(1)
-// 	//x, y, z := new(big.Int), new(big.Int), new(big.Int)
-
-// 	finalValue := ZKCurve.Zero()
-
-// 	for i, byte := range x {
-// 		for bitNum := 0; bitNum < 8; bitNum++ {
-// 			// x, y, z = curve.doubleJacobian(x, y, z)
-// 			if byte&0x80 == 0x80 {
-// 				finalValue = finalValue.Add(GPoints[i*8+bitNum])
-// 			}
-// 			byte <<= 1
-// 		}
-// 	}
-
-// 	return ECPoint{}
-
-// }
-
-// func FSBM_H(x []byte) ECPoint {
-
-// 	//Bz := new(big.Int).SetInt64(1)
-// 	//x, y, z := new(big.Int), new(big.Int), new(big.Int)
-
-// 	finalValue := ZKCurve.Zero()
-
-// 	for i, byte := range x {
-// 		for bitNum := 0; bitNum < 8; bitNum++ {
-// 			// x, y, z = curve.doubleJacobian(x, y, z)
-// 			if byte&0x80 == 0x80 {
-// 				finalValue = finalValue.Add(HPoints[i*8+bitNum])
-// 			}
-// 			byte <<= 1
-// 		}
-// 	}
-
-// 	return ECPoint{}
-
-// }
+func GenerateH2tothe() []ECPoint {
+	Hslice := make([]ECPoint, 64)
+	for i, _ := range Hslice {
+		// mv := new(big.Int).Exp(new(big.Int).SetInt64(2), big.NewInt(int64(len(bValue)-i-1)), EC.C.Params().N)
+		// This does the same thing.
+		m := big.NewInt(1 << uint(i))
+		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
+	}
+	return Hslice
+}
 
 func Init() {
 	ZKCurve = NewECPrimeGroupKey()
 	// GPoints = GenerateGPoints()
-	// HPoints = GenerateH2tothe()
+	HPoints = GenerateH2tothe()
 }
 
 // =============== PEDERSEN COMMITMENTS ================
@@ -294,6 +242,13 @@ type GSPFSProof struct {
 	Challenge   *big.Int // challenge string hash sum, only use for sanity checks
 }
 
+type GSPAnyBaseProof struct {
+	Base        ECPoint  // Base point
+	RandCommit  ECPoint  // this is H = uG, where u is random value and G is a generator point
+	HiddenValue *big.Int // s = x * c + u, here c is the challenge and x is what we want to prove knowledge of
+	Challenge   *big.Int // challenge string hash sum, only use for sanity checks
+}
+
 /*
 	Schnorr Proof: prove that we know x withot revealing x
 
@@ -351,6 +306,45 @@ func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
 	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
 
 	return &GSPFSProof{ECPoint{uGX, uGY}, HiddenValue, Challenge}
+}
+
+func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPAnyBaseProof {
+
+	modValue := new(big.Int).Mod(x, ZKCurve.N)
+
+	testX, testY := ZKCurve.C.ScalarMult(base.X, base.Y, modValue.Bytes())
+
+	// res = xG, G is any base point in this proof
+	if testX.Cmp(result.X) != 0 || testY.Cmp(result.Y) != 0 {
+		Dprintf("GSPFSProve: the point given is not xG\n")
+		return &GSPAnyBaseProof{}
+	}
+
+	// u is a raondom number
+	u, err := rand.Int(rand.Reader, ZKCurve.N)
+	check(err)
+
+	// generate random point uG
+	uGX, uGY := ZKCurve.C.ScalarMult(base.X, base.Y, u.Bytes())
+
+	// genereate string to hash for challenge
+	temp := [][]byte{result.Bytes(), uGX.Bytes(), uGY.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
+
+	hasher := sha256.New()
+	hasher.Write(bytesToHash)
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
+
+	// v = u - c * x
+	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
+	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
+
+	return &GSPAnyBaseProof{base, ECPoint{uGX, uGY}, HiddenValue, Challenge}
 }
 
 // GSPFSVerify checks if a proof-commit pair is valid
@@ -713,7 +707,7 @@ func EquivilanceORLogProve(
 	Disjunctive Proofs: prove that you know either x or y but do not reveal
 						which one you know
 
-	Public: generator points G and H
+	Public: generator points G and H, A, B
 
 	V			 						P
 	(proving x)
@@ -785,7 +779,7 @@ func DisjunctiveProve(
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
-		Dprintf("Seems like we're lying about values we know...", modValue, ProveBase, ProveResult)
+		Dprintf("Seems like we're lying about values we know...\n", ProveBase.Mult(modValue), ProveResult)
 		return &DisjunctiveProof{}, false
 	}
 
@@ -1103,8 +1097,7 @@ func ConsistencyVerify(
 	generate in order:
 	- commitment of inv(v), B
 	- commitment of v * inv(v), C // either 0 or 1 ONLY
-	- GSPFS proof for CM, proofA
-	- GSPFS proof for C, proofC
+	- Disjunctive proof of a = 0 or c = 1
 	select u1, u2, u3 at random
 	select ub, uc at random
 	Compute:
@@ -1112,20 +1105,18 @@ func ConsistencyVerify(
 	- T2 = u1B + u3H
 	- c = HASH(G,H,CM,CMTok,B,C,T1,T2)
 	Compute:
-	- j = u1 + v * c				// can be though of as s1
-	- k = u2 + inv(sk) * c			// s2
-	- l = u3 + (uc - v * ub) * c 	// s3
+	- j = u1 + v * c
+	- k = u2 + inv(sk) * c
+	- l = u3 + (uc - v * ub) * c
 
-	proofA, proofC, B, C, T1, T2, c, j, k, l
+	disjuncAC, B, C, T1, T2, c, j, k, l
 								   	------->
-											 proofA ?= true
-	 										 proofC ?= true
+											 disjuncAC ?= true
 											 c ?= HASH(G,H,CM,CMTok,B,C,T1,T2)
 											 cCM + T1 ?= jG + kCMTok
 											 cC + T2 ?= jB + lH
 */
 
-// TODO: differnt name for ABCProof
 type ABCProof struct {
 	B         ECPoint  // commitment for b = 0 OR inv(v)
 	C         ECPoint  // commitment for c = 0 OR 1 ONLY
@@ -1136,15 +1127,12 @@ type ABCProof struct {
 	k         *big.Int // k = u2 + inv(sk) * c
 	l         *big.Int // l = u3 + (uc - v * ub) * c
 	CToken    ECPoint
-	// proofA    *GSPFSProof // proof that we know value of tx
-	// proofC    *GSPFSProof // proof that we know value of c
+	disjuncAC *DisjunctiveProof
 }
 
 // option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
-func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, bool, *big.Int) {
-
-	modValue := new(big.Int).Mod(value, ZKCurve.N)
+func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bool) {
 
 	u1, err := rand.Int(rand.Reader, ZKCurve.N)
 	u2, err := rand.Int(rand.Reader, ZKCurve.N)
@@ -1153,146 +1141,100 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 	uc, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
-	if option == 0 {
+	// // v = 0
+	// if modValue.Cmp(big.NewInt(0)) != 0 {
+	// 	Dprintf("We are lying about value of tx and trying to generate inccorect proof")
+	// 	return &ABCProof1{}, false
+	// }
 
-		// v = 0
-		if modValue.Cmp(big.NewInt(0)) != 0 {
-			Dprintf("We are lying about value of tx and trying to generate inccorect proof")
-			return &ABCProof{}, false, uc
-		}
+	B := ECPoint{}
+	C := ECPoint{}
+	CToken := ZKCurve.H.Mult(uc)
 
+	disjuncAC := new(DisjunctiveProof)
+	status := false
+	// Disjunctive Proof of a = 0 or c = 1
+	if option == left && value.Cmp(big.NewInt(0)) == 0 {
+		// MUST:a = 0! ; side = left
 		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
-		B := PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.N), ub)
+		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.N), ub)
 
 		// C = 0 + ucH
-		C := PedCommitR(big.NewInt(0), uc)
+		C = PedCommitR(big.NewInt(0), uc)
 
-		// proofA := GSPFSProve(modValue)
-		// proofC := GSPFSProve(big.NewInt(0))
+		disjuncAC, status = DisjunctiveProve(CMTok, CM, ZKCurve.H, C, sk, left) //C - G?
+	} else if option == right && value.Cmp(big.NewInt(0)) != 0 {
+		// MUST:c = 1! ; side = right
 
-		// CMTok is Ta for the rest of the proof
-		// T1 = u1G + u2Ta
-		// u1G
-		u1G := ZKCurve.G.Mult(u1)
-		// u2Ta
-		u2Ta := CMTok.Mult(u2)
-		// Sum the above two
-		T1X, T1Y := ZKCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
-
-		// In the case that v = 0, T2 reduces to the following
-		// T2 = (ub * u1 + u3)H
-		s := new(big.Int).Add(u3, new(big.Int).Mul(ub, u1))
-		T2 := ZKCurve.H.Mult(s)
-
-		// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
-		temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), B.Bytes(), C.Bytes(), T1X.Bytes(), T1Y.Bytes(), T2.X.Bytes(), T2.Y.Bytes()}
-
-		var bytesToHash []byte
-		for _, v := range temp {
-			bytesToHash = append(bytesToHash, v...)
-		}
-
-		hasher := sha256.New()
-		hasher.Write(bytesToHash)
-		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
-		Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
-
-		// j = u1 + v * c , v = 0
-		j := new(big.Int).Mod(u1, ZKCurve.N)
-
-		// k = u2 + inv(sk) * c
-		isk := new(big.Int).ModInverse(sk, ZKCurve.N)
-		k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-		k = new(big.Int).Mod(k, ZKCurve.N)
-
-		// l = u3 + (uc - v * ub) * c , v = 0
-		l := new(big.Int).Add(u3, new(big.Int).Mul(uc, Challenge))
-
-		CToken := ZKCurve.H.Mult(sk).Mult(uc)
-
-		return &ABCProof{
-			B,
-			C,
-			ECPoint{T1X, T1Y},
-			T2,
-			Challenge,
-			j, k, l, CToken}, true, uc
-
-	} else if option == 1 {
-
-		// v != 0
-		if modValue.Cmp(big.NewInt(0)) == 0 {
-			Dprintf("We are lying about value of tx and trying to generate inccorect proof")
-			return &ABCProof{}, false, uc
-		}
-
-		// B = inv(v)G + ubH
-		B := PedCommitR(new(big.Int).ModInverse(modValue, ZKCurve.N), ub)
+		B = PedCommitR(new(big.Int).ModInverse(value, ZKCurve.N), ub)
 
 		// C = G + ucH
-		C := PedCommitR(big.NewInt(1), uc)
+		C = PedCommitR(big.NewInt(1), uc)
 
-		// proofA := GSPFSProve(value)
-		// proofC := GSPFSProve(big.NewInt(1))
-
-		// T1 = u1G + u2Ta
-		// u1G
-		u1G := ZKCurve.G.Mult(u1)
-		// u2Ta
-		u2Ta := CMTok.Mult(u2)
-		// Sum the above two
-		T1X, T1Y := ZKCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
-
-		// T2 = u1B + u3H
-		// u1B
-		u1B := B.Mult(u1)
-		// u3H
-		u3H := ZKCurve.H.Mult(u3)
-		// Sum of the above two
-		T2X, T2Y := ZKCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
-
-		temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), B.Bytes(), C.Bytes(), T1X.Bytes(), T1Y.Bytes(), T2X.Bytes(), T2Y.Bytes()}
-
-		var bytesToHash []byte
-		for _, v := range temp {
-			bytesToHash = append(bytesToHash, v...)
-		}
-
-		hasher := sha256.New()
-		hasher.Write(bytesToHash)
-		Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
-		Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
-
-		// j = u1 + v * c , can be though of as s1
-		j := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
-		j = new(big.Int).Mod(j, ZKCurve.N)
-
-		// k = u2 + inv(sk) * c
-		// inv(sk)
-		isk := new(big.Int).ModInverse(sk, ZKCurve.N)
-		k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-		k = new(big.Int).Mod(k, ZKCurve.N)
-
-		// l = u3 + (uc - v * ub) * c
-		temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(modValue, ub))
-		l := new(big.Int).Add(u3, new(big.Int).Mul(temp1, Challenge))
-
-		CToken := ZKCurve.H.Mult(sk)
-		uc = new(big.Int).Mod(uc, ZKCurve.N)
-		CToken = CToken.Mult(uc)
-
-		return &ABCProof{
-			B,
-			C,
-			ECPoint{T1X, T1Y},
-			ECPoint{T2X, T2Y},
-			Challenge,
-			j, k, l, CToken}, true, uc
-
+		disjuncAC, status = DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G), uc, right)
 	} else {
-		Dprintf("ABCProof: side passed is not valid")
-		return &ABCProof{}, false, uc
+		Dprintf("ABCProof1: Side/value combination not correct\n")
+		return &ABCProof{}, false
 	}
+
+	if !status {
+		Dprintf("Disjunctive Proof in ABCProof1 failed to generated!\n")
+		return &ABCProof{}, false
+	}
+
+	// CMTok is Ta for the rest of the proof
+	// T1 = u1G + u2Ta
+	// u1G
+	u1G := ZKCurve.G.Mult(u1)
+	// u2Ta
+	u2Ta := CMTok.Mult(u2)
+	// Sum the above two
+	T1X, T1Y := ZKCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
+
+	// T2 = u1B + u3H
+	// u1B
+	u1B := B.Mult(u1)
+	// u3H
+	u3H := ZKCurve.H.Mult(u3)
+	// Sum of the above two
+	T2X, T2Y := ZKCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
+
+	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
+	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), B.Bytes(), C.Bytes(), T1X.Bytes(), T1Y.Bytes(), T2X.Bytes(), T2Y.Bytes()}
+
+	var bytesToHash []byte
+	for _, v := range temp {
+		bytesToHash = append(bytesToHash, v...)
+	}
+
+	hasher := sha256.New()
+	hasher.Write(bytesToHash)
+	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
+	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
+
+	// j = u1 + v * c , can be though of as s1
+	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
+	j = new(big.Int).Mod(j, ZKCurve.N)
+
+	// k = u2 + inv(sk) * c
+	// inv(sk)
+	isk := new(big.Int).ModInverse(sk, ZKCurve.N)
+	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
+	k = new(big.Int).Mod(k, ZKCurve.N)
+
+	// l = u3 + (uc - v * ub) * c
+	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
+	l := new(big.Int).Add(u3, new(big.Int).Mul(temp1, Challenge))
+
+	return &ABCProof{
+		B,
+		C,
+		ECPoint{T1X, T1Y},
+		ECPoint{T2X, T2Y},
+		Challenge,
+		j, k, l, CToken,
+		disjuncAC}, true
+
 }
 
 /*
@@ -1305,15 +1247,10 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option int) (*ABCProof, boo
 
 func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
-	// if !GSPFSVerify(CM, aProof.proofA) {
-	// 	Dprintf("ABCProof for proofA is false\n")
-	// 	return false
-	// }
-
-	// if !GSPFSVerify(aProof.C, aProof.proofC) {
-	// 	Dprintf("ABCProof for proofC is false\n")
-	// 	return false
-	// }
+	if !DisjunctiveVerify(CMTok, CM, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC) {
+		Dprintf("ABCProof1 for disjuncAC is false or not generated properly\n")
+		return false
+	}
 
 	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), aProof.B.Bytes(), aProof.C.Bytes(), aProof.T1.Bytes(), aProof.T2.Bytes()}
 
