@@ -22,3 +22,11 @@ NOTES:
 - EquivilanceOrLog is not used but built it anyways 
 - VerifyZeroSumCommitments is not necessary anymore, removed it comepletely
 - DO NOT CHECK PROOF THAT HAS NOT BEEN FILLED IN, do initial checks with the status booleans
+
+
+
+
+NEW STUFF:
+- ABCProof1 generates for calse tx != 0, verification not working at the moment
+- Try to fix git branches
+- Check if I am overwriting any values that need to be maintianed

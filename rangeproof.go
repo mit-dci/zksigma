@@ -147,7 +147,11 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	// else, because of truncation, it will be deemed out of range not be equal
 
 	if value.Cmp(big.NewInt(1099511627776)) == 1 {
+<<<<<<< HEAD
 		fmt.Printf("val %s too big, can only prove up to 1099511627776\n",
+=======
+		fmt.Printf("val %stoo big, can only prove up to 1099511627776\n",
+>>>>>>> c5a16163c96a8e229727c10cb8e3a3ecc5ff3358
 			value.String())
 		return nil, nil
 	}
