@@ -174,16 +174,14 @@ func KeyGen() (ECPoint, *big.Int) {
 // 	return GSlice
 // }
 
-// func GenerateH2tothe() []ECPoint {
-// 	Hslice := make([]ECPoint, 64)
-// 	for i := range Hslice {
-// 		// mv := new(big.Int).Exp(new(big.Int).SetInt64(2), big.NewInt(int64(len(bValue)-i-1)), EC.C.Params().N)
-// 		// This does the same thing.
-// 		m := big.NewInt(1 << uint(i))
-// 		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
-// 	}
-// 	return Hslice
-// }
+func GenerateH2tothe() []ECPoint {
+	Hslice := make([]ECPoint, 64)
+	for i := range Hslice {
+		m := big.NewInt(1 << uint(i))
+		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
+	}
+	return Hslice
+}
 
 // func FSBM_G(x []byte) ECPoint {
 
@@ -230,7 +228,7 @@ func KeyGen() (ECPoint, *big.Int) {
 func Init() {
 	ZKCurve = NewECPrimeGroupKey()
 	// GPoints = GenerateGPoints()
-	// HPoints = GenerateH2tothe()
+	HPoints = GenerateH2tothe()
 }
 
 // =============== PEDERSEN COMMITMENTS ================
