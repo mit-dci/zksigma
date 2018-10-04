@@ -164,17 +164,6 @@ func KeyGen() (ECPoint, *big.Int) {
 	return ECPoint{pkX, pkY}, sk
 }
 
-<<<<<<< HEAD
-// func GenerateGPoints() []ECPoint {
-// 	GSlice := make([]ECPoint, 64)
-
-// 	for i := range GSlice {
-// 		m := big.NewInt(1 << uint(i))
-// 		GSlice[i].X, GSlice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
-// 	}
-// 	return GSlice
-// }
-
 func GenerateH2tothe() []ECPoint {
 	Hslice := make([]ECPoint, 64)
 	for i := range Hslice {
@@ -183,60 +172,6 @@ func GenerateH2tothe() []ECPoint {
 	}
 	return Hslice
 }
-
-// func FSBM_G(x []byte) ECPoint {
-
-// 	//Bz := new(big.Int).SetInt64(1)
-// 	//x, y, z := new(big.Int), new(big.Int), new(big.Int)
-
-// 	finalValue := ZKCurve.Zero()
-
-// 	for i, byte := range x {
-// 		for bitNum := 0; bitNum < 8; bitNum++ {
-// 			// x, y, z = curve.doubleJacobian(x, y, z)
-// 			if byte&0x80 == 0x80 {
-// 				finalValue = finalValue.Add(GPoints[i*8+bitNum])
-// 			}
-// 			byte <<= 1
-// 		}
-// 	}
-
-// 	return ECPoint{}
-
-// }
-
-// func FSBM_H(x []byte) ECPoint {
-
-// 	//Bz := new(big.Int).SetInt64(1)
-// 	//x, y, z := new(big.Int), new(big.Int), new(big.Int)
-
-// 	finalValue := ZKCurve.Zero()
-
-// 	for i, byte := range x {
-// 		for bitNum := 0; bitNum < 8; bitNum++ {
-// 			// x, y, z = curve.doubleJacobian(x, y, z)
-// 			if byte&0x80 == 0x80 {
-// 				finalValue = finalValue.Add(HPoints[i*8+bitNum])
-// 			}
-// 			byte <<= 1
-// 		}
-// 	}
-
-// 	return ECPoint{}
-
-// }
-=======
-func GenerateH2tothe() []ECPoint {
-	Hslice := make([]ECPoint, 64)
-	for i, _ := range Hslice {
-		// mv := new(big.Int).Exp(new(big.Int).SetInt64(2), big.NewInt(int64(len(bValue)-i-1)), EC.C.Params().N)
-		// This does the same thing.
-		m := big.NewInt(1 << uint(i))
-		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
-	}
-	return Hslice
-}
->>>>>>> c5a16163c96a8e229727c10cb8e3a3ecc5ff3358
 
 func Init() {
 	ZKCurve = NewECPrimeGroupKey()
