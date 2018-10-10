@@ -298,27 +298,42 @@ func TestABCProof(t *testing.T) {
 	ua, _ := rand.Int(rand.Reader, ZKCurve.N)
 
 	PK := ZKCurve.H.Mult(sk)
-	A := ZKCurve.H.Mult(ua)       // ua * (sk * H)
+	A := ZKCurve.H.Mult(ua)       // uaH
 	temp := ZKCurve.G.Mult(value) // value(G); ZKCurve.C.ScalarBaseMult(value.Bytes())
 
-	// A = vG + ua (sk * H)
+	// A = vG + uaH
 	A.X, A.Y = ZKCurve.C.Add(A.X, A.Y, temp.X, temp.Y)
 	AToken := PK.Mult(ua) //ZKCurve.H.Mult(ua), where can I get uaH?
 
 	aProof, status := ABCProve(A, AToken, value, sk, right)
 
 	if !status {
-		Dprintf("ABCProof1 failed to generate!\n")
+		Dprintf("ABCProof RIGHT failed to generate!\n")
 		fmt.Printf("aProof: \n\n %v \n\n", aProof)
-		t.Fatalf("ABCProof1 failed\n")
+		t.Fatalf("ABCProof RIGHT failed\n")
 	}
 
 	if !ABCVerify(A, AToken, aProof) {
-		Dprintf("Proof Failed to verify!\n")
+		Dprintf("ABCProof RIGHT Failed to verify!\n")
 		Dprintf("aProof: \n\n %v \n\n", aProof)
-		t.Fatalf("ABCVerify1 failed\n")
+		t.Fatalf("ABCVerify RIGHT failed\n")
 	}
 
-	fmt.Println("TestABCProof1 Passed")
+	A = ZKCurve.H.Mult(ua)
+	aProof, status = ABCProve(A, AToken, big.NewInt(0), sk, left)
+
+	if !status {
+		Dprintf("ABCProof LEFT failed to generate!\n")
+		fmt.Printf("aProof: \n\n %v \n\n", aProof)
+		t.Fatalf("ABCProof LEFT failed\n")
+	}
+
+	if !ABCVerify(A, AToken, aProof) {
+		Dprintf("ABCProof LEFT Failed to verify!\n")
+		Dprintf("aProof: \n\n %v \n\n", aProof)
+		t.Fatalf("ABCVerify LEFT failed\n")
+	}
+
+	fmt.Println("TestABCProof Passed")
 
 }

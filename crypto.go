@@ -44,6 +44,7 @@ func check(e error) {
 }
 
 var DEBUG = flag.Bool("debug1", false, "Debug output")
+var EXTEN = flag.Bool("extensive", false, "Extensive test cases")
 
 // Dprintf is a generic debug statement generator
 func Dprintf(format string, args ...interface{}) {
@@ -1160,7 +1161,9 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 		// C = 0 + ucH
 		C = PedCommitR(big.NewInt(0), uc)
 
-		disjuncAC, status = DisjunctiveProve(CMTok, CM, ZKCurve.H, C, sk, left) //C - G?
+		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
+		// C - G is done regardless of the c = 0 or 1 becuase in the case c = 0 it does matter what that random number is
+		disjuncAC, status = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, left)
 	} else if option == right && value.Cmp(big.NewInt(0)) != 0 {
 		// MUST:c = 1! ; side = right
 
@@ -1169,7 +1172,8 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 		// C = G + ucH
 		C = PedCommitR(big.NewInt(1), uc)
 
-		disjuncAC, status = DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G), uc, right)
+		// Look at notes a couple lines above on what the input is like this
+		disjuncAC, status = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, right)
 	} else {
 		Dprintf("ABCProof1: Side/value combination not correct\n")
 		return &ABCProof{}, false
@@ -1245,8 +1249,9 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 
 func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
-	if !DisjunctiveVerify(CMTok, CM, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC) {
-		Dprintf("ABCProof1 for disjuncAC is false or not generated properly\n")
+	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
+	if !DisjunctiveVerify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC) {
+		Dprintf("ABCProof for disjuncAC is false or not generated properly\n")
 		return false
 	}
 
