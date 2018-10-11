@@ -14,7 +14,6 @@ import (
 // MAKE SURE TO CALL init() BEFORE DOING ANYTHING
 // Global vars used to maintain all the crypto constants
 var ZKCurve zkpCrypto // look for init()
-var GPoints []ECPoint
 var HPoints []ECPoint // look for init()
 
 type side int
@@ -209,10 +208,6 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	modValue := new(big.Int).Mod(value, ZKCurve.N)
 	modRandom := new(big.Int).Mod(randomValue, ZKCurve.N)
 
-	// For some reason modRandom doesnt work...
-	// randomValue = rand() mod N
-	// modRandom := new(big.Int).Mod(randomValue, ZKCurve.N)
-
 	// mG, rH :: lhs, rhs
 	lhs := ZKCurve.G.Mult(modValue)
 	rhs := ZKCurve.H.Mult(modRandom)
@@ -232,8 +227,6 @@ func Open(value, randomValue *big.Int, PedComm ECPoint) bool {
 // =========== GENERALIZED SCHNORR PROOFS ===============
 
 // GSPFS is Generalized Schnorr Proofs with Fiat-Shamir transform
-// TODO: change the json stuff
-
 // GSPFSProof is proof of knowledge of x
 type GSPFSProof struct {
 	RandCommit  ECPoint  // this is H = uG, where u is random value and G is a generator point
@@ -468,6 +461,11 @@ func EquivilanceProve(
 
 }
 
+/*
+	c ?= HASH(G, H, A, B, T1, T2)
+	sG ?= T1 + cA
+	sH ?= T2 + cB
+*/
 // EquivilanceVerify checks if a proof is valid
 func EquivilanceVerify(
 	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) bool {
@@ -955,7 +953,7 @@ type ConsistencyProof struct {
 */
 
 func ConsistencyProve(
-	Point1, Point2, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, bool) {
+	CM, CMTok, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, bool) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
@@ -964,13 +962,13 @@ func ConsistencyProve(
 
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
-	if !Point1.Equal(PedCommitR(value, randomness)) {
-		Dprintf("Tsk tsk tsk, lying about our commitments, ay?\n")
+	if !CM.Equal(PedCommitR(value, randomness)) {
+		Dprintf("ConsistancyProve: Commitment passed does not match value and randomness\n")
 		return &ConsistencyProof{}, false
 	}
 
-	if !Point2.Equal(PubKey.Mult(randomness)) {
-		Dprintf("Such disgrace! Lying about our Randomness Token! The audacity!\n")
+	if !CMTok.Equal(PubKey.Mult(randomness)) {
+		Dprintf("ConsistancyProve:Randomness token does not match pubkey and randomValue\n")
 		return &ConsistencyProof{}, false
 	}
 
@@ -983,7 +981,7 @@ func ConsistencyProve(
 	T1 := PedCommitR(u1, u2)
 	T2 := PubKey.Mult(u2)
 
-	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), Point1.Bytes(), Point2.Bytes(), PubKey.Bytes(), T1.Bytes(), T2.Bytes()}
+	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), PubKey.Bytes(), T1.Bytes(), T2.Bytes()}
 
 	var bytesToHash []byte
 	for _, v := range temp {
@@ -1025,12 +1023,12 @@ func ConsistencyProve(
 
 // ConsistencyVerify checks if a proof is valid
 func ConsistencyVerify(
-	Point1, Point2, PubKey ECPoint, conProof *ConsistencyProof) bool {
+	CM, CMTok, PubKey ECPoint, conProof *ConsistencyProof) bool {
 
 	// CM should be point1, Y should be point2
 
 	// Regenerate challenge string
-	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), Point1.Bytes(), Point2.Bytes(), PubKey.Bytes(), conProof.T1.Bytes(), conProof.T2.Bytes()}
+	temp := [][]byte{ZKCurve.G.Bytes(), ZKCurve.H.Bytes(), CM.Bytes(), CMTok.Bytes(), PubKey.Bytes(), conProof.T1.Bytes(), conProof.T2.Bytes()}
 
 	var bytesToHash []byte
 	for _, v := range temp {
@@ -1044,7 +1042,7 @@ func ConsistencyVerify(
 
 	// c ?= HASH(G, H, T1, T2, PK, CM, Y)
 	if Challenge.Cmp(conProof.Challenge) != 0 {
-		Dprintf(" [crypto] c comparison failed. proof: %v calculated: %v\n",
+		Dprintf("ConsistancyVerify: c comparison failed. proof: %v calculated: %v\n",
 			conProof.Challenge, Challenge)
 		return false
 	}
@@ -1053,22 +1051,22 @@ func ConsistencyVerify(
 	// s1G + s2H from how PedCommitR works
 	lhs := PedCommitR(conProof.s1, conProof.s2)
 	// cCM
-	temp1 := Point1.Mult(Challenge)
+	temp1 := CM.Mult(Challenge)
 	// T1 + cCM
 	rhs := conProof.T1.Add(temp1)
 
 	if !lhs.Equal(rhs) {
-		Dprintf("Point1 comparison is failing\n")
+		Dprintf("CM check is failing\n")
 		return false
 	}
 
 	// s2PK ?= T2 + cY
 	lhs = PubKey.Mult(conProof.s2)
-	temp1 = Point2.Mult(Challenge)
+	temp1 = CMTok.Mult(Challenge)
 	rhs = conProof.T2.Add(temp1)
 
 	if !lhs.Equal(rhs) {
-		Dprintf("Point2 comparison is failing\n")
+		Dprintf("CMTok check is failing\n")
 		return false
 	}
 
@@ -1077,7 +1075,7 @@ func ConsistencyVerify(
 
 }
 
-// =================== AVERAGES ===================
+// =================== a * b = c MULTIPLICATIVE RELATIONSHIP ===================
 // The following is to generate a proof if the transaction we are checking
 // involves the bank being audited
 
@@ -1139,12 +1137,6 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 	ub, err := rand.Int(rand.Reader, ZKCurve.N)
 	uc, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
-
-	// // v = 0
-	// if modValue.Cmp(big.NewInt(0)) != 0 {
-	// 	Dprintf("We are lying about value of tx and trying to generate inccorect proof")
-	// 	return &ABCProof1{}, false
-	// }
 
 	B := ECPoint{}
 	C := ECPoint{}

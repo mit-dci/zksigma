@@ -42,7 +42,6 @@ func TestECPointMethods(t *testing.T) {
 
 func TestZkpCryptoStuff(t *testing.T) {
 	value := big.NewInt(-100)
-	//pk, sk := KeyGen()
 
 	testCommit, randomValue := PedCommit(value) // xG + rH
 
@@ -57,6 +56,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 	Dprintf("       1/vG : %v\n", InvValEC)
 
 	tempX, tempY = ZKCurve.C.Add(ValEC.X, ValEC.Y, InvValEC.X, InvValEC.Y)
+	Dprintf("TestZkpCrypto:")
 	Dprintf("Added the above: %v, %v\n", tempX, tempY)
 
 	if tempX.Cmp(ZKCurve.Zero().X) != 0 || tempY.Cmp(ZKCurve.Zero().Y) != 0 {
@@ -227,7 +227,8 @@ func TestDisjunctive(t *testing.T) {
 	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
 	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
 
-	Dprintf("[debug] First djProof : ")
+	Dprintf("Testing DisjunctiveProof:\n")
+	Dprintf("First djProof : ")
 	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT) {
 		t.Fatalf("djProof failed to generate properly for left side\n")
 	}
@@ -283,7 +284,7 @@ func TestConsistency(t *testing.T) {
 		t.Fatalf("One of the proofs' status is incorrect\n")
 	}
 
-	fmt.Println("Passed TestConsistency")
+	fmt.Println("Passed TestConsistency - NOT IMPLETEMENTED YET")
 }
 
 // TODO: make a toooooon more test cases
@@ -299,11 +300,11 @@ func TestABCProof(t *testing.T) {
 
 	PK := ZKCurve.H.Mult(sk)
 	A := ZKCurve.H.Mult(ua)       // uaH
-	temp := ZKCurve.G.Mult(value) // value(G); ZKCurve.C.ScalarBaseMult(value.Bytes())
+	temp := ZKCurve.G.Mult(value) // value(G)
 
 	// A = vG + uaH
 	A.X, A.Y = ZKCurve.C.Add(A.X, A.Y, temp.X, temp.Y)
-	AToken := PK.Mult(ua) //ZKCurve.H.Mult(ua), where can I get uaH?
+	AToken := PK.Mult(ua)
 
 	aProof, status := ABCProve(A, AToken, value, sk, right)
 
@@ -341,10 +342,11 @@ func TestABCProof(t *testing.T) {
 type etx struct {
 	CM    ECPoint
 	CMTok ECPoint
+	ABCP  *ABCProof
 }
 
 //TODO: make a sk-pk that is consistant accross all test cases
-func TestAverages(t *testing.T) {
+func TestAverages_Basic(t *testing.T) {
 
 	// remeber to change both number here...
 	numTx := 100
@@ -353,7 +355,6 @@ func TestAverages(t *testing.T) {
 	totalValue := big.NewInt(0)
 	totalRand := big.NewInt(0)
 	txn := make([]etx, numTx)
-	abcProofs := make([]*ABCProof, numTx)
 	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
 	PK := ZKCurve.H.Mult(sk)
 	value := big.NewInt(0)
@@ -366,7 +367,7 @@ func TestAverages(t *testing.T) {
 		txn[ii].CM, commRand = PedCommit(value)
 		totalRand.Add(totalRand, commRand)
 		txn[ii].CMTok = PK.Mult(commRand)
-		abcProofs[ii], _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, right)
+		txn[ii].ABCP, _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, right)
 	}
 
 	// Purely for testing purposes, usually this is computed at the end by auditor
@@ -389,8 +390,8 @@ func TestAverages(t *testing.T) {
 	for ii := 0; ii < numTx; ii++ {
 		totalCM = txn[ii].CM.Add(totalCM)
 		totalCMTok = txn[ii].CMTok.Add(totalCMTok)
-		totalC = abcProofs[ii].C.Add(totalC)
-		totalCTok = abcProofs[ii].CToken.Add(totalCTok)
+		totalC = txn[ii].ABCP.C.Add(totalC)
+		totalCTok = txn[ii].ABCP.CToken.Add(totalCTok)
 	}
 
 	// makes the call look cleaner
