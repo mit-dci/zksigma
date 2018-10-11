@@ -1148,7 +1148,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 
 	B := ECPoint{}
 	C := ECPoint{}
-	CToken := ZKCurve.H.Mult(uc)
+	CToken := ZKCurve.H.Mult(sk).Mult(uc)
 
 	disjuncAC := new(DisjunctiveProof)
 	status := false

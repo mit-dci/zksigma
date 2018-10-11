@@ -337,3 +337,162 @@ func TestABCProof(t *testing.T) {
 	fmt.Println("TestABCProof Passed")
 
 }
+
+type etx struct {
+	CM    ECPoint
+	CMTok ECPoint
+}
+
+//TODO: make a sk-pk that is consistant accross all test cases
+func TestAverages(t *testing.T) {
+
+	// remeber to change both number here...
+	numTx := 100
+	numTranx := big.NewInt(100)
+
+	totalValue := big.NewInt(0)
+	totalRand := big.NewInt(0)
+	txn := make([]etx, numTx)
+	abcProofs := make([]*ABCProof, numTx)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+	value := big.NewInt(0)
+	commRand := big.NewInt(0)
+
+	// Generate
+	for ii := 0; ii < numTx; ii++ {
+		value, _ = rand.Int(rand.Reader, ZKCurve.N)
+		totalValue.Add(totalValue, value)
+		txn[ii].CM, commRand = PedCommit(value)
+		totalRand.Add(totalRand, commRand)
+		txn[ii].CMTok = PK.Mult(commRand)
+		abcProofs[ii], _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, right)
+	}
+
+	// Purely for testing purposes, usually this is computed at the end by auditor
+	// actualAverage := new(big.Int).Quo(totalValue, numTranx)
+
+	// ========= BANK PROCESS ===========
+
+	// To calculate average we need to first show proof of knowledge
+	// of the sums of both the total value of transactions and the
+	// sum of the C-bit commitments
+	// This process is extactly the same process described in zkLedger
+	// (Neha Nerula) paper in section 4.2
+
+	//Need to aggregate a bunch of stuff to do equivilance proofs and what not
+	totalCM := ZKCurve.Zero()
+	totalCMTok := ZKCurve.Zero()
+	totalC := ZKCurve.Zero()
+	totalCTok := ZKCurve.Zero()
+
+	for ii := 0; ii < numTx; ii++ {
+		totalCM = txn[ii].CM.Add(totalCM)
+		totalCMTok = txn[ii].CMTok.Add(totalCMTok)
+		totalC = abcProofs[ii].C.Add(totalC)
+		totalCTok = abcProofs[ii].CToken.Add(totalCTok)
+	}
+
+	// makes the call look cleaner
+	B1 := totalC.Add(ZKCurve.G.Mult(numTranx).Neg())
+	R1 := totalCTok
+	B2 := ZKCurve.H
+	R2 := PK
+
+	eProofNumTx, status := EquivilanceProve(B1, R1, B2, R2, sk)
+
+	if !status {
+		Dprintf("Average Test: equivilance proof failed to generate for numTx\n")
+		t.Fatalf("Averages did not gerneate correct NUMTX equivilance proof\n")
+	}
+
+	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
+	R1 = totalCMTok
+
+	eProofValue, status1 := EquivilanceProve(B1, R1, B2, R2, sk)
+
+	if !status1 {
+		Dprintf("Average Test: equivilance proof failed to generate for value sum\n")
+		t.Fatalf("Averages did not gerneate correct VALUE equivilance proof\n")
+	}
+
+	// ASSUME:
+	// eProofs passed to auditor
+	// clear text answers of total value and total number tx passed to auditor
+	// auditor WILL recalculate all the totals (totalCM, totalCMTok, etc) before doing the following
+	// auditor WILL recualculate the B1's as shown above
+	// auditor WILL verify eProofs and then perform the final average calcualtion, shown below
+	// ======== AUDITOR PROCESS ===========
+
+	B1 = totalC.Add(ZKCurve.G.Mult(numTranx).Neg())
+	R1 = totalCTok
+	B2 = ZKCurve.H
+	R2 = PK
+
+	checkTx := EquivilanceVerify(B1, R1, B2, R2, eProofNumTx)
+
+	if !checkTx {
+		Dprintf("Average Test: NUMTX equivilance proof did not verify\n")
+		t.Fatalf("Equivilance proof of NUMTX did not verify\n")
+	}
+
+	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
+	R1 = totalCMTok
+
+	checkVal := EquivilanceVerify(B1, R1, B2, R2, eProofValue)
+
+	if !checkVal {
+		Dprintf("Average Test: SUM equivilance proof did not verify\n")
+		t.Fatalf("Equivilance proof of SUM did not verify\n")
+	}
+
+	fmt.Println("Passed TestAverages")
+
+}
+
+func TestABCProof_Extensive(t *testing.T) {
+	if !*EXTEN {
+		fmt.Println("SKIPPED ABCTest_Extensive - use '-extensive' flag")
+	} else {
+
+		failed := false
+
+		sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+		PK := ZKCurve.H.Mult(sk)
+		ua, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+		for ii := 0; ii < 1000; ii++ { //roughly 5 seconds per 1000 cases
+
+			value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+			A := ZKCurve.H.Mult(ua)                                    // uaH
+			temp := ZKCurve.G.Mult(value)                              // value(G); ZKCurve.C.ScalarBaseMult(value.Bytes())
+
+			// A = vG + uaH
+			A.X, A.Y = ZKCurve.C.Add(A.X, A.Y, temp.X, temp.Y)
+			AToken := PK.Mult(ua) //ZKCurve.H.Mult(ua), where can I get uaH?
+
+			aProof, status := ABCProve(A, AToken, value, sk, right)
+
+			if !status {
+				failed = true
+				Dprintf("ABCProof RIGHT failed to generate!\n")
+				// Dprintf("aProof: \n\n %v \n\n", aProof)
+				Dprintf("ABCProof RIGHT failed\n")
+			}
+
+			if !ABCVerify(A, AToken, aProof) {
+				failed = true
+				Dprintf("ABCProof RIGHT Failed to verify!\n")
+				// Dprintf("aProof: \n\n %v \n\n", aProof)
+				Dprintf("ABCVerify RIGHT failed\n")
+			}
+
+			if failed && value.Cmp(big.NewInt(0)) != 0 {
+				Dprintf("TestABC_Extensive produced a failing test case!\n")
+				Dprintf("---\nFailed case:\nvalue: %v \nrandom: %v \nsk: %v\n", value, ua, sk)
+				failed = false
+			}
+		}
+		fmt.Println("Passed TestABC_Extensive")
+	}
+}
