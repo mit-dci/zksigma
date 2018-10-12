@@ -333,6 +333,32 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCVerify LEFT failed\n")
 	}
 
+	A, ua = PedCommit(big.NewInt(1000))
+	AToken = PK.Mult(ua)
+
+	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, right)
+
+	// if !status {
+	// 	Dprintf("False proof genereation succeeded! (bad)\n")
+	// 	t.Fatalf("ABCProve generated for false proof\n")
+	// }
+
+	Dprintf("Next ABCVerify should catch false proof\n")
+
+	if ABCVerify(A, AToken, aProof) {
+		Dprintf("ABCVerify: should have failed on false proof check!\n")
+		t.Fatalf("ABCVerify: not working...\n")
+	}
+
+	aProof, status = BreakABCProve(A, AToken, big.NewInt(1000), sk, right)
+
+	Dprintf("Next ABCVerify should catch attack\n")
+
+	if ABCVerify(A, AToken, aProof) {
+		Dprintf("ABCVerify: accepted attack input! c = 2, should fail...\n")
+		t.Fatalf("ABCVerify: failed to catch attack!\n")
+	}
+
 	fmt.Println("Passed TestABCProof")
 
 }

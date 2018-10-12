@@ -6,17 +6,6 @@ Stuff to do:
     - same for the eProof, replace it with []*Proofs
     - this would mean all proofs have to be derived from a "parent" proof class... 
 
-
-
-
-
-
-
-NOTES: 
-- EquivilanceOrLog is not used but built it anyways 
-
-
-
 NEW STUFF:
 - Check if I am overwriting any values that need to be maintianed
 - Errors instead of bools

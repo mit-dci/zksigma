@@ -274,24 +274,6 @@ func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
 
 }
 
-// // t(x) = ax^2 bx + c
-// type TwoDegPoly struct {
-// 	A []*big.Int
-// 	B []*big.Int
-// 	C []*big.Int
-// }
-
-// // evalualte t(x)
-// func (p *TwoDegPoly) EvalAt(x *big.Int) []*big.Int {
-// 	res := make([]*big.Int, numBits)
-// 	// I know this looks nasty
-// 	for ii := uint64(0); ii < numBits; ii++ {
-// 		res[ii] = new(big.Int).Add(new(big.Int).Add(new(big.Int).Mul(p.b[ii], x), p.c[ii]), new(big.Int).Mul(p.a[ii], x).Mul(x, big.NewInt(1)))
-// 	}
-
-// 	return res
-// }
-
 //========== INNER PRODUCT PROOF =========
 
 type InProdProof struct {
@@ -473,57 +455,3 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 
 	return true
 }
-
-/* RANDOM STUFF I WROTE FOR SOME REASON
-
-Here we want to prove the following three statements within one inner-product:
-	- <a_L, 2^n> = v
-	- a_L .* a_R = 0
-	- (a_L - 1) - a_R = 0
-
-	The above three statements combine into:
-	- z^2 * v + [(z - z^2) <1, y^n> - z^3 <1,2^n>] =
-		<a_L, -z1,y^n .* (a_R + 1) + z^2 2^n>
-
-	where:
-	- a_L = a = binary composition of v
-	- a_R = a - 1
-	- 0, 1 	are vecotrs of 0 and 1
-	- y^n 	is a challenge vector of [0, 1, y, y^2..., y^n-1]
-	- z 	is a challenge scalar
-	- the bracketed [] expression will be represned as delta:
-		- delta = (z - z^2) <1, y^n> - z^3 <1,2^n>
-
-	The left side of this expression can be computed publically
-	The right side can only be done by the prover
-
-
-aL := binaryDecomp(x)
-aR := vecSub(aL, OnesVec)
-
-if dotProd(aL, PowsOf2).Cmp(x) != 0 {
-	Dprintf("InProdProve:\n - Was not able to generate binaryDecomp")
-	return InProdProof{}
-}
-
-if dotProd(aL, aR).Cmp(big.NewInt(0)) != 0 {
-	Dprintf("InProdProve:\n - aL .* aR did not result in 0")
-	return InProdProof{}
-}
-
-// Challenge vector and challenge scalar
-// y, _ := rand.Int(rand.Reader, ZKCurve.N)
-// yVec := genVec(y)
-// z, _ := rand.Int(rand.Reader, ZKCurve.N)
-
-
-// delta = (z - z^2) <1, y^n> - z^3 <1,2^n>
-// temp1 := scalarMult(OnesVec, new(big.Int).Sub(z, new(big.Int).Mul(z, z)))
-// temp2 := scalarMult(OnesVec, new(big.Int).Exp(z, big.NewInt(3), ZKCurve.N))
-// delta := new(big.Int).Sub(dotProd(temp1, yVec), dotProd(temp2, PowsOf2))
-
-c := dotProd(aL, aR)
-
-
-
-*/

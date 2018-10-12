@@ -556,12 +556,12 @@ func DisjunctiveProve(
 		OtherBase = Base1
 		OtherResult = Result1
 	} else { // number for option is not correct
-		Dprintf("ERROR --- Invalid option number given for DisjunctiveProve\n")
+		Dprintf("DisjunctiveProve: side provided is not valid\n")
 		return &DisjunctiveProof{}, false
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
-		Dprintf("Seems like we're lying about values we know...\n", ProveBase.Mult(modValue), ProveResult)
+		Dprintf("DisjunctiveProve: ProveBase and ProveResult are not related by x!\n")
 		return &DisjunctiveProof{}, false
 	}
 
@@ -918,6 +918,8 @@ type ABCProof struct {
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
 func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bool) {
 
+	// We cannot check that CM log is acutally the value, but the verification should catch that
+
 	u1, err := rand.Int(rand.Reader, ZKCurve.N)
 	u2, err := rand.Int(rand.Reader, ZKCurve.N)
 	u3, err := rand.Int(rand.Reader, ZKCurve.N)
@@ -1029,6 +1031,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
 	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
+	// Here it is important that you subtract exactly 1 G from the aProof.C becuase that only allows for you to prove c = 1!
 	if !DisjunctiveVerify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC) {
 		Dprintf("ABCProof for disjuncAC is false or not generated properly\n")
 		return false
