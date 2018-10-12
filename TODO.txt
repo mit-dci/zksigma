@@ -1,32 +1,18 @@
 Stuff to do:
-
- - All the big.Int operations on the numbers themselves can be made without an extra assignment statement
- - Add in Base-Result checks to EquivORLogProof
- - EquivilanceOrLog Verify function and test function on hold, not critical
  - generelize proofs that use zkCurve G and H to use whatever is passed into them?
- - add in range proofs to crpyto.go? 
- - more consistant error and fatalf messages 
  - make the audtiing functionality abstract, currently it is hardcoded just for sum audits
  - REALLY LONG TERM: 
     - for the auditRep, replace sum and eProof with []*bigInt for multiple returns
     - same for the eProof, replace it with []*Proofs
     - this would mean all proofs have to be derived from a "parent" proof class... 
 
-
- - symmetric points/compressed points
- - Range/bullet proofs?
-
-
-
-NOTES: 
-- EquivilanceOrLog is not used but built it anyways 
-- VerifyZeroSumCommitments is not necessary anymore, removed it comepletely
-- DO NOT CHECK PROOF THAT HAS NOT BEEN FILLED IN, do initial checks with the status booleans
-
-
-
-
 NEW STUFF:
-- ABCProof1 generates for calse tx != 0, verification not working at the moment
-- Try to fix git branches
 - Check if I am overwriting any values that need to be maintianed
+- Errors instead of bools
+- Make the init take in any curve
+- check if link fits elliptic.curve interface 
+- EITHER REMOVE OR TEST sEquivilanceOrLog Verify function and test function on hold, not critical
+- goDoc format for crypto notes
+- browser goDocs
+
+
