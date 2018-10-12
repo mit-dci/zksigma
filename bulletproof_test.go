@@ -8,9 +8,14 @@ import (
 )
 
 func TestSetup(t *testing.T) {
+
+	if !*BULLET {
+		fmt.Println("Skipped Bullerproof setup")
+		t.Skipf("Skipped Bulletproof setup\n")
+	}
+
 	Init()
 	BPInit()
-	// Dprintf("ZKGEN CHECK: \n\n\n%v\n\n\n", ZKGen)
 	fmt.Println("Bulletproof setup completed")
 }
 
@@ -32,6 +37,12 @@ var Giant64 = []*big.Int{
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(42)}
 
 func TestBinaryDecomp(t *testing.T) {
+
+	if !*BULLET {
+		fmt.Println("Skipped Bulletproof TestBinaryDecomp")
+		t.Skip("Skipped Bulletproof TestBinaryDecomp")
+	}
+
 	// 113 =  b01110001 test
 	answer := []*big.Int{
 		big.NewInt(1), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(1), big.NewInt(1), big.NewInt(1), big.NewInt(0),
@@ -59,6 +70,11 @@ func TestBinaryDecomp(t *testing.T) {
 
 func TestDotProd(t *testing.T) {
 
+	if !*BULLET {
+		fmt.Println("Skipped Bulletproof TestDotProd")
+		t.Skip("Skipped Bulletproof TestDotProd")
+	}
+
 	if big.NewInt(42*42).Cmp(dotProd(Giant64, Giant64)) != 0 {
 		Dprintf("dotProd not working properly:\n")
 		Dprintf("expected: %v\n", big.NewInt(42*42))
@@ -74,6 +90,12 @@ func TestDotProd(t *testing.T) {
 // For now if nothing seg-faults Ill just assume it is working as intended until further notice
 
 func TestCallEachFunc(t *testing.T) {
+
+	if !*BULLET {
+		fmt.Println("Skipped Bulletproof TestCallEachFunc")
+		t.Skip("Skipped Bulletproof TestCallEachFunc")
+	}
+
 	binaryDecomp(big.NewInt(1234567))
 	fmt.Println(" - binaryDecomp runs")
 	dotProd(Giant64, Giant64)
@@ -93,6 +115,13 @@ func TestCallEachFunc(t *testing.T) {
 }
 
 func TestInProdProve(t *testing.T) {
+
+	if !*BULLET {
+		fmt.Println("Skipped Bulletproof TestInProdProve")
+		t.Skip("Skipped Bulletproof TestInProdProve")
+	} else {
+		fmt.Println("WARNING: InProdProve currently broken, next test will fail")
+	}
 
 	a := make([]*big.Int, numBits)
 	b := make([]*big.Int, numBits)

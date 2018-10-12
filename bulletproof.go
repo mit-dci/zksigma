@@ -3,9 +3,13 @@ package zkSigma
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"flag"
 	"math"
 	"math/big"
 )
+
+// FLAGS
+var BULLET = flag.Bool("bulletproofs", false, "Run bulletproof test cases")
 
 type Generator struct {
 	N    uint64
@@ -367,7 +371,6 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	hasher := sha256.New()
 
 	for ii := k - 1; ii >= uint64(0); ii-- {
-		Dprintf("ii: %v\n", ii)
 		// split the vectors for reduction later
 		aL, aR := splitVec(a)
 		bL, bR := splitVec(b)

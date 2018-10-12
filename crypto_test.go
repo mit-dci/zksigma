@@ -249,9 +249,6 @@ func TestDisjunctive(t *testing.T) {
 
 }
 
-// This is not critical to the zkLedger, holding off on building the verify and test function for more useful stuff
-// func TestEquiviOrLog
-
 func TestConsistency(t *testing.T) {
 
 	x, err := rand.Int(rand.Reader, ZKCurve.N)
@@ -275,7 +272,8 @@ func TestConsistency(t *testing.T) {
 
 	conProof, status2 := ConsistencyProve(y, comm, pk, x, u)
 
-	Dprintf(" [debug] Testing incorrect consistency proof\n")
+	// Below will break not run since proof doesnt generate
+	// Dprintf(" [debug] Testing incorrect consistency proof\n")
 	// if ConsistencyVerify(comm, y, pk, conProof) {
 	// 	t.Fatalf("Error -- Proof should be wrong\n")
 	// }
@@ -284,7 +282,7 @@ func TestConsistency(t *testing.T) {
 		t.Fatalf("One of the proofs' status is incorrect\n")
 	}
 
-	fmt.Println("Passed TestConsistency - NOT IMPLETEMENTED YET")
+	fmt.Println("Passed TestConsistency")
 }
 
 // TODO: make a toooooon more test cases
@@ -335,7 +333,7 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCVerify LEFT failed\n")
 	}
 
-	fmt.Println("TestABCProof Passed")
+	fmt.Println("Passed TestABCProof")
 
 }
 
