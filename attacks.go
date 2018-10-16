@@ -7,7 +7,7 @@ import (
 )
 
 // Here the side is which one to lie about, chosing 0 means that c != 0 and chosing 1 means that c = 1
-func BreakABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bool) {
+func BreakABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, error) {
 
 	u1, _ := rand.Int(rand.Reader, ZKCurve.N)
 	u2, _ := rand.Int(rand.Reader, ZKCurve.N)
@@ -27,9 +27,10 @@ func BreakABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProo
 
 	disjuncAC, status := DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G.Mult(big.NewInt(2))), uc, right)
 
-	if !status {
+	if status != nil {
+		proofStatus(status.(*errorProof))
 		Dprintf("BreakABCProve: disjuncAC proof did not generate!\n")
-		return &ABCProof{}, false
+		return &ABCProof{}, &errorProof{"BreakABCProve", "disjuncAC did not generate (good!)"}
 	}
 
 	// CMTok is Ta for the rest of the proof
@@ -83,6 +84,6 @@ func BreakABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProo
 		ECPoint{T2X, T2Y},
 		Challenge,
 		j, k, l, CToken,
-		disjuncAC}, true
+		disjuncAC}, nil
 
 }

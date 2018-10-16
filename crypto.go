@@ -46,6 +46,23 @@ func check(e error) {
 	}
 }
 
+type errorProof struct {
+	t string // proof type that failed
+	s string // error message
+}
+
+func (e *errorProof) Error() string {
+	return fmt.Sprintf("%v - %v", e.t, e.s)
+}
+
+func proofStatus(e *errorProof) int {
+	if e != nil {
+		fmt.Printf("ERROR: %v \n", e.Error())
+		return -1
+	}
+	return 0
+}
+
 // Dprintf is a generic debug statement generator
 func Dprintf(format string, args ...interface{}) {
 	if *DEBUG {
@@ -376,7 +393,7 @@ type EquivProof struct {
 
 // EquivilanceProve generates an equivilance proof that Result1 and Result2 use the same discrete log x
 func EquivilanceProve(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (EquivProof, bool) {
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (EquivProof, error) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
@@ -385,14 +402,14 @@ func EquivilanceProve(
 	check1 := Base1.Mult(modValue)
 
 	if !check1.Equal(Result1) {
-		Dprintf("EquivProof check: Base1 and Result1 are not related by x... \n")
-		return EquivProof{}, false
+		Dprintf("EquivProof check: Base1 and Result1 are not related by x\n")
+		return EquivProof{}, &errorProof{"EquivilanceProve", "Base1 and Result1 are not related by x"}
 	}
 
 	check2 := Base2.Mult(modValue)
 	if !check2.Equal(Result2) {
 		Dprintf("EquivProof check: Base2 and Result2 are not related by x... \n")
-		return EquivProof{}, false
+		return EquivProof{}, &errorProof{"EquivilanceProve", "Base2 and Result2 are not related by x"}
 	}
 
 	// random number
@@ -426,7 +443,7 @@ func EquivilanceProve(
 		uBase1, // uG
 		uBase2, // uH
 		Challenge,
-		HiddenValue}, true
+		HiddenValue}, nil
 
 }
 
@@ -537,7 +554,7 @@ type DisjunctiveProof struct {
 
 // DisjunctiveProve generates a disjunctive proof for the given x
 func DisjunctiveProve(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option side) (*DisjunctiveProof, bool) {
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option side) (*DisjunctiveProof, error) {
 
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
 
@@ -557,12 +574,12 @@ func DisjunctiveProve(
 		OtherResult = Result1
 	} else { // number for option is not correct
 		Dprintf("DisjunctiveProve: side provided is not valid\n")
-		return &DisjunctiveProof{}, false
+		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "invalid side provided"}
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
 		Dprintf("DisjunctiveProve: ProveBase and ProveResult are not related by x!\n")
-		return &DisjunctiveProof{}, false
+		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "Base and Result to be proved not related by x"}
 	}
 
 	u1, err := rand.Int(rand.Reader, ZKCurve.N)
@@ -618,7 +635,7 @@ func DisjunctiveProve(
 			deltaC,
 			u3,
 			s,
-			u2}, true
+			u2}, nil
 	}
 
 	return &DisjunctiveProof{
@@ -628,7 +645,7 @@ func DisjunctiveProve(
 		u3,
 		deltaC,
 		u2,
-		s}, true
+		s}, nil
 }
 
 /*
@@ -740,7 +757,7 @@ type ConsistencyProof struct {
 */
 
 func ConsistencyProve(
-	CM, CMTok, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, bool) {
+	CM, CMTok, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, error) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
@@ -751,12 +768,12 @@ func ConsistencyProve(
 	// randomness are correct
 	if !CM.Equal(PedCommitR(value, randomness)) {
 		Dprintf("ConsistancyProve: Commitment passed does not match value and randomness\n")
-		return &ConsistencyProof{}, false
+		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "value and randomVal does not produce CM"}
 	}
 
 	if !CMTok.Equal(PubKey.Mult(randomness)) {
 		Dprintf("ConsistancyProve:Randomness token does not match pubkey and randomValue\n")
-		return &ConsistencyProof{}, false
+		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "Pubkey and randomVal does not produce CMTok"}
 	}
 
 	u1, err := rand.Int(rand.Reader, ZKCurve.N)
@@ -796,7 +813,7 @@ func ConsistencyProve(
 	// Dprintf("Proof s2Pk : %v\n", PubKey.Mult(s2))
 	// Dprintf("Proof T2 + cY : %v", T1.Add(Point2.Mult(Challenge)))
 
-	return &ConsistencyProof{T1, T2, Challenge, s1, s2}, true
+	return &ConsistencyProof{T1, T2, Challenge, s1, s2}, nil
 
 }
 
@@ -916,7 +933,7 @@ type ABCProof struct {
 
 // option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
-func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bool) {
+func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, error) {
 
 	// We cannot check that CM log is acutally the value, but the verification should catch that
 
@@ -932,7 +949,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 	CToken := ZKCurve.H.Mult(sk).Mult(uc)
 
 	disjuncAC := new(DisjunctiveProof)
-	status := false
+	var e error
 	// Disjunctive Proof of a = 0 or c = 1
 	if option == left && value.Cmp(big.NewInt(0)) == 0 {
 		// MUST:a = 0! ; side = left
@@ -944,7 +961,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
 		// C - G is done regardless of the c = 0 or 1 becuase in the case c = 0 it does matter what that random number is
-		disjuncAC, status = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, left)
+		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, left)
 	} else if option == right && value.Cmp(big.NewInt(0)) != 0 {
 		// MUST:c = 1! ; side = right
 
@@ -954,15 +971,15 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 		C = PedCommitR(big.NewInt(1), uc)
 
 		// Look at notes a couple lines above on what the input is like this
-		disjuncAC, status = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, right)
+		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, right)
 	} else {
-		Dprintf("ABCProof1: Side/value combination not correct\n")
-		return &ABCProof{}, false
+		Dprintf("ABCProof: Side/value combination not correct\n")
+		return &ABCProof{}, &errorProof{"ABCProof", "invalid side-value pair passed"}
 	}
 
-	if !status {
-		Dprintf("Disjunctive Proof in ABCProof1 failed to generated!\n")
-		return &ABCProof{}, false
+	if e != nil {
+		Dprintf("Disjunctive Proof in ABCProof failed to generated!\n")
+		return &ABCProof{}, &errorProof{"ABCProof", "DisjuntiveProve within ABCProve failed to generate"}
 	}
 
 	// CMTok is Ta for the rest of the proof
@@ -1016,7 +1033,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, bo
 		ECPoint{T2X, T2Y},
 		Challenge,
 		j, k, l, CToken,
-		disjuncAC}, true
+		disjuncAC}, nil
 
 }
 

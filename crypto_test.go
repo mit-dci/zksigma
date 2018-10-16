@@ -174,6 +174,11 @@ func TestEquivilance(t *testing.T) {
 
 	eqProof, status1 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
 
+	if status1 != nil {
+		proofStatus(status1.(*errorProof))
+		t.Fatalf("error code should have indicated successful proof")
+	}
+
 	if !EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof) {
 		Dprintf("Base1 : %v\n", Base1)
 		Dprintf("Result1 : %v\n", Result1)
@@ -206,8 +211,15 @@ func TestEquivilance(t *testing.T) {
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
-	if !status1 {
-		t.Fatalf("One of the proofs' status is not correct\n")
+	x, _ = rand.Int(rand.Reader, ZKCurve.N)
+	_, status2 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
+
+	// here I check proofStatus in the else statement becuase I want to make sure
+	// the failed case will raise an error
+	if status2 == nil {
+		t.Fatalf("error code should have indicated failed proof")
+	} else {
+		proofStatus(status2.(*errorProof))
 	}
 
 	fmt.Println("Passed TestEquivilance")
@@ -225,7 +237,18 @@ func TestDisjunctive(t *testing.T) {
 	Result2 := ZKCurve.H.Mult(y)
 
 	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
+
+	if status1 != nil {
+		proofStatus(status1.(*errorProof))
+		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 1\n")
+	}
+
 	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
+
+	if status2 != nil {
+		proofStatus(status2.(*errorProof))
+		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 2\n")
+	}
 
 	Dprintf("Testing DisjunctiveProof:\n")
 	Dprintf("First djProof : ")
@@ -233,16 +256,16 @@ func TestDisjunctive(t *testing.T) {
 		t.Fatalf("djProof failed to generate properly for left side\n")
 	}
 
-	Dprintf("Passed \n [debug] Second djProof : ")
+	Dprintf("Passed \n [testing] Second djProof : ")
 	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofRIGHT) {
 		t.Fatalf("djProof failed to generate properly for right side\n")
 	}
 
-	Dprintf("Passed \n [debug] Next djProof attemp should result in an error message\n")
+	Dprintf("Passed \n [testing] Next djProof attemp should result in an error message\n")
 	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, left) // This should fail
 
-	if !status1 || !status2 || status3 {
-		t.Fatalf("One of the proofs' status is incorrect\n")
+	if proofStatus(status3.(*errorProof)) == 0 {
+		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
 	}
 
 	fmt.Println("Passed TestDisjunctiveg")
@@ -263,23 +286,22 @@ func TestConsistency(t *testing.T) {
 
 	conProof, status1 := ConsistencyProve(comm, y, pk, x, u)
 
-	Dprintf(" [debug] Testing correct consistency proof\n")
+	if status1 != nil {
+		proofStatus(status1.(*errorProof))
+		t.Fatalf("TestConsistancy - incorrect error message for correct proof, case 1\n")
+	}
+
+	Dprintf(" [testing] Testing correct consistency proof\n")
 	if !ConsistencyVerify(comm, y, pk, conProof) {
 		t.Fatalf("Error -- Proof should be correct\n")
 	}
 
-	Dprintf(" [debug] Next proof should fail\n")
+	Dprintf(" [testing] Next proof should fail\n")
 
 	conProof, status2 := ConsistencyProve(y, comm, pk, x, u)
 
-	// Below will break not run since proof doesnt generate
-	// Dprintf(" [debug] Testing incorrect consistency proof\n")
-	// if ConsistencyVerify(comm, y, pk, conProof) {
-	// 	t.Fatalf("Error -- Proof should be wrong\n")
-	// }
-
-	if !status1 || status2 {
-		t.Fatalf("One of the proofs' status is incorrect\n")
+	if proofStatus(status2.(*errorProof)) == 0 {
+		t.Fatalf("TestConsistancy - incorrect error message for correct proof, case 2\n")
 	}
 
 	fmt.Println("Passed TestConsistency")
@@ -306,30 +328,28 @@ func TestABCProof(t *testing.T) {
 
 	aProof, status := ABCProve(A, AToken, value, sk, right)
 
-	if !status {
+	if status != nil {
+		proofStatus(status.(*errorProof))
 		Dprintf("ABCProof RIGHT failed to generate!\n")
-		fmt.Printf("aProof: \n\n %v \n\n", aProof)
 		t.Fatalf("ABCProof RIGHT failed\n")
 	}
 
 	if !ABCVerify(A, AToken, aProof) {
 		Dprintf("ABCProof RIGHT Failed to verify!\n")
-		Dprintf("aProof: \n\n %v \n\n", aProof)
 		t.Fatalf("ABCVerify RIGHT failed\n")
 	}
 
 	A = ZKCurve.H.Mult(ua)
 	aProof, status = ABCProve(A, AToken, big.NewInt(0), sk, left)
 
-	if !status {
+	if status != nil {
+		proofStatus(status.(*errorProof))
 		Dprintf("ABCProof LEFT failed to generate!\n")
-		fmt.Printf("aProof: \n\n %v \n\n", aProof)
 		t.Fatalf("ABCProof LEFT failed\n")
 	}
 
 	if !ABCVerify(A, AToken, aProof) {
 		Dprintf("ABCProof LEFT Failed to verify!\n")
-		Dprintf("aProof: \n\n %v \n\n", aProof)
 		t.Fatalf("ABCVerify LEFT failed\n")
 	}
 
@@ -338,10 +358,10 @@ func TestABCProof(t *testing.T) {
 
 	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, right)
 
-	// if !status {
-	// 	Dprintf("False proof genereation succeeded! (bad)\n")
-	// 	t.Fatalf("ABCProve generated for false proof\n")
-	// }
+	if status != nil {
+		Dprintf("False proof genereation succeeded! (bad)\n")
+		t.Fatalf("ABCProve generated for false proof\n")
+	}
 
 	Dprintf("Next ABCVerify should catch false proof\n")
 
@@ -350,7 +370,7 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCVerify: not working...\n")
 	}
 
-	aProof, status = BreakABCProve(A, AToken, big.NewInt(1000), sk, right)
+	aProof, _ = BreakABCProve(A, AToken, big.NewInt(1000), sk, right)
 
 	Dprintf("Next ABCVerify should catch attack\n")
 
@@ -426,7 +446,8 @@ func TestAverages_Basic(t *testing.T) {
 
 	eProofNumTx, status := EquivilanceProve(B1, R1, B2, R2, sk)
 
-	if !status {
+	if status != nil {
+		proofStatus(status.(*errorProof))
 		Dprintf("Average Test: equivilance proof failed to generate for numTx\n")
 		t.Fatalf("Averages did not gerneate correct NUMTX equivilance proof\n")
 	}
@@ -436,7 +457,8 @@ func TestAverages_Basic(t *testing.T) {
 
 	eProofValue, status1 := EquivilanceProve(B1, R1, B2, R2, sk)
 
-	if !status1 {
+	if status1 != nil {
+		proofStatus(status1.(*errorProof))
 		Dprintf("Average Test: equivilance proof failed to generate for value sum\n")
 		t.Fatalf("Averages did not gerneate correct VALUE equivilance proof\n")
 	}
@@ -477,7 +499,7 @@ func TestAverages_Basic(t *testing.T) {
 
 func TestABCProof_Extensive(t *testing.T) {
 	if !*EXTEN {
-		fmt.Println("SKIPPED ABCTest_Extensive - use '-extensive' flag")
+		fmt.Println("Skipped ABCTest_Extensive - use '-extensive' flag")
 	} else {
 
 		failed := false
@@ -498,7 +520,7 @@ func TestABCProof_Extensive(t *testing.T) {
 
 			aProof, status := ABCProve(A, AToken, value, sk, right)
 
-			if !status {
+			if proofStatus(status.(*errorProof)) != 0 {
 				failed = true
 				Dprintf("ABCProof RIGHT failed to generate!\n")
 				// Dprintf("aProof: \n\n %v \n\n", aProof)
