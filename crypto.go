@@ -229,11 +229,11 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	modRandom := new(big.Int).Mod(randomValue, ZKCurve.N)
 
 	// mG, rH :: lhs, rhs
-	lhs := ZKCurve.G.Mult(modValue)
+	lhsX, lhsY := ZKCurve.C.ScalarBaseMult(modValue.Bytes())
 	rhs := ZKCurve.H.Mult(modRandom)
 
 	//mG + rH
-	return lhs.Add(rhs)
+	return ECPoint{lhsX, lhsY}.Add(rhs)
 }
 
 // Open checks if the values given result in the PedComm being varifed
@@ -398,7 +398,6 @@ func EquivilanceProve(
 	// x trying to be proved that both G and H are raised with x
 
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
-
 	check1 := Base1.Mult(modValue)
 
 	if !check1.Equal(Result1) {

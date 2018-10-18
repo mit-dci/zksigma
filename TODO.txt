@@ -7,11 +7,7 @@ Stuff to do:
     - this would mean all proofs have to be derived from a "parent" proof class... 
 
 NEW STUFF:
-- Check if I am overwriting any values that need to be maintianed
-- Errors instead of bools
 - Make the init take in any curve
-- check if link fits elliptic.curve interface 
-- EITHER REMOVE OR TEST sEquivilanceOrLog Verify function and test function on hold, not critical
 - goDoc format for crypto notes
 - browser goDocs
 

@@ -543,3 +543,228 @@ func TestABCProof_Extensive(t *testing.T) {
 		fmt.Println("Passed TestABC_Extensive")
 	}
 }
+
+// ============== BENCHMARKS =================
+func BenchmarkInit(b *testing.B) {
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		Init()
+	}
+}
+
+func BenchmarkPedCommit(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		PedCommit(value)
+	}
+}
+
+func BenchmarkPedCommitR(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		PedCommitR(value, randVal)
+	}
+}
+
+func BenchmarkOpen(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	CM := PedCommitR(value, randVal)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		Open(value, randVal, CM)
+	}
+}
+
+func BenchmarkGSPFS_AnyBase(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base := ZKCurve.G
+	CM := ZKCurve.G.Mult(value)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		GSPAnyBaseProve(Base, CM, value)
+	}
+}
+
+func BenchmarkGSPFS_Verify(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base := ZKCurve.G
+	CM := ZKCurve.G.Mult(value)
+	proof := GSPAnyBaseProve(Base, CM, value)
+
+	for ii := 0; ii < b.N; ii++ {
+		GSPFSVerify(CM, proof)
+	}
+}
+
+func BenchmarkEquivProve(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(value)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		EquivilanceProve(Base1, Result1, Base2, Result2, value)
+	}
+}
+
+func BenchmarkEquivVerify(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(value)
+	proof, _ := EquivilanceProve(Base1, Result1, Base2, Result2, value)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		EquivilanceVerify(Base1, Result1, Base2, Result2, proof)
+	}
+}
+
+func BenchmarkDisjuncProve_LEFT(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(randVal)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		DisjunctiveProve(Base1, Result1, Base2, Result2, value, left)
+	}
+}
+
+func BenchmarkDisjuncProve_RIGHT(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(randVal)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, right)
+	}
+}
+
+func BenchmarkDisjuncVerify_LEFT(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(randVal)
+	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, value, left)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		DisjunctiveVerify(Base1, Result1, Base2, Result2, proof)
+	}
+}
+
+func BenchmarkDisjuncVerify_RIGHT(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(randVal)
+	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, right)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		DisjunctiveVerify(Base1, Result1, Base2, Result2, proof)
+	}
+}
+
+func BenchmarkConsistancyProve(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+
+	CM, randVal := PedCommit(value)
+	CMTok := PK.Mult(randVal)
+
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		ConsistencyProve(CM, CMTok, PK, value, randVal)
+	}
+}
+
+func BenchmarkConsistancyVerify(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+
+	CM, randVal := PedCommit(value)
+	CMTok := PK.Mult(randVal)
+	proof, _ := ConsistencyProve(CM, CMTok, PK, value, randVal)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		ConsistencyVerify(CM, CMTok, PK, proof)
+	}
+}
+
+func BenchmarkABCProve_0(b *testing.B) {
+	value := big.NewInt(0)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+
+	CM, randVal := PedCommit(value)
+	CMTok := PK.Mult(randVal)
+
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		ABCProve(CM, CMTok, value, sk, left)
+	}
+}
+
+func BenchmarkABCProve_1(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+
+	CM, randVal := PedCommit(value)
+	CMTok := PK.Mult(randVal)
+
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		ABCProve(CM, CMTok, value, sk, right)
+	}
+}
+
+func BenchmarkABCVerify_0(b *testing.B) {
+	value := big.NewInt(0)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+
+	CM, randVal := PedCommit(value)
+	CMTok := PK.Mult(randVal)
+	proof, _ := ABCProve(CM, CMTok, value, sk, left)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		ABCVerify(CM, CMTok, proof)
+	}
+}
+
+func BenchmarkABCVerify_1(b *testing.B) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	PK := ZKCurve.H.Mult(sk)
+
+	CM, randVal := PedCommit(value)
+	CMTok := PK.Mult(randVal)
+	proof, _ := ABCProve(CM, CMTok, value, sk, right)
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		ABCVerify(CM, CMTok, proof)
+	}
+}
