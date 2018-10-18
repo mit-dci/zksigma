@@ -15,6 +15,12 @@ func TestInit(t *testing.T) {
 }
 
 func TestECPointMethods(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestECPointMethods")
+		t.Skip("Skipped TestECPointMethods")
+	}
+
 	v := big.NewInt(3)
 	p := ZKCurve.G.Mult(v)
 	negp := p.Neg()
@@ -41,6 +47,12 @@ func TestECPointMethods(t *testing.T) {
 }
 
 func TestZkpCryptoStuff(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestZkpCryptoStuff")
+		t.Skip("Skipped TestZkpCryptoStuff")
+	}
+
 	value := big.NewInt(-100)
 
 	testCommit, randomValue := PedCommit(value) // xG + rH
@@ -80,6 +92,11 @@ func TestZkpCryptoStuff(t *testing.T) {
 }
 
 func TestZkpCryptoCommitR(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestZkpCryptoCommitR")
+		t.Skip("Skipped TestZkpCryptoCommitR")
+	}
 
 	u, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
@@ -132,6 +149,11 @@ func TestPedersenCommit(t *testing.T) {
 
 func TestGSPFS(t *testing.T) {
 
+	if *NOBASIC {
+		fmt.Println("Skipped TestGSPFS")
+		t.Skip("Skipped TestGSPFS")
+	}
+
 	x, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
@@ -164,6 +186,11 @@ func TestGSPFS(t *testing.T) {
 }
 
 func TestEquivilance(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestEquivilance")
+		t.Skip("Skipped TestEquivilance")
+	}
 
 	x, _ := rand.Int(rand.Reader, ZKCurve.N)
 	Base1 := ZKCurve.G
@@ -228,6 +255,11 @@ func TestEquivilance(t *testing.T) {
 
 func TestDisjunctive(t *testing.T) {
 
+	if *NOBASIC {
+		fmt.Println("Skipped TestDisjunctive")
+		t.Skip("Skipped TestDisjunctive")
+	}
+
 	x := big.NewInt(100)
 	y := big.NewInt(101)
 
@@ -274,6 +306,11 @@ func TestDisjunctive(t *testing.T) {
 
 func TestConsistency(t *testing.T) {
 
+	if *NOBASIC {
+		fmt.Println("Skipped TestConsistency")
+		t.Skip("Skipped TestConsistency")
+	}
+
 	x, err := rand.Int(rand.Reader, ZKCurve.N)
 	check(err)
 
@@ -309,6 +346,11 @@ func TestConsistency(t *testing.T) {
 
 // TODO: make a toooooon more test cases
 func TestABCProof(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestABCProof")
+		t.Skip("Skipped TestABCProof")
+	}
 
 	if ZKCurve.C == nil {
 		Init()
@@ -391,6 +433,11 @@ type etx struct {
 
 //TODO: make a sk-pk that is consistant accross all test cases
 func TestAverages_Basic(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestAverages_Basic")
+		t.Skip("Skipped TestAverages_Basic")
+	}
 
 	// remeber to change both number here...
 	numTx := 100
@@ -495,53 +542,6 @@ func TestAverages_Basic(t *testing.T) {
 
 	fmt.Println("Passed TestAverages")
 
-}
-
-func TestABCProof_Extensive(t *testing.T) {
-	if !*EXTEN {
-		fmt.Println("Skipped ABCTest_Extensive - use '-extensive' flag")
-	} else {
-
-		failed := false
-
-		sk, _ := rand.Int(rand.Reader, ZKCurve.N)
-		PK := ZKCurve.H.Mult(sk)
-		ua, _ := rand.Int(rand.Reader, ZKCurve.N)
-
-		for ii := 0; ii < 1000; ii++ { //roughly 5 seconds per 1000 cases
-
-			value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-			A := ZKCurve.H.Mult(ua)                                    // uaH
-			temp := ZKCurve.G.Mult(value)                              // value(G); ZKCurve.C.ScalarBaseMult(value.Bytes())
-
-			// A = vG + uaH
-			A.X, A.Y = ZKCurve.C.Add(A.X, A.Y, temp.X, temp.Y)
-			AToken := PK.Mult(ua) //ZKCurve.H.Mult(ua), where can I get uaH?
-
-			aProof, status := ABCProve(A, AToken, value, sk, right)
-
-			if proofStatus(status.(*errorProof)) != 0 {
-				failed = true
-				Dprintf("ABCProof RIGHT failed to generate!\n")
-				// Dprintf("aProof: \n\n %v \n\n", aProof)
-				Dprintf("ABCProof RIGHT failed\n")
-			}
-
-			if !ABCVerify(A, AToken, aProof) {
-				failed = true
-				Dprintf("ABCProof RIGHT Failed to verify!\n")
-				// Dprintf("aProof: \n\n %v \n\n", aProof)
-				Dprintf("ABCVerify RIGHT failed\n")
-			}
-
-			if failed && value.Cmp(big.NewInt(0)) != 0 {
-				Dprintf("TestABC_Extensive produced a failing test case!\n")
-				Dprintf("---\nFailed case:\nvalue: %v \nrandom: %v \nsk: %v\n", value, ua, sk)
-				failed = false
-			}
-		}
-		fmt.Println("Passed TestABC_Extensive")
-	}
 }
 
 // ============== BENCHMARKS =================

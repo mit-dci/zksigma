@@ -10,7 +10,10 @@ import (
 // Copy-pasted from origianl apl implementation by Willy (github.com/wrv)
 func TestRangeProver_Verify(t *testing.T) {
 
-	t.Skip("Skipped TestRangeProver_Verify")
+	if !*RANGE {
+		fmt.Println("Skipped TestRangeProver_Verify - use -range flag to run")
+		t.Skip("Skipped TestRangeProver_Verify")
+	}
 
 	value, _ := rand.Int(rand.Reader, big.NewInt(1099511627775))
 	proof, rp := RangeProverProve(value)
@@ -26,7 +29,12 @@ func TestRangeProver_Verify(t *testing.T) {
 
 func TestOutOfRangeRangeProver_Verify(t *testing.T) {
 
-	fmt.Println("TestOutOfRangeProver_Verify: There should be an error message following this")
+	if !*RANGE {
+		fmt.Println("Skipped TestOutOfRangeRangeProver_Verify - use -range flag to run")
+		t.Skip("Skipped TestOutOfRangeRangeProver_Verify")
+	}
+
+	fmt.Println("TestOutOfRangeRangeProver_Verify: There should be an error message following this")
 
 	min := new(big.Int).Exp(new(big.Int).SetInt64(2), new(big.Int).SetInt64(64), nil)
 

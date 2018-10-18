@@ -9,7 +9,7 @@ import (
 )
 
 // FLAGS
-var BULLET = flag.Bool("bulletproofs", false, "Run bulletproof test cases")
+var BULLET = flag.Bool("bullet", false, "Run bulletproof test cases")
 
 type Generator struct {
 	N    uint64

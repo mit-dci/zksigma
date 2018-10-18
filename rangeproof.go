@@ -3,10 +3,13 @@ package zkSigma
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"flag"
 	"fmt"
 	"math/big"
 	"sync"
 )
+
+var RANGE = flag.Bool("range", false, "Run rangeproof test cases")
 
 // The following was copy-pasted from zkLedger's original implementation by Willy (github.com/wrv)
 // TODO: replace rangeproofs of zkLedger with bulletproofs, eventually

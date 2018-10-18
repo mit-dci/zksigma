@@ -13,7 +13,7 @@ import (
 
 // FLAGS
 var DEBUG = flag.Bool("debug1", false, "Debug output")
-var EXTEN = flag.Bool("extensive", false, "Extensive test cases")
+var NOBASIC = flag.Bool("nobasic", true, "Skips basic tests")
 
 // MAKE SURE TO CALL init() BEFORE DOING ANYTHING
 // Global vars used to maintain all the crypto constants
@@ -738,21 +738,21 @@ type ConsistencyProof struct {
 	- generator points G and H,
 	- PK (pubkey) = skH, // sk is secret key
 	- CM (commitment) = vG + rH
-	- Y = rPK
+	- CMTok = rPK
 
 	V									P
-	selects v and r for commitment		knows CM = vG + rH; Y = rPK
+	selects v and r for commitment		knows CM = vG + rH; CMTok = rPK
 	selects random u1, u2
 	T1 = u1G + u2H
 	T2 = u2PK
-	c = HASH(G, H, T1, T2, PK, CM, Y)
+	c = HASH(G, H, T1, T2, PK, CM, CMTok)
 	s1 = u1 + c * v
 	s2 = u2 + c * r
 
 	T1, T2, c, s1, s2 ----------------->
-										c ?= HASH(G, H, T1, T2, PK, CM, Y)
+										c ?= HASH(G, H, T1, T2, PK, CM, CMTok)
 										s1G + s2H ?= T1 + cCM
-										s2PK ?= T2 + cY
+										s2PK ?= T2 + cCMTok
 */
 
 func ConsistencyProve(
@@ -817,11 +817,11 @@ func ConsistencyProve(
 }
 
 /*
-	Give: T1, T2, c, s1, s2; Public: G, H, PK, CM, Y
+	Give: T1, T2, c, s1, s2; Public: G, H, PK, CM, CMTok
 	Check the following:
-			c ?= HASH(G, H, T1, T2, PK, CM, Y)
+			c ?= HASH(G, H, T1, T2, PK, CM, CMTok)
 	s1G + s2H ?= T1 + cCM
-		 s2PK ?= T2 + cY
+		 s2PK ?= T2 + cCMTok
 */
 
 // ConsistencyVerify checks if a proof is valid
