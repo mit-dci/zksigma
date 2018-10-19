@@ -48,6 +48,10 @@ func TestECPointMethods(t *testing.T) {
 
 func TestZkpCryptoStuff(t *testing.T) {
 
+	if ZKCurve.C == nil {
+		Init()
+	}
+
 	if !*NOBASIC {
 		fmt.Println("Skipped TestZkpCryptoStuff")
 		t.Skip("Skipped TestZkpCryptoStuff")
@@ -60,26 +64,24 @@ func TestZkpCryptoStuff(t *testing.T) {
 	value = new(big.Int).Mod(value, ZKCurve.N)
 
 	// vG
-	tempX, tempY := ZKCurve.C.ScalarMult(ZKCurve.G.X, ZKCurve.G.Y, value.Bytes())
+	ValEC := SBaseMult(value)
+	InvValEC := ValEC.Neg() // 1/vG (acutally mod operation but whatever you get it)
 
-	ValEC := ECPoint{tempX, tempY}          // vG
-	InvValEC := ZKCurve.G.Mult(value).Neg() // 1/vG (acutally mod operation but whatever you get it)
 	Dprintf("         vG : %v --- value : %v \n", ValEC, value)
 	Dprintf("       1/vG : %v\n", InvValEC)
 
-	tempX, tempY = ZKCurve.C.Add(ValEC.X, ValEC.Y, InvValEC.X, InvValEC.Y)
+	temp := ValEC.Add(InvValEC)
 	Dprintf("TestZkpCrypto:")
-	Dprintf("Added the above: %v, %v\n", tempX, tempY)
+	Dprintf("Added the above: %v\n", temp)
 
-	if tempX.Cmp(ZKCurve.Zero().X) != 0 || tempY.Cmp(ZKCurve.Zero().Y) != 0 {
-		Dprintf("Added the above: %v, %v", tempX, tempY)
+	if !temp.Equal(ZKCurve.Zero()) {
+		Dprintf("Added the above: %v", temp)
 		Dprintf("The above should have been (0,0)")
 		t.Fatalf("Failed Addition of inverse points failed")
 	}
 
-	testOpen := InvValEC.Add(testCommit)                                               // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
-	tempX, tempY = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, randomValue.Bytes()) // rH
-	RandEC := ECPoint{tempX, tempY}
+	testOpen := InvValEC.Add(testCommit)  // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
+	RandEC := ZKCurve.H.Mult(randomValue) // rH
 
 	if !RandEC.Equal(testOpen) {
 		Dprintf("RandEC : %v\n", RandEC)
@@ -163,8 +165,7 @@ func TestGSPFS(t *testing.T) {
 	check(err)
 
 	// MUST use G here becuase of GSPFSProve implementation
-	rX, rY := ZKCurve.C.ScalarBaseMult(x.Bytes())
-	result := ECPoint{rX, rY}
+	result := SBaseMult(x)
 
 	testProof := GSPFSProve(result, x)
 
@@ -370,7 +371,7 @@ func TestABCProof(t *testing.T) {
 	temp := ZKCurve.G.Mult(value) // value(G)
 
 	// A = vG + uaH
-	A.X, A.Y = ZKCurve.C.Add(A.X, A.Y, temp.X, temp.Y)
+	A = A.Add(temp)
 	AToken := PK.Mult(ua)
 
 	aProof, status := ABCProve(A, AToken, value, sk, right)
@@ -417,16 +418,95 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCVerify: not working...\n")
 	}
 
-	aProof, _ = BreakABCProve(A, AToken, big.NewInt(1000), sk, right)
-
-	Dprintf("Next ABCVerify should catch attack\n")
-
-	if ABCVerify(A, AToken, aProof) {
-		Dprintf("ABCVerify: accepted attack input! c = 2, should fail...\n")
-		t.Fatalf("ABCVerify: failed to catch attack!\n")
-	}
-
 	fmt.Println("Passed TestABCProof")
+
+}
+
+func TestBreakABCProve(t *testing.T) {
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	ua, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+	PK := ZKCurve.H.Mult(sk)
+	CM := ZKCurve.H.Mult(ua)      // uaH
+	temp := ZKCurve.G.Mult(value) // value(G)
+
+	// A = vG + uaH
+	CM = CM.Add(temp)
+	CMTok := PK.Mult(ua)
+
+	u1, _ := rand.Int(rand.Reader, ZKCurve.N)
+	u2, _ := rand.Int(rand.Reader, ZKCurve.N)
+	u3, _ := rand.Int(rand.Reader, ZKCurve.N)
+	ub, _ := rand.Int(rand.Reader, ZKCurve.N)
+	uc, _ := rand.Int(rand.Reader, ZKCurve.N)
+
+	B := ECPoint{}
+	C := ECPoint{}
+	CToken := ZKCurve.H.Mult(uc)
+
+	// B = 2/v
+	B = PedCommitR(new(big.Int).ModInverse(new(big.Int).Quo(big.NewInt(2), value), ZKCurve.N), ub)
+
+	// C = 2G + ucH, the 2 here is the big deal
+	C = PedCommitR(big.NewInt(2), uc)
+
+	disjuncAC, _ := DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G.Mult(big.NewInt(2))), uc, right)
+
+	// CMTok is Ta for the rest of the proof
+	// T1 = u1G + u2Ta
+	// u1G
+	u1G := ZKCurve.G.Mult(u1)
+	// u2Ta
+	u2Ta := CMTok.Mult(u2)
+	// Sum the above two
+	T1X, T1Y := ZKCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
+
+	// T2 = u1B + u3H
+	// u1B
+	u1B := B.Mult(u1)
+	// u3H
+	u3H := ZKCurve.H.Mult(u3)
+	// Sum of the above two
+	T2X, T2Y := ZKCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
+
+	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
+	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
+		CM.Bytes(), CMTok.Bytes(),
+		B.Bytes(), C.Bytes(),
+		T1X.Bytes(), T1Y.Bytes(),
+		T2X.Bytes(), T2Y.Bytes())
+
+	// j = u1 + v * c , can be though of as s1
+	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
+	j = new(big.Int).Mod(j, ZKCurve.N)
+
+	// k = u2 + inv(sk) * c
+	// inv(sk)
+	isk := new(big.Int).ModInverse(sk, ZKCurve.N)
+	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
+	k = new(big.Int).Mod(k, ZKCurve.N)
+
+	// l = u3 + (uc - v * ub) * c
+	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
+	l := new(big.Int).Add(u3, new(big.Int).Mul(temp1, Challenge))
+
+	evilProof := &ABCProof{
+		B,
+		C,
+		ECPoint{T1X, T1Y},
+		ECPoint{T2X, T2Y},
+		Challenge,
+		j, k, l, CToken,
+		disjuncAC}
+
+	Dprintf("Attemping to pass malicious true proof into verification function\n")
+
+	if ABCVerify(CM, CMTok, evilProof) {
+		Dprintf("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
+		t.Fatalf("ABCVerify - EVIL: failed to catch attack!\n")
+	}
 
 }
 

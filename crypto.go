@@ -130,7 +130,7 @@ func (p ECPoint) Sub(p2 ECPoint) ECPoint {
 // Neg returns the addadtive inverse of point p
 func (p ECPoint) Neg() ECPoint {
 	negY := new(big.Int).Neg(p.Y)
-	modValue := negY.Mod(negY, ZKCurve.C.Params().P)
+	modValue := new(big.Int).Mod(negY, ZKCurve.C.Params().P)
 	return ECPoint{p.X, modValue}
 }
 
