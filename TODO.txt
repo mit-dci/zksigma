@@ -8,7 +8,9 @@ Stuff to do:
 
 NEW STUFF:
 - Make the init take in any curve
+- generalize the curve to be passed into each function
 - goDoc format for crypto notes
 - browser goDocs
 
+Merlin code abstraction from Rust-Bulletproof guys
 

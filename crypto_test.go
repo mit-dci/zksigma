@@ -16,7 +16,7 @@ func TestInit(t *testing.T) {
 
 func TestECPointMethods(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestECPointMethods")
 		t.Skip("Skipped TestECPointMethods")
 	}
@@ -48,7 +48,7 @@ func TestECPointMethods(t *testing.T) {
 
 func TestZkpCryptoStuff(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestZkpCryptoStuff")
 		t.Skip("Skipped TestZkpCryptoStuff")
 	}
@@ -93,7 +93,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 func TestZkpCryptoCommitR(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestZkpCryptoCommitR")
 		t.Skip("Skipped TestZkpCryptoCommitR")
 	}
@@ -114,6 +114,11 @@ func TestZkpCryptoCommitR(t *testing.T) {
 }
 
 func TestPedersenCommit(t *testing.T) {
+
+	if !*NOBASIC {
+		fmt.Println("Skipped TestPedersenCommit")
+		t.Skip("Skipped TestPedersenCommit")
+	}
 
 	x := big.NewInt(1000)
 	badx := big.NewInt(1234)
@@ -149,7 +154,7 @@ func TestPedersenCommit(t *testing.T) {
 
 func TestGSPFS(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestGSPFS")
 		t.Skip("Skipped TestGSPFS")
 	}
@@ -187,7 +192,7 @@ func TestGSPFS(t *testing.T) {
 
 func TestEquivilance(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestEquivilance")
 		t.Skip("Skipped TestEquivilance")
 	}
@@ -255,7 +260,7 @@ func TestEquivilance(t *testing.T) {
 
 func TestDisjunctive(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestDisjunctive")
 		t.Skip("Skipped TestDisjunctive")
 	}
@@ -306,7 +311,7 @@ func TestDisjunctive(t *testing.T) {
 
 func TestConsistency(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestConsistency")
 		t.Skip("Skipped TestConsistency")
 	}
@@ -347,7 +352,7 @@ func TestConsistency(t *testing.T) {
 // TODO: make a toooooon more test cases
 func TestABCProof(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestABCProof")
 		t.Skip("Skipped TestABCProof")
 	}
@@ -434,7 +439,7 @@ type etx struct {
 //TODO: make a sk-pk that is consistant accross all test cases
 func TestAverages_Basic(t *testing.T) {
 
-	if *NOBASIC {
+	if !*NOBASIC {
 		fmt.Println("Skipped TestAverages_Basic")
 		t.Skip("Skipped TestAverages_Basic")
 	}
