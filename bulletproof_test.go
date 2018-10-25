@@ -127,8 +127,8 @@ func TestInProdProve(t *testing.T) {
 	b := make([]*big.Int, numBits)
 
 	for ii, _ := range a {
-		a[ii], _ = rand.Int(rand.Reader, ZKCurve.N)
-		b[ii], _ = rand.Int(rand.Reader, ZKCurve.N)
+		a[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
+		b[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
 	}
 
 	proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)

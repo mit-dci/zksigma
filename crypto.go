@@ -13,7 +13,7 @@ import (
 
 // FLAGS
 var DEBUG = flag.Bool("debug1", false, "Debug output")
-var NOBASIC = flag.Bool("nobasic", true, "Skips basic tests")
+var NOBASIC = flag.Bool("nobasic", false, "Skips basic tests")
 
 // MAKE SURE TO CALL init() BEFORE DOING ANYTHING
 // Global vars used to maintain all the crypto constants
@@ -83,8 +83,21 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 // Mult multiplies point p by scalar s and returns the resulting point
 func (p ECPoint) Mult(s *big.Int) ECPoint {
 	modS := new(big.Int).Mod(s, ZKCurve.N)
-	X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
-	return ECPoint{X, Y}
+
+	if p.Equal(ZKCurve.Zero()) {
+		Dprintf("Mult: Trying to multiple with zero-point!\n")
+		return p
+	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
+		X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
+		return ECPoint{X, Y}
+	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) {
+		Dprintf("ECPoint.Add():\n - p and p2 is not on the curve\n")
+		Dprintf(" -  POINT: %v\n - SCALAR: %v\n", p, s)
+		return ECPoint{nil, nil}
+	}
+
+	Dprintf("Mult: we should not get here...")
+	return ECPoint{nil, nil}
 }
 
 func SBaseMult(s *big.Int) ECPoint {

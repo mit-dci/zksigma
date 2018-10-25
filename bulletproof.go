@@ -12,10 +12,11 @@ import (
 var BULLET = flag.Bool("bullet", false, "Run bulletproof test cases")
 
 type Generator struct {
-	N    uint64
-	M    uint64
-	VecG []ECPoint
-	VecH []ECPoint
+	N      uint64
+	M      uint64
+	MaxVal *big.Int
+	VecG   []ECPoint
+	VecH   []ECPoint
 }
 
 type GeneratorView struct {
@@ -26,7 +27,7 @@ type GeneratorView struct {
 const (
 	numBits     uint64 = 64
 	numVals     uint64 = 1
-	rootNumBits uint64 = 6
+	rootNumBits uint64 = 7
 )
 
 var ZKGen Generator
@@ -41,8 +42,11 @@ func BPInit() {
 func NewGen(n, m uint64) Generator {
 	BPGen := Generator{}
 
+	maxVal := big.NewInt(9223372036854775808 - 1)
+
 	BPGen.N = n
 	BPGen.M = m
+	BPGen.MaxVal = maxVal
 
 	u1, _ := rand.Int(rand.Reader, ZKCurve.N)
 	u2, _ := rand.Int(rand.Reader, ZKCurve.N)
@@ -134,15 +138,15 @@ func dotProd(x, y []*big.Int) *big.Int {
 // x[] cannot contain 0 or 1 in any entry?
 func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 	if len(x) != len(y) {
+		Dprintf("ecDotProd: array sizes do not match! Zero ECP returned\n")
 		return ZKCurve.Zero()
 	}
 
-	acc := ZKCurve.Zero()
-	acc.X, acc.Y = ZKCurve.C.ScalarMult(y[0].X, y[0].Y, x[0].Bytes())
+	acc := y[0].Mult(x[0])
 	temp := ZKCurve.Zero()
 
 	for ii := 1; ii < len(x); ii++ {
-		temp.X, temp.Y = ZKCurve.C.ScalarMult(y[ii].X, y[ii].Y, x[ii].Bytes())
+		temp = y[ii].Mult(x[ii])
 		acc = acc.Add(temp)
 	}
 	return acc
@@ -219,20 +223,28 @@ func vecSub(x, y []*big.Int) []*big.Int {
 
 func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 
+	if len(x) == 1 {
+		Dprintf("splitVec:\n - input array is of size 1, returning {x, x}\n")
+		return x, x
+	}
+
 	if len(x)%2 != 0 {
 		Dprintf("splitVec:\n - input arrays are not multiple of 2\n")
 		return []*big.Int{}, []*big.Int{}
 	}
 
-	left, right := make([]*big.Int, len(x)/2), make([]*big.Int, len(x)/2)
-	left, right = x[0:len(x)/2], x[len(x)/2:len(x)] // WHY DOES IT HAVE TO BE SLICES AND NOT INDEXES
-
-	return left, right
+	return x[0 : len(x)/2], x[len(x)/2 : len(x)]
 }
 
 func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
 
+	if len(x) == 1 {
+		Dprintf("splitVecEC:\n - input array is of size 1, returning {x, x}\n")
+		return x, x
+	}
+
 	if len(x)%2 != 0 {
+		Dprintf("splitVecEC:\n - input arrays are not multiple of 2\n")
 		return []ECPoint{}, []ECPoint{}
 	}
 
@@ -313,7 +325,7 @@ type InProdProof struct {
 
 func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
-	if len(a)%2 != 0 || len(a) != len(b) || len(a) != len(G) || len(a) != len(H) {
+	if len(a)%2 != 0 && (len(a) != len(b) || len(a) != len(G) || len(a) != len(H)) {
 		Dprintf("InProdProof:\n - lengths of arrays do not agree/not multiple of 2\n")
 		return InProdProof{}, false
 	}
@@ -330,6 +342,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		make([]ECPoint, k)}
 
 	// Commitments we want to prove
+	// P = <a, G> + <b, H>
 	temp1 := ecDotProd(a, G)
 	temp2 := ecDotProd(b, H)
 	P := temp1.Add(temp2)
@@ -339,14 +352,13 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	w, _ := rand.Int(rand.Reader, ZKCurve.N)
 
 	// wG where G is from the ped commit:
-	QX, QY := ZKCurve.C.ScalarBaseMult(w.Bytes())
-	Q := ECPoint{QX, QY}
+	Q := ZKCurve.G.Mult(w)
 	proof.Q = Q
 
-	// c * wB
-	temp1X, temp1Y := ZKCurve.C.ScalarMult(QX, QY, c.Bytes())
-	// P' = P + cwB, public commitment used for inner product proof
-	P2 := P.Add(ECPoint{temp1X, temp1Y})
+	// c * wG
+	temp1 = Q.Mult(c)
+	// P' = P + cwG, public commitment used for inner product proof
+	P2 := P.Add(temp1)
 	proof.P = P2
 
 	s := make([]*big.Int, k)
@@ -360,8 +372,16 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		HL, HR := splitVecEC(H)
 
 		// Prover calcualtes L and R
-		proof.LeftVec[ii] = ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(Q.Mult(dotProd(aL, bR))))
+		// The two statements below work just fine, don't mess with the brackets...
+		// Something fucky going on here...
+		thing1 := ecDotProd(aL, GR)
+		thing2 := ecDotProd(bR, HL)
+		thing3 := Q.Mult(dotProd(aL, bR))
+
+		proof.LeftVec[ii] = thing1.Add(thing2.Add(thing3))
 		proof.RightVec[ii] = ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(Q.Mult(dotProd(aR, bL))))
+		// Dprintf(" LeftV[%v]: %v \nRightV[%v]: %v\n", ii, proof.LeftVec[ii], ii, proof.RightVec[ii])
+
 		// FS-Transform to make this non interactive is to write in each L and R into the buffer
 		// stringing these consecutive hashes locks in each value of L and R to the previous ones
 		hasher.Write(proof.LeftVec[ii].Bytes())
@@ -403,8 +423,16 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	test3 := Q.Mult(c)
 
 	sumTemp := ZKCurve.Zero()
-	for ii := range proof.LeftVec {
-		sumTemp = sumTemp.Add(proof.LeftVec[ii].Mult(proof.U[ii]).Add(proof.RightVec[ii].Mult(proof.UInv[ii])))
+	for ii := k - 1; ii >= uint64(0); ii-- {
+		// Dprintf("LeftVec[%v]: %v\n", ii, proof.LeftVec[ii])
+		whatBroke1 := proof.LeftVec[ii].Mult(proof.U[ii])
+		whatBroke2 := proof.RightVec[ii].Mult(proof.UInv[ii])
+		whatBroke3 := sumTemp
+		sumTemp = whatBroke1.Add(whatBroke2.Add(whatBroke3))
+
+		if ii == 0 {
+			break
+		}
 	}
 
 	total := test1.Add(test2.Add(test3.Sub(sumTemp)))
