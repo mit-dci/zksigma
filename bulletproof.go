@@ -334,12 +334,12 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	proof := InProdProof{big.NewInt(0),
 		big.NewInt(0),
-		make([]*big.Int, k),
-		make([]*big.Int, k),
+		make([]*big.Int, k-1),
+		make([]*big.Int, k-1),
 		ZKCurve.Zero(),
 		ZKCurve.Zero(),
-		make([]ECPoint, k),
-		make([]ECPoint, k)}
+		make([]ECPoint, k-1),
+		make([]ECPoint, k-1)}
 
 	// Commitments we want to prove
 	// P = <a, G> + <b, H>
@@ -361,10 +361,10 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	P2 := P.Add(temp1)
 	proof.P = P2
 
-	s := make([]*big.Int, k)
+	// s := make([]*big.Int, k)
 	hasher := sha256.New()
 
-	for ii := k - 1; ii >= uint64(0); ii-- {
+	for ii := k - 2; ii >= uint64(0); ii-- {
 		// split the vectors for reduction later
 		aL, aR := splitVec(a)
 		bL, bR := splitVec(b)
@@ -389,7 +389,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		u := new(big.Int).SetBytes(hasher.Sum(nil))
 		u.Mod(u, ZKCurve.N)
 		uinv := new(big.Int).ModInverse(u, ZKCurve.N)
-		s[ii] = uinv
+		// s[ii] = uinv
 		proof.U[ii] = new(big.Int).Mod(new(big.Int).Mul(u, u), ZKCurve.N)          // we need it squared for verification
 		proof.UInv[ii] = new(big.Int).Mod(new(big.Int).Mul(uinv, uinv), ZKCurve.N) //need squared for verification
 
@@ -418,27 +418,26 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	proof.A = a[0]
 	proof.B = b[0]
 
+	tempAB := new(big.Int).Mul(proof.A, proof.B)
+
+	// a_0 * G_0 + b_0 + H_0 + a_0 * b_0 * Q; Q is wG, where G is the basepoint and not compress ECvec
 	test1 := G[0].Mult(a[0])
 	test2 := H[0].Mult(b[0])
-	test3 := Q.Mult(c)
+	test3 := Q.Mult(tempAB)
 
 	sumTemp := ZKCurve.Zero()
-	for ii := k - 1; ii >= uint64(0); ii-- {
+	for ii := 0; ii < 6; ii++ { // k - 1 = 6
 		// Dprintf("LeftVec[%v]: %v\n", ii, proof.LeftVec[ii])
 		whatBroke1 := proof.LeftVec[ii].Mult(proof.U[ii])
 		whatBroke2 := proof.RightVec[ii].Mult(proof.UInv[ii])
 		whatBroke3 := sumTemp
 		sumTemp = whatBroke1.Add(whatBroke2.Add(whatBroke3))
-
-		if ii == 0 {
-			break
-		}
 	}
 
 	total := test1.Add(test2.Add(test3.Sub(sumTemp)))
 
 	if !proof.P.Equal(total) {
-		Dprintf("Internal check did not verify!\n")
+		Dprintf("Internal check did not pass!\n")
 		return InProdProof{}, false
 	}
 
