@@ -27,10 +27,10 @@ func TestSetup(t *testing.T) {
 // }
 
 var Giant64 = []*big.Int{
-	big.NewInt(10), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
+	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(10), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
 	big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
@@ -75,7 +75,7 @@ func TestDotProd(t *testing.T) {
 		t.Skip("Skipped Bulletproof TestDotProd")
 	}
 
-	if big.NewInt(42*42).Cmp(dotProd(Giant64, Giant64)) != 0 {
+	if big.NewInt(42*42+10*10).Cmp(dotProd(Giant64, Giant64)) != 0 {
 		Dprintf("dotProd not working properly:\n")
 		Dprintf("expected: %v\n", big.NewInt(42*42))
 		Dprintf("Giant64 .* temp: %v\n", check)
@@ -126,7 +126,7 @@ func TestInProdProve(t *testing.T) {
 	a := make([]*big.Int, numBits)
 	b := make([]*big.Int, numBits)
 
-	for ii, _ := range a {
+	for ii := range a {
 		a[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
 		b[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
 	}
@@ -137,7 +137,7 @@ func TestInProdProve(t *testing.T) {
 		t.Fatalf("InProdProof did not generate properly!\n")
 	}
 
-	if !InProdVerify(ZKGen.VecG, ZKGen.VecH, proof) {
+	if !InProdVerify1(ZKGen.VecG, ZKGen.VecH, proof) {
 		t.Fatalf("InProdProof did not verify!\n")
 	}
 

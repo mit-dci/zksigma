@@ -124,13 +124,14 @@ func binaryDecomp(value *big.Int) []*big.Int {
 func dotProd(x, y []*big.Int) *big.Int {
 
 	if len(x) != len(y) {
+		Dprintf("dorProd: anrray sizes do not match! Zero bigInt returned\n")
 		return big.NewInt(0)
 	}
 
 	acc := big.NewInt(0)
 
 	for ii := 0; ii < len(x); ii++ {
-		acc.Add(new(big.Int).Mul(x[ii], y[ii]), big.NewInt(0))
+		acc.Add(new(big.Int).Mul(x[ii], y[ii]), acc)
 	}
 	return acc
 }
@@ -364,7 +365,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	// s := make([]*big.Int, k)
 	hasher := sha256.New()
 
-	for ii := k - 2; ii >= uint64(0); ii-- {
+	for ii := rootNumBits - 2; ii >= uint64(0); ii-- {
 		// split the vectors for reduction later
 		aL, aR := splitVec(a)
 		bL, bR := splitVec(b)
@@ -444,7 +445,68 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	return proof, true
 }
 
+func InProdVerify1(G, H []ECPoint, proof InProdProof) bool {
+
+	// generate vector s
+	s := make([]*big.Int, numBits)
+	sRev := make([]*big.Int, numBits)
+
+	for ii := uint64(0); ii < numBits; ii++ {
+		acc := big.NewInt(1)
+		for jj := uint64(0); jj < rootNumBits-1; jj++ {
+			if math.Mod(float64(ii), math.Pow(2, float64(jj))) < math.Pow(2, float64(jj-1)) {
+				acc.Mul(acc, new(big.Int).Neg(proof.U[jj]))
+			} else {
+				acc.Mul(acc, proof.U[jj])
+			}
+
+		}
+		s[ii] = new(big.Int).Mul(acc, proof.A)
+		sRev[numBits-1-ii] = new(big.Int).Mul(acc, proof.B)
+	}
+
+	thing1 := ecDotProd(s, G)
+	thing2 := ecDotProd(sRev, H)
+	thing3 := proof.Q.Mult(new(big.Int).Mul(proof.A, proof.B))
+
+	sumTemp := ZKCurve.Zero()
+	for ii := 0; ii < 6; ii++ {
+		whatBroke1 := proof.LeftVec[ii].Mult(proof.U[ii])
+		whatBroke2 := proof.RightVec[ii].Mult(proof.UInv[ii])
+		whatBroke3 := sumTemp
+		sumTemp = whatBroke1.Add(whatBroke2.Add(whatBroke3))
+	}
+
+	total := thing1.Add(thing2.Add(thing3.Sub(sumTemp)))
+
+	if !proof.P.Equal(total) {
+		Dprintf("Internal check did not pass!\n")
+		return false
+	}
+
+	return true
+}
+
 func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
+
+	k := rootNumBits
+
+	// Reverse engineering G and H vecores
+	for ii := k - 2; ii >= uint64(0); ii-- {
+
+		GL, GR := splitVecEC(G)
+		HL, HR := splitVecEC(H)
+
+		u := proof.U[ii]
+		uinv := proof.UInv[ii]
+		// G, H are computed by both parites
+		G = vecAddEC(scalarEC(u, GR), scalarEC(uinv, GL))
+		H = vecAddEC(scalarEC(u, HL), scalarEC(uinv, HR))
+
+		if ii == 0 {
+			break
+		}
+	}
 
 	s := make([]*big.Int, numBits)
 	sInv := make([]*big.Int, numBits)
