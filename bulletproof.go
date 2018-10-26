@@ -445,7 +445,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	return proof, true
 }
 
-func InProdVerify1(G, H []ECPoint, proof InProdProof) bool {
+func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 
 	// generate vector s
 	s := make([]*big.Int, numBits)
@@ -455,7 +455,7 @@ func InProdVerify1(G, H []ECPoint, proof InProdProof) bool {
 		acc := big.NewInt(1)
 		for jj := uint64(0); jj < rootNumBits-1; jj++ {
 			if math.Mod(float64(ii), math.Pow(2, float64(jj))) < math.Pow(2, float64(jj-1)) {
-				acc.Mul(acc, new(big.Int).Neg(proof.U[jj]))
+				acc.Mul(acc, new(big.Int).ModInverse(proof.U[jj], ZKCurve.N)) // mod inverse might not be the correct thing...
 			} else {
 				acc.Mul(acc, proof.U[jj])
 			}
@@ -487,26 +487,10 @@ func InProdVerify1(G, H []ECPoint, proof InProdProof) bool {
 	return true
 }
 
-func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
+/*
 
-	k := rootNumBits
-
-	// Reverse engineering G and H vecores
-	for ii := k - 2; ii >= uint64(0); ii-- {
-
-		GL, GR := splitVecEC(G)
-		HL, HR := splitVecEC(H)
-
-		u := proof.U[ii]
-		uinv := proof.UInv[ii]
-		// G, H are computed by both parites
-		G = vecAddEC(scalarEC(u, GR), scalarEC(uinv, GL))
-		H = vecAddEC(scalarEC(u, HL), scalarEC(uinv, HR))
-
-		if ii == 0 {
-			break
-		}
-	}
+// Read at your own risk, this was really messed up before trying the version above....
+func InProdVerify1(G, H []ECPoint, proof InProdProof) bool {
 
 	s := make([]*big.Int, numBits)
 	sInv := make([]*big.Int, numBits)
@@ -544,3 +528,4 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 
 	return true
 }
+*/
