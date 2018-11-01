@@ -137,7 +137,7 @@ func TestInProdProve(t *testing.T) {
 		t.Fatalf("InProdProof did not generate properly!\n")
 	}
 
-	if !InProdVerify1(ZKGen.VecG, ZKGen.VecH, proof) {
+	if !InProdVerify(ZKGen.VecG, ZKGen.VecH, proof) {
 		t.Fatalf("InProdProof did not verify!\n")
 	}
 

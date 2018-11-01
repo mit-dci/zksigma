@@ -771,3 +771,31 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
 	return true
 }
+
+// InequalityProve generates a proof to show that two commitments, A and B, are not equal
+// Given two commitments A and B that we know the values for - a and b respectively - we
+// can prove that a != b without needed any new commitments, just generate a proof
+// // There is no Inequality verify since this generates an ABCProof, so just use ABCVerify
+func InequalityProve(A, B, CMTokA, CMTokB ECPoint, a, b, sk *big.Int) (*ABCProof, error) {
+
+	if a.Cmp(b) == 0 {
+		Dprintf("InequalityProve: a and b should not be equal! Duh!\n")
+		return &ABCProof{}, &errorProof{"InequalityProve", "a and b should not be equal..."}
+	}
+
+	// should I check if a > b? I think that shouldn't be a problem
+	// generate a-b for ABCProof, D will be created  commitment
+	value := new(big.Int).Sub(a, b)
+	CM := A.Sub(B)
+
+	CMTok := CMTokA.Sub(CMTokB)
+
+	proof, proofStatus := ABCProve(CM, CMTok, value, sk, right)
+
+	if proofStatus != nil {
+		return &ABCProof{}, proofStatus
+	}
+
+	return proof, proofStatus
+
+}

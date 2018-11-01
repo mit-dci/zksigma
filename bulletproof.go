@@ -124,7 +124,7 @@ func binaryDecomp(value *big.Int) []*big.Int {
 func dotProd(x, y []*big.Int) *big.Int {
 
 	if len(x) != len(y) {
-		Dprintf("dorProd: anrray sizes do not match! Zero bigInt returned\n")
+		Dprintf("dorProd: anrray sizes do not match! Zero *big.Int returned\n")
 		return big.NewInt(0)
 	}
 
@@ -139,7 +139,7 @@ func dotProd(x, y []*big.Int) *big.Int {
 // x[] cannot contain 0 or 1 in any entry?
 func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 	if len(x) != len(y) {
-		Dprintf("ecDotProd: array sizes do not match! Zero ECP returned\n")
+		Dprintf("ecDotProd: array sizes do not match! Zero ECPoint returned\n")
 		return ZKCurve.Zero()
 	}
 
@@ -409,8 +409,8 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	}
 
-	if len(a) != 1 || len(a) != len(b) {
-		Dprintf("InProdProof:\n - len(a) is not 1 and/or len(a) != len(b)\n")
+	if (len(a) != 1 || len(a) != len(b)) && (len(G) != 1 || len(G) != len(H)) {
+		Dprintf("InProdProof:\n - len(a) is not 1 and/or len(a) != len(b) OR for G and H the same\n")
 		Dprintf(" - Proof failed to generate\n")
 		Dprintf(" - a: %v\n - b: %v\n", a, b)
 		return InProdProof{}, false

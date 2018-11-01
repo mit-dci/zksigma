@@ -422,6 +422,78 @@ func TestABCProof(t *testing.T) {
 
 }
 
+func TestInequalityProve(t *testing.T) {
+
+	if *NOBASIC {
+		fmt.Println("Skipped TestInequalityProve")
+		t.Skip("Skipped TestABCProof")
+	}
+
+	if ZKCurve.C == nil {
+		Init()
+	}
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	A, ua := PedCommit(a)
+	B, ub := PedCommit(b)
+
+	PK := ZKCurve.H.Mult(sk)
+
+	// Even though we generated the values for ua and ub in this test case, we do not
+	// need to know ua or ub, only the commitment tokens are needed, which is already
+	// used in many other proofs
+	CMTokA := PK.Mult(ua)
+	CMTokB := PK.Mult(ub)
+
+	aProof, status := InequalityProve(A, B, CMTokA, CMTokB, a, b, sk)
+
+	if status != nil {
+		proofStatus(status.(*errorProof))
+		Dprintf("ABCProof for InequalityProve failed to generate!\n")
+		t.Fatalf("ABCProof for InequalityProve failed\n")
+	}
+
+	if !ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof) {
+		Dprintf("ABCProof for InequalityProve failed to verify!\n")
+		t.Fatalf("ABCVerify for InequalityProve failed\n")
+	}
+
+	// Swapped positions of commitments, tokens and values, will work just fine
+	aProof, status = InequalityProve(B, A, CMTokB, CMTokA, b, a, sk)
+
+	if status != nil {
+		proofStatus(status.(*errorProof))
+		Dprintf("ABCProof for InequalityProve failed to generate!\n")
+		t.Fatalf("ABCProof for InequalityProve failed\n")
+	}
+
+	if !ABCVerify(B.Sub(A), CMTokB.Sub(CMTokA), aProof) {
+		Dprintf("ABCProof for InequalityProve failed to verify!\n")
+		t.Fatalf("ABCVerify for InequalityProve failed\n")
+	}
+
+	// Mismatched commitments and values, a proof does generate but the
+	// verification step will catch the false proof.
+	// Use the -debug1 flag to see this in action
+	aProof, status = InequalityProve(A, B, CMTokA, CMTokB, b, a, sk)
+
+	if status != nil {
+		proofStatus(status.(*errorProof))
+		Dprintf("ABCProof for InequalityProve failed to generate!\n")
+		t.Fatalf("ABCProof for InequalityProve failed\n")
+	}
+
+	if ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof) {
+		Dprintf("ABCProof for InequalityProve failed to verify!\n")
+		t.Fatalf("ABCVerify for InequalityProve failed\n")
+	}
+
+	fmt.Println("Passed TestInequalityProve")
+
+}
+
 func TestBreakABCProve(t *testing.T) {
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
@@ -502,6 +574,7 @@ func TestBreakABCProve(t *testing.T) {
 		disjuncAC}
 
 	Dprintf("Attemping to pass malicious true proof into verification function\n")
+	Dprintf("This test should throw a couple error messages in debug\n")
 
 	if ABCVerify(CM, CMTok, evilProof) {
 		Dprintf("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
@@ -851,5 +924,26 @@ func BenchmarkABCVerify_1(b *testing.B) {
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		ABCVerify(CM, CMTok, proof)
+	}
+}
+
+func BenchmarkInequalityProve(b *testing.B) {
+
+	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic rarnge"
+	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	A, ua := PedCommit(a)
+	B, ub := PedCommit(bValue)
+
+	PK := ZKCurve.H.Mult(sk)
+
+	// even though we generated the values for ua and ub in this test case, we do not
+	// need to know ua or ub, only the commitment tokens, which is already used in many other proofs
+	CMTokA := PK.Mult(ua)
+	CMTokB := PK.Mult(ub)
+
+	b.ResetTimer()
+	for ii := 0; ii < b.N; ii++ {
+		InequalityProve(A, B, CMTokA, CMTokB, a, bValue, sk)
 	}
 }

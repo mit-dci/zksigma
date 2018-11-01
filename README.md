@@ -1,14 +1,20 @@
 # zkSigma
 
-This is a standalone library for genreating zero-knowledge proofs that can be verified non-interatively known as NIZKs. NIZKs do not require trusted setup and can be verfied without additional communication from the prover, although we do sacrifice the complexity of statements we can prove when comparted to something like zk-SNARKs.
+This is a standalone library for genreating zero-knowledge proofs that can be verified non-interatively known as NIZKs. NIZKs do not require trusted setup and can be verfied without additional communication from the prover, although we do sacrifice the complexity of statements we can prove when comparted to like zkSNARKs for instance.
+
+Features:
+- Generating non-interative zero-knowledge proofs for various logical statements
+- Simplified elliptic curve operations
+- Plug and Play API
 
 Statements that can be proved:
-- I know discrete log of commtiment A(= aG ONLY) (GSPFS Proof)
+- I know discrete log of commtiment A(=aG) (GSPFS Proof)
+- I know that discrete log of A(=xG) and B(=xH) are equal (Equivilance Proof)
 - I can open Pedersen Commitment A(= aG + uH) (Open)
 - I know either discrete log of A or B (Disjunctive Proof)
-- I know that discrete log of A and B are equal (Equivilance Proof)
 - I know that blinding factor of A and B are equal (Consistancy Proof)
 - I know that a * b = c in commitments A, B and C (ABC Proof)
+- I can show that a != b in commtimetns A and B (InequalityProve -> ABCProof)
 
 Running the tests:
 - Run the tests to make sure its building properly
@@ -42,6 +48,7 @@ Notation:
 - lower case variables starting with u are randomly generated scalars (ua, ub, u1, u2, ...)
 - sk and PK are always secret key and Public Key respectively
 - upper case variables are always Elliptic Curve Points (ECPoints) (G, H, A, B,...)
+    - A, B, CM, CMTok, etc, are usually of the form vG+uH unless otherwise stated
 - Special names:
     - PK = Public Key (sk * H)
     - CM = Commitment of the form (aG + uaH)
@@ -49,11 +56,6 @@ Notation:
     - ZKCurve.C = Elliptic Curve being used (btcec currently)
     - G = Base Point of ZKCurve.C
     - H = Secondry Base Point whose relation to G should not be known
-
-Features:
-- Generating non-interative zero-knowledge proofs for various logical statements
-- Simplified elliptic curve operations
-- Plug and Play API
 
 Coming Soon<sup>TM</sup>:
 - Rangeproofs (rp.Aggragate currently broken, need to investigate)
