@@ -1,6 +1,9 @@
 # zkSigma
 
-This is a standalone library for genreating zero-knowledge proofs that can be verified non-interatively known as NIZKs. NIZKs do not require trusted setup and can be verfied without additional communication from the prover, although we do sacrifice the complexity of statements we can prove when comparted to like zkSNARKs for instance.
+**WARNING: zkSigma is research code and should not be used with sensitive data.  It definitely has bugs!**
+
+zkSigma is a library for generating non-interactive zero-knowledge proofs, also known as NIZKs. The proofs in zkSigma are based on Generalized Schnorr Proofs; they can be publicly verified and do not require any trusted setup.
+
 
 Features:
 - Generating non-interative zero-knowledge proofs for various logical statements
@@ -8,26 +11,19 @@ Features:
 - Plug and Play API
 
 Statements that can be proved:
-- I know discrete log of commtiment A(=aG) (GSPFS Proof)
-- I know that discrete log of A(=xG) and B(=xH) are equal (Equivilance Proof)
-- I can open Pedersen Commitment A(= aG + uH) (Open)
-- I know either discrete log of A or B (Disjunctive Proof)
-- I know that blinding factor of A and B are equal (Consistancy Proof)
-- I know that a * b = c in commitments A, B and C (ABC Proof)
-- I can show that a != b in commtimetns A and B (InequalityProve -> ABCProof)
+- I can open a Pedersen Commitment A(= aG + uH) (Open)
+- I know the discrete log of a commitment A(=aG) (GSPFS Proof)
+- I know the discrete log of commitments A(=xG) and B(=xH) and they are equal (Equivilance Proof)
+- I know either the discrete log of commitments A or B (Disjunctive Proof)
+- I know that the blinding factor of commitments A and B are equal (Consistancy Proof)
+- I know a, b, and c in commitments A, B and C and a * b = c (ABC Proof)
+- I know commitments a and b in commitments A and B and  a != b  (InequalityProve -> ABCProof)
+
 
 Running the tests:
-- Run the tests to make sure its building properly
-``` 
-go test 
-```
 - Will show debugging messages, good for debugging a proof that is not genrating or verifing
 ```
 go test -debug1
-```
-- Run benchmarks (all benchmarks, WILL NOT RUN WITH -range OR -bullet)
-```
-go test -bench=.
 ```
 - Run bulletproof tests 
 ```
@@ -44,18 +40,15 @@ go test -nobasic
 
 
 Notation: 
-- lower case variables are known scalars (a, b, c, x,...)
-- lower case variables starting with u are randomly generated scalars (ua, ub, u1, u2, ...)
-- sk and PK are always secret key and Public Key respectively
-- upper case variables are always Elliptic Curve Points (ECPoints) (G, H, A, B,...)
-    - A, B, CM, CMTok, etc, are usually of the form vG+uH unless otherwise stated
-- Special names:
-    - PK = Public Key (sk * H)
-    - CM = Commitment of the form (aG + uaH)
-    - CMTok = Commitment Token of the form (ua * (sk* H))
-    - ZKCurve.C = Elliptic Curve being used (btcec currently)
-    - G = Base Point of ZKCurve.C
-    - H = Secondry Base Point whose relation to G should not be known
+- lower case letters are scalars (a, b, c, x,...)
+- lower case letters starting with u are randomly generated scalars (ua, ub, u1, u2, ...)
+- upper case letters are always elliptic curve points (ECPoints) (G, H, A, B,...)
+  - G = Base Point of ZKCurve.C
+  - H = Secondry Base Point whose relation to G should not be known
+  - A, B, CM, CMTok, etc, are usually of the form vG+uH unless otherwise stated
+- sk and PK are always secret key and public key. sk is a randomly chosen scalar.  PK = sk * H
+- CM = Commitment of the form aG + uaH
+- CMTok = Commitment Token of the form ua * PK
 
 Coming Soon<sup>TM</sup>:
 - Rangeproofs (rp.Aggragate currently broken, need to investigate)
@@ -80,3 +73,6 @@ Unifying Zero-Knowledge Proofs of Knowledge: this paper explains zero-knowledge 
 [bulletproofs](https://doc-internal.dalek.rs/bulletproofs/inner_product_proof/index.html): a faster form of rangeproofs that only requres log(n) setps to verify that a commitment is within a given range
 
 
+## Comparison to zkSNARKS
+
+You cannot use zkSigma to prove general statements.

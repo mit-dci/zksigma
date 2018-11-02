@@ -15,3 +15,6 @@ NEW STUFF:
 
 Merlin code abstraction from Rust-Bulletproof guys
 
+Next steps:
+- Make APL work with this
+- Optimizations to zkSigma
