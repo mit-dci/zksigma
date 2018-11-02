@@ -5,6 +5,13 @@ import (
 	"math/big"
 )
 
+type Side int
+
+const (
+	Left  Side = 0
+	Right Side = 1
+)
+
 // =========== GENERALIZED SCHNORR PROOFS ===============
 
 // GSPFS is Generalized Schnorr Proofs with Fiat-Shamir transform
@@ -274,7 +281,7 @@ type DisjunctiveProof struct {
 
 // DisjunctiveProve generates a disjunctive proof for the given x
 func DisjunctiveProve(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option side) (*DisjunctiveProof, error) {
+	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option Side) (*DisjunctiveProof, error) {
 
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
 
@@ -282,12 +289,12 @@ func DisjunctiveProve(
 	var ProveBase, ProveResult, OtherBase, OtherResult ECPoint
 
 	// Generate a proof for A
-	if option == left {
+	if option == Left {
 		ProveBase = Base1
 		ProveResult = Result1
 		OtherBase = Base2
 		OtherResult = Result2
-	} else if option == right { // Generate a proof for B
+	} else if option == Right { // Generate a proof for B
 		ProveBase = Base2
 		ProveResult = Result2
 		OtherBase = Base1
@@ -341,7 +348,7 @@ func DisjunctiveProve(
 	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, modValue))
 
 	// Look at mapping given in block comment above
-	if option == left {
+	if option == Left {
 		return &DisjunctiveProof{
 			T1,
 			T2,
@@ -614,7 +621,7 @@ type ABCProof struct {
 
 // option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
 // option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
-func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, error) {
+func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, error) {
 
 	// We cannot check that CM log is acutally the value, but the verification should catch that
 
@@ -632,7 +639,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, er
 	disjuncAC := new(DisjunctiveProof)
 	var e error
 	// Disjunctive Proof of a = 0 or c = 1
-	if option == left && value.Cmp(big.NewInt(0)) == 0 {
+	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
 		// MUST:a = 0! ; side = left
 		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
 		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.N), ub)
@@ -642,8 +649,8 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, er
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
 		// C - G is done regardless of the c = 0 or 1 becuase in the case c = 0 it does matter what that random number is
-		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, left)
-	} else if option == right && value.Cmp(big.NewInt(0)) != 0 {
+		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, Left)
+	} else if option == Right && value.Cmp(big.NewInt(0)) != 0 {
 		// MUST:c = 1! ; side = right
 
 		B = PedCommitR(new(big.Int).ModInverse(value, ZKCurve.N), ub)
@@ -652,7 +659,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option side) (*ABCProof, er
 		C = PedCommitR(big.NewInt(1), uc)
 
 		// Look at notes a couple lines above on what the input is like this
-		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, right)
+		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, Right)
 	} else {
 		Dprintf("ABCProof: Side/value combination not correct\n")
 		return &ABCProof{}, &errorProof{"ABCProof", "invalid side-value pair passed"}
@@ -790,7 +797,7 @@ func InequalityProve(A, B, CMTokA, CMTokB ECPoint, a, b, sk *big.Int) (*ABCProof
 
 	CMTok := CMTokA.Sub(CMTokB)
 
-	proof, proofStatus := ABCProve(CM, CMTok, value, sk, right)
+	proof, proofStatus := ABCProve(CM, CMTok, value, sk, Right)
 
 	if proofStatus != nil {
 		return &ABCProof{}, proofStatus

@@ -274,14 +274,14 @@ func TestDisjunctive(t *testing.T) {
 	Base2 := ZKCurve.H
 	Result2 := ZKCurve.H.Mult(y)
 
-	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, left)
+	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, Left)
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
 		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 1\n")
 	}
 
-	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, right)
+	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, Right)
 
 	if status2 != nil {
 		proofStatus(status2.(*errorProof))
@@ -300,7 +300,7 @@ func TestDisjunctive(t *testing.T) {
 	}
 
 	Dprintf("Passed \n [testing] Next djProof attemp should result in an error message\n")
-	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, left) // This should fail
+	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, Left) // This should fail
 
 	if proofStatus(status3.(*errorProof)) == 0 {
 		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
@@ -374,7 +374,7 @@ func TestABCProof(t *testing.T) {
 	A = A.Add(temp)
 	AToken := PK.Mult(ua)
 
-	aProof, status := ABCProve(A, AToken, value, sk, right)
+	aProof, status := ABCProve(A, AToken, value, sk, Right)
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
@@ -388,7 +388,7 @@ func TestABCProof(t *testing.T) {
 	}
 
 	A = ZKCurve.H.Mult(ua)
-	aProof, status = ABCProve(A, AToken, big.NewInt(0), sk, left)
+	aProof, status = ABCProve(A, AToken, big.NewInt(0), sk, Left)
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
@@ -404,7 +404,7 @@ func TestABCProof(t *testing.T) {
 	A, ua = PedCommit(big.NewInt(1000))
 	AToken = PK.Mult(ua)
 
-	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, right)
+	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, Right)
 
 	if status != nil {
 		Dprintf("False proof genereation succeeded! (bad)\n")
@@ -524,7 +524,7 @@ func TestBreakABCProve(t *testing.T) {
 	// C = 2G + ucH, the 2 here is the big deal
 	C = PedCommitR(big.NewInt(2), uc)
 
-	disjuncAC, _ := DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G.Mult(big.NewInt(2))), uc, right)
+	disjuncAC, _ := DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G.Mult(big.NewInt(2))), uc, Right)
 
 	// CMTok is Ta for the rest of the proof
 	// T1 = u1G + u2Ta
@@ -616,7 +616,7 @@ func TestAverages_Basic(t *testing.T) {
 		txn[ii].CM, commRand = PedCommit(value)
 		totalRand.Add(totalRand, commRand)
 		txn[ii].CMTok = PK.Mult(commRand)
-		txn[ii].ABCP, _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, right)
+		txn[ii].ABCP, _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, Right)
 	}
 
 	// Purely for testing purposes, usually this is computed at the end by auditor
@@ -792,7 +792,7 @@ func BenchmarkDisjuncProve_LEFT(b *testing.B) {
 	Result2 := Base2.Mult(randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		DisjunctiveProve(Base1, Result1, Base2, Result2, value, left)
+		DisjunctiveProve(Base1, Result1, Base2, Result2, value, Left)
 	}
 }
 
@@ -805,7 +805,7 @@ func BenchmarkDisjuncProve_RIGHT(b *testing.B) {
 	Result2 := Base2.Mult(randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, right)
+		DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, Right)
 	}
 }
 
@@ -816,7 +816,7 @@ func BenchmarkDisjuncVerify_LEFT(b *testing.B) {
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
 	Result2 := Base2.Mult(randVal)
-	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, value, left)
+	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, value, Left)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		DisjunctiveVerify(Base1, Result1, Base2, Result2, proof)
@@ -830,7 +830,7 @@ func BenchmarkDisjuncVerify_RIGHT(b *testing.B) {
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
 	Result2 := Base2.Mult(randVal)
-	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, right)
+	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, Right)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		DisjunctiveVerify(Base1, Result1, Base2, Result2, proof)
@@ -878,7 +878,7 @@ func BenchmarkABCProve_0(b *testing.B) {
 
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		ABCProve(CM, CMTok, value, sk, left)
+		ABCProve(CM, CMTok, value, sk, Left)
 	}
 }
 
@@ -893,7 +893,7 @@ func BenchmarkABCProve_1(b *testing.B) {
 
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		ABCProve(CM, CMTok, value, sk, right)
+		ABCProve(CM, CMTok, value, sk, Right)
 	}
 }
 
@@ -905,7 +905,7 @@ func BenchmarkABCVerify_0(b *testing.B) {
 
 	CM, randVal := PedCommit(value)
 	CMTok := PK.Mult(randVal)
-	proof, _ := ABCProve(CM, CMTok, value, sk, left)
+	proof, _ := ABCProve(CM, CMTok, value, sk, Left)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		ABCVerify(CM, CMTok, proof)
@@ -920,7 +920,7 @@ func BenchmarkABCVerify_1(b *testing.B) {
 
 	CM, randVal := PedCommit(value)
 	CMTok := PK.Mult(randVal)
-	proof, _ := ABCProve(CM, CMTok, value, sk, right)
+	proof, _ := ABCProve(CM, CMTok, value, sk, Right)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		ABCVerify(CM, CMTok, proof)

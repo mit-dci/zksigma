@@ -11,21 +11,12 @@ import (
 	"github.com/narula/btcd/btcec"
 )
 
-// FLAGS
 var DEBUG = flag.Bool("debug1", false, "Debug output")
 var NOBASIC = flag.Bool("nobasic", false, "Skips basic tests")
 
-// MAKE SURE TO CALL init() BEFORE DOING ANYTHING
-// Global vars used to maintain all the crypto constants
-var ZKCurve zkpCrypto // look for init()
-var HPoints []ECPoint // look for init()
-
-type side int
-
-const (
-	left  side = 0
-	right side = 1
-)
+// Global variables used to maintain all the crypto constants
+var ZKCurve zkpCrypto // initialized in init()
+var HPoints []ECPoint // initialized in init()
 
 type ECPoint struct {
 	X, Y *big.Int
