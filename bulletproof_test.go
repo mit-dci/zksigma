@@ -58,9 +58,9 @@ func TestBinaryDecomp(t *testing.T) {
 
 	for ii, vv := range answer {
 		if vv.Cmp(check[ii]) != 0 {
-			Dprintf("BianryDecomp failed at:\n")
-			Dprintf("answer[%v]: %v\n", ii, vv)
-			Dprintf(" check[%v]: %v\n", ii, check[ii])
+			logStuff("BianryDecomp failed at:\n")
+			logStuff("answer[%v]: %v\n", ii, vv)
+			logStuff(" check[%v]: %v\n", ii, check[ii])
 			t.Fatalf("binaryDecomp did not generate the correct array\n")
 		}
 	}
@@ -76,9 +76,8 @@ func TestDotProd(t *testing.T) {
 	}
 
 	if big.NewInt(42*42+10*10).Cmp(dotProd(Giant64, Giant64)) != 0 {
-		Dprintf("dotProd not working properly:\n")
-		Dprintf("expected: %v\n", big.NewInt(42*42))
-		Dprintf("Giant64 .* temp: %v\n", check)
+		logStuff("dotProd not working properly:\n")
+		logStuff("expected: %v\n", big.NewInt(42*42))
 		t.Fatalf("Failed TestDotProd\n")
 	}
 

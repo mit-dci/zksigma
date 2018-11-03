@@ -7,6 +7,7 @@ import (
 
 type Side int
 
+// Left and Right are used to pick what side of a proof you want to generate
 const (
 	Left  Side = 0
 	Right Side = 1
@@ -15,8 +16,8 @@ const (
 // =========== GENERALIZED SCHNORR PROOFS ===============
 
 // GSPFS is Generalized Schnorr Proofs with Fiat-Shamir transform
-// GSPFSProof is proof of knowledge of x
 
+// GSPFSProof is proof of knowledge of x in commitment A(=xG)
 type GSPFSProof struct {
 	Base        ECPoint  // Base point
 	RandCommit  ECPoint  // this is H = uG, where u is random value and G is a generator point
@@ -42,13 +43,13 @@ type GSPFSProof struct {
 
 */
 
-// GSPFSProve generates a Schnorr proof for the value x
-// TODO: this should also take in the pulic commit rather than generating it internal
+// GSPFSProve generates a Schnorr proof for the value x using the ZKCurve base point
 func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
 
 	return GSPAnyBaseProve(ZKCurve.G, result, x)
 }
 
+// GSPAnyBaseProve generates a Schnorr proof for the value x using any basepoint
 func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
@@ -57,7 +58,7 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 
 	// res = xG, G is any base point in this proof
 	if !test.Equal(result) {
-		Dprintf("GSPFSProve: the point given is not xG\n")
+		logStuff("GSPFSProve: the point given is not xG\n")
 		return &GSPFSProof{}
 	}
 
@@ -78,14 +79,14 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 	return &GSPFSProof{base, uG, HiddenValue, Challenge}
 }
 
-// GSPFSVerify checks if a proof-commit pair is valid
+// GSPFSVerify checks if a GSPFSproof-commit pair is valid
 func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
 	// Remeber that result = xG and RandCommit = uG
 
 	testC := GenerateChallenge(result.Bytes(), proof.RandCommit.Bytes())
 
 	if testC.Cmp(proof.Challenge) != 0 {
-		Dprintf("GSPFSVerify: testC and proof's challenge do not agree!\n")
+		logStuff("GSPFSVerify: testC and proof's challenge do not agree!\n")
 		return false
 	}
 
@@ -147,13 +148,13 @@ func EquivilanceProve(
 	check1 := Base1.Mult(modValue)
 
 	if !check1.Equal(Result1) {
-		Dprintf("EquivProof check: Base1 and Result1 are not related by x\n")
+		logStuff("EquivProof check: Base1 and Result1 are not related by x\n")
 		return EquivProof{}, &errorProof{"EquivilanceProve", "Base1 and Result1 are not related by x"}
 	}
 
 	check2 := Base2.Mult(modValue)
 	if !check2.Equal(Result2) {
-		Dprintf("EquivProof check: Base2 and Result2 are not related by x... \n")
+		logStuff("EquivProof check: Base2 and Result2 are not related by x... \n")
 		return EquivProof{}, &errorProof{"EquivilanceProve", "Base2 and Result2 are not related by x"}
 	}
 
@@ -188,6 +189,7 @@ func EquivilanceProve(
 	sG ?= T1 + cA
 	sH ?= T2 + cB
 */
+
 // EquivilanceVerify checks if a proof is valid
 func EquivilanceVerify(
 	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) bool {
@@ -197,7 +199,7 @@ func EquivilanceVerify(
 		eqProof.UG.Bytes(), eqProof.UH.Bytes())
 
 	if Challenge.Cmp(eqProof.Challenge) != 0 {
-		Dprintf(" [crypto] c comparison failed. proof: %v calculated: %v\n",
+		logStuff(" [crypto] c comparison failed. proof: %v calculated: %v\n",
 			eqProof.Challenge, Challenge)
 		return false
 	}
@@ -208,7 +210,7 @@ func EquivilanceVerify(
 	test := eqProof.UG.Add(cG)
 
 	if !sG.Equal(test) {
-		Dprintf("EquiviVerify: sG comparison did not pass\n")
+		logStuff("EquiviVerify: sG comparison did not pass\n")
 		return false
 	}
 
@@ -218,7 +220,7 @@ func EquivilanceVerify(
 	test = eqProof.UH.Add(cH)
 
 	if !sH.Equal(test) {
-		Dprintf("EquivVerify: sH comparison did not pass\n")
+		logStuff("EquivVerify: sH comparison did not pass\n")
 		return false
 	}
 
@@ -300,12 +302,12 @@ func DisjunctiveProve(
 		OtherBase = Base1
 		OtherResult = Result1
 	} else { // number for option is not correct
-		Dprintf("DisjunctiveProve: side provided is not valid\n")
+		logStuff("DisjunctiveProve: side provided is not valid\n")
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "invalid side provided"}
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
-		Dprintf("DisjunctiveProve: ProveBase and ProveResult are not related by x!\n")
+		logStuff("DisjunctiveProve: ProveBase and ProveResult are not related by x!\n")
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "Base and Result to be proved not related by x"}
 	}
 
@@ -395,7 +397,7 @@ func DisjunctiveVerify(
 		T1.Bytes(), T2.Bytes())
 
 	if checkC.Cmp(C) != 0 {
-		Dprintf("DJproof failed : checkC does not agree with proofC\n")
+		logStuff("DJproof failed : checkC does not agree with proofC\n")
 		return false
 	}
 
@@ -403,7 +405,7 @@ func DisjunctiveVerify(
 	totalC := new(big.Int).Add(C1, C2)
 	totalC.Mod(totalC, ZKCurve.N)
 	if totalC.Cmp(C) != 0 {
-		Dprintf("DJproof failed : totalC does not agree with proofC\n")
+		logStuff("DJproof failed : totalC does not agree with proofC\n")
 		return false
 	}
 
@@ -413,7 +415,7 @@ func DisjunctiveVerify(
 	s1G := Base1.Mult(S1)
 
 	if !checks1G.Equal(s1G) {
-		Dprintf("DJproof failed : s1G not equal to T1 + c1A\n")
+		logStuff("DJproof failed : s1G not equal to T1 + c1A\n")
 		return false
 	}
 
@@ -423,7 +425,7 @@ func DisjunctiveVerify(
 	s2G := Base2.Mult(S2)
 
 	if !checks2G.Equal(s2G) {
-		Dprintf("DJproof failed : s2G not equal to T2 + c2B\n")
+		logStuff("DJproof failed : s2G not equal to T2 + c2B\n")
 		return false
 	}
 
@@ -469,6 +471,8 @@ type ConsistencyProof struct {
 										s2PK ?= T2 + cCMTok
 */
 
+// ConsistencyProve proves that the r used in CM(=xG+rH)
+// and CMTok(=r(sk*H)) are the same.
 func ConsistencyProve(
 	CM, CMTok, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, error) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
@@ -480,12 +484,12 @@ func ConsistencyProve(
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
 	if !CM.Equal(PedCommitR(value, randomness)) {
-		Dprintf("ConsistancyProve: Commitment passed does not match value and randomness\n")
+		logStuff("ConsistancyProve: Commitment passed does not match value and randomness\n")
 		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "value and randomVal does not produce CM"}
 	}
 
 	if !CMTok.Equal(PubKey.Mult(randomness)) {
-		Dprintf("ConsistancyProve:Randomness token does not match pubkey and randomValue\n")
+		logStuff("ConsistancyProve:Randomness token does not match pubkey and randomValue\n")
 		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "Pubkey and randomVal does not produce CMTok"}
 	}
 
@@ -534,7 +538,7 @@ func ConsistencyVerify(
 
 	// c ?= HASH(G, H, T1, T2, PK, CM, Y)
 	if Challenge.Cmp(conProof.Challenge) != 0 {
-		Dprintf("ConsistancyVerify: c comparison failed. proof: %v calculated: %v\n",
+		logStuff("ConsistancyVerify: c comparison failed. proof: %v calculated: %v\n",
 			conProof.Challenge, Challenge)
 		return false
 	}
@@ -548,7 +552,7 @@ func ConsistencyVerify(
 	rhs := conProof.T1.Add(temp1)
 
 	if !lhs.Equal(rhs) {
-		Dprintf("CM check is failing\n")
+		logStuff("CM check is failing\n")
 		return false
 	}
 
@@ -558,7 +562,7 @@ func ConsistencyVerify(
 	rhs = conProof.T2.Add(temp1)
 
 	if !lhs.Equal(rhs) {
-		Dprintf("CMTok check is failing\n")
+		logStuff("CMTok check is failing\n")
 		return false
 	}
 
@@ -619,8 +623,10 @@ type ABCProof struct {
 	disjuncAC *DisjunctiveProof
 }
 
-// option left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively
-// option right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0
+// ABCProve generates a proof that the relationship between three scalars a,b and c is ab = c,
+// in commitments A, B and C respectively.
+// Option Left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively.
+// Option Right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0.
 func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, error) {
 
 	// We cannot check that CM log is acutally the value, but the verification should catch that
@@ -661,12 +667,12 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 		// Look at notes a couple lines above on what the input is like this
 		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, Right)
 	} else {
-		Dprintf("ABCProof: Side/value combination not correct\n")
+		logStuff("ABCProof: Side/value combination not correct\n")
 		return &ABCProof{}, &errorProof{"ABCProof", "invalid side-value pair passed"}
 	}
 
 	if e != nil {
-		Dprintf("Disjunctive Proof in ABCProof failed to generated!\n")
+		logStuff("Disjunctive Proof in ABCProof failed to generated!\n")
 		return &ABCProof{}, &errorProof{"ABCProof", "DisjuntiveProve within ABCProve failed to generate"}
 	}
 
@@ -726,12 +732,13 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 	cC + T2 ?= jB + lH
 */
 
+// ABCVerify checks if an ABCProof with appropraite commits are correct
 func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
 	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
 	// Here it is important that you subtract exactly 1 G from the aProof.C becuase that only allows for you to prove c = 1!
 	if !DisjunctiveVerify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC) {
-		Dprintf("ABCProof for disjuncAC is false or not generated properly\n")
+		logStuff("ABCProof for disjuncAC is false or not generated properly\n")
 		return false
 	}
 
@@ -742,7 +749,7 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
 	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
 	if Challenge.Cmp(aProof.Challenge) != 0 {
-		Dprintf("ABCVerify: proof contains incorrect challenge\n")
+		logStuff("ABCVerify: proof contains incorrect challenge\n")
 		return false
 	}
 
@@ -759,7 +766,7 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 	rhs1 := jG.Add(kCMTok)
 
 	if !lhs1.Equal(rhs1) {
-		Dprintf("ABCVerify: cCM + T1 != jG + kCMTok\n")
+		logStuff("ABCVerify: cCM + T1 != jG + kCMTok\n")
 		return false
 	}
 
@@ -772,7 +779,7 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 	rhs2 := jB.Add(lH)
 
 	if !lhs2.Equal(rhs2) {
-		Dprintf("ABCVerify: cC + T2 != jB + lH\n")
+		logStuff("ABCVerify: cC + T2 != jB + lH\n")
 		return false
 	}
 
@@ -786,7 +793,7 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 func InequalityProve(A, B, CMTokA, CMTokB ECPoint, a, b, sk *big.Int) (*ABCProof, error) {
 
 	if a.Cmp(b) == 0 {
-		Dprintf("InequalityProve: a and b should not be equal! Duh!\n")
+		logStuff("InequalityProve: a and b should not be equal! Duh!\n")
 		return &ABCProof{}, &errorProof{"InequalityProve", "a and b should not be equal..."}
 	}
 

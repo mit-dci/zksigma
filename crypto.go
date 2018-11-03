@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/narula/btcd/btcec"
@@ -13,6 +14,7 @@ import (
 
 var DEBUG = flag.Bool("debug1", false, "Debug output")
 var NOBASIC = flag.Bool("nobasic", false, "Skips basic tests")
+var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof and make it pass verification")
 
 // Global variables used to maintain all the crypto constants
 var ZKCurve zkpCrypto // initialized in init()
@@ -48,16 +50,16 @@ func (e *errorProof) Error() string {
 
 func proofStatus(e *errorProof) int {
 	if e != nil {
-		fmt.Printf("ERROR: %v \n", e.Error())
+		logStuff("ERROR: %v \n", e.Error())
 		return -1
 	}
 	return 0
 }
 
-// Dprintf is a generic debug statement generator
-func Dprintf(format string, args ...interface{}) {
+func logStuff(format string, args ...interface{}) {
 	if *DEBUG {
-		fmt.Printf(format, args...)
+		log.SetFlags(log.Lshortfile)
+		log.Printf(format, args...)
 	}
 }
 
@@ -76,18 +78,18 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 	modS := new(big.Int).Mod(s, ZKCurve.N)
 
 	if p.Equal(ZKCurve.Zero()) {
-		Dprintf("Mult: Trying to multiple with zero-point!\n")
+		logStuff("Mult: Trying to multiple with zero-point!\n")
 		return p
 	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
 		return ECPoint{X, Y}
 	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) {
-		Dprintf("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		Dprintf(" -  POINT: %v\n - SCALAR: %v\n", p, s)
+		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
+		logStuff(" -  POINT: %v\n - SCALAR: %v\n", p, s)
 		return ECPoint{nil, nil}
 	}
 
-	Dprintf("Mult: we should not get here...")
+	logStuff("Mult: we should not get here...")
 	return ECPoint{nil, nil}
 }
 
@@ -104,8 +106,8 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 	} else if p2.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
 	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		Dprintf("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		Dprintf(" -  POINT: %v\n - POINT2: %v\n", p, p2)
+		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
+		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
 		return ECPoint{nil, nil}
 	}
 
@@ -120,8 +122,8 @@ func (p ECPoint) Sub(p2 ECPoint) ECPoint {
 	} else if p2.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
 	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		Dprintf("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		Dprintf(" -  POINT: %v\n - POINT2: %v\n", p, p2)
+		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
+		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
 		return ECPoint{nil, nil}
 	}
 

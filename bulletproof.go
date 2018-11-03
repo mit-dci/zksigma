@@ -75,7 +75,7 @@ func genChain(n, m uint64, initBytes []byte) []ECPoint {
 		vec[ii].X, vec[ii].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
 
 		if !ZKCurve.C.IsOnCurve(vec[ii].X, vec[ii].Y) {
-			Dprintf("Some is really wrong... \n")
+			logStuff("Some is really wrong... \n")
 		}
 	}
 
@@ -124,7 +124,7 @@ func binaryDecomp(value *big.Int) []*big.Int {
 func dotProd(x, y []*big.Int) *big.Int {
 
 	if len(x) != len(y) {
-		Dprintf("dorProd: anrray sizes do not match! Zero *big.Int returned\n")
+		logStuff("dorProd: anrray sizes do not match! Zero *big.Int returned\n")
 		return big.NewInt(0)
 	}
 
@@ -139,7 +139,7 @@ func dotProd(x, y []*big.Int) *big.Int {
 // x[] cannot contain 0 or 1 in any entry?
 func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 	if len(x) != len(y) {
-		Dprintf("ecDotProd: array sizes do not match! Zero ECPoint returned\n")
+		logStuff("ecDotProd: array sizes do not match! Zero ECPoint returned\n")
 		return ZKCurve.Zero()
 	}
 
@@ -225,12 +225,12 @@ func vecSub(x, y []*big.Int) []*big.Int {
 func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 
 	if len(x) == 1 {
-		Dprintf("splitVec:\n - input array is of size 1, returning {x, x}\n")
+		logStuff("splitVec:\n - input array is of size 1, returning {x, x}\n")
 		return x, x
 	}
 
 	if len(x)%2 != 0 {
-		Dprintf("splitVec:\n - input arrays are not multiple of 2\n")
+		logStuff("splitVec:\n - input arrays are not multiple of 2\n")
 		return []*big.Int{}, []*big.Int{}
 	}
 
@@ -240,12 +240,12 @@ func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
 
 	if len(x) == 1 {
-		Dprintf("splitVecEC:\n - input array is of size 1, returning {x, x}\n")
+		logStuff("splitVecEC:\n - input array is of size 1, returning {x, x}\n")
 		return x, x
 	}
 
 	if len(x)%2 != 0 {
-		Dprintf("splitVecEC:\n - input arrays are not multiple of 2\n")
+		logStuff("splitVecEC:\n - input arrays are not multiple of 2\n")
 		return []ECPoint{}, []ECPoint{}
 	}
 
@@ -324,10 +324,12 @@ type InProdProof struct {
 
 */
 
+// InProdProve will generate a proof that shows the final commitment provided
+// is generated from two scalar vectors reduced into one commtiment
 func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	if len(a)%2 != 0 && (len(a) != len(b) || len(a) != len(G) || len(a) != len(H)) {
-		Dprintf("InProdProof:\n - lengths of arrays do not agree/not multiple of 2\n")
+		logStuff("InProdProof:\n - lengths of arrays do not agree/not multiple of 2\n")
 		return InProdProof{}, false
 	}
 
@@ -381,7 +383,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 		proof.LeftVec[ii] = thing1.Add(thing2.Add(thing3))
 		proof.RightVec[ii] = ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(Q.Mult(dotProd(aR, bL))))
-		// Dprintf(" LeftV[%v]: %v \nRightV[%v]: %v\n", ii, proof.LeftVec[ii], ii, proof.RightVec[ii])
+		// logStuff(" LeftV[%v]: %v \nRightV[%v]: %v\n", ii, proof.LeftVec[ii], ii, proof.RightVec[ii])
 
 		// FS-Transform to make this non interactive is to write in each L and R into the buffer
 		// stringing these consecutive hashes locks in each value of L and R to the previous ones
@@ -410,12 +412,14 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	}
 
 	if (len(a) != 1 || len(a) != len(b)) && (len(G) != 1 || len(G) != len(H)) {
-		Dprintf("InProdProof:\n - len(a) is not 1 and/or len(a) != len(b) OR for G and H the same\n")
-		Dprintf(" - Proof failed to generate\n")
-		Dprintf(" - a: %v\n - b: %v\n", a, b)
+		logStuff("InProdProof:\n - len(a) is not 1 and/or len(a) != len(b) OR for G and H the same\n")
+		logStuff(" - Proof failed to generate\n")
+		logStuff(" - a: %v\n - b: %v\n", a, b)
 		return InProdProof{}, false
 	}
 
+	// Internal verficiation, this is where the proof is failing
+	// If this does not pass then I do not expect the InnerProdVerify to pass
 	proof.A = a[0]
 	proof.B = b[0]
 
@@ -428,7 +432,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	sumTemp := ZKCurve.Zero()
 	for ii := 0; ii < 6; ii++ { // k - 1 = 6
-		// Dprintf("LeftVec[%v]: %v\n", ii, proof.LeftVec[ii])
+		// logStuff("LeftVec[%v]: %v\n", ii, proof.LeftVec[ii])
 		whatBroke1 := proof.LeftVec[ii].Mult(proof.U[ii])
 		whatBroke2 := proof.RightVec[ii].Mult(proof.UInv[ii])
 		whatBroke3 := sumTemp
@@ -438,13 +442,14 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	total := test1.Add(test2.Add(test3.Sub(sumTemp)))
 
 	if !proof.P.Equal(total) {
-		Dprintf("Internal check did not pass!\n")
+		logStuff("Internal check did not pass!\n")
 		return InProdProof{}, false
 	}
 
 	return proof, true
 }
 
+// InProdVerify will check if an InProdProof is correct
 func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 
 	// generate vector s
@@ -480,52 +485,9 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 	total := thing1.Add(thing2.Add(thing3.Sub(sumTemp)))
 
 	if !proof.P.Equal(total) {
-		Dprintf("Internal check did not pass!\n")
+		logStuff("Internal check did not pass!\n")
 		return false
 	}
 
 	return true
 }
-
-/*
-
-// Read at your own risk, this was really messed up before trying the version above....
-func InProdVerify1(G, H []ECPoint, proof InProdProof) bool {
-
-	s := make([]*big.Int, numBits)
-	sInv := make([]*big.Int, numBits)
-	s[0] = proof.UInv[0]
-	sInv[numBits-1] = s[0]
-	for ii := 1; ii < int(numBits); ii++ {
-		lgI := uint64(math.Log2(float64(ii)))
-		k := 1 << lgI
-		s[ii] = new(big.Int).Mod(new(big.Int).Mul(s[ii-k], proof.U[rootNumBits-1-lgI]), ZKCurve.N)
-		sInv[int(numBits-1)-ii] = s[ii] // reverse order of s provides multiplicative inverse of s
-	}
-
-	// temp1 = <a * s, G>
-	// temp2 = <b / s, H>
-	// temp3 = abQ
-
-	temp1 := ecDotProd(scalar(s, proof.A), G)
-	temp2 := ecDotProd(scalar(sInv, proof.B), H)
-	temp3 := proof.Q.Mult(new(big.Int).Mod(new(big.Int).Mul(proof.A, proof.B), ZKCurve.N))
-
-	temps := temp1.Add(temp2.Add(temp3))
-
-	// sumTemp = SUM(uL + uinvR) for j = 0 -> k-1
-	sumTemp := ZKCurve.Zero()
-	for ii := range proof.LeftVec {
-		sumTemp = sumTemp.Add(proof.LeftVec[ii].Mult(proof.U[ii]).Add(proof.RightVec[ii].Mult(proof.UInv[ii])))
-	}
-
-	Dprintf("\n\nP: %v\nP': %v\n", proof.P, temps.Sub(sumTemp))
-
-	// P ?= temps - sumTemp
-	if !proof.P.Equal(temps.Sub(sumTemp)) {
-		return false
-	}
-
-	return true
-}
-*/
