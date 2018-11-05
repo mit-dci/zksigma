@@ -32,7 +32,6 @@ type zkpCrypto struct {
 	N *big.Int       // exponent prime
 }
 
-// Geeric stuff
 func check(e error) {
 	if e != nil {
 		panic(e)
