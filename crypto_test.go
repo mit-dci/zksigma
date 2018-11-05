@@ -7,13 +7,6 @@ import (
 	"testing"
 )
 
-func TestInit(t *testing.T) {
-	if ZKCurve.C == nil {
-		Init()
-	}
-	fmt.Println("Global Variables Initialized")
-}
-
 func TestECPointMethods(t *testing.T) {
 
 	if *NOBASIC {
@@ -47,11 +40,6 @@ func TestECPointMethods(t *testing.T) {
 }
 
 func TestZkpCryptoStuff(t *testing.T) {
-
-	if ZKCurve.C == nil {
-		Init()
-	}
-
 	if *NOBASIC {
 		fmt.Println("Skipped TestZkpCryptoStuff")
 		t.Skip("Skipped TestZkpCryptoStuff")
@@ -358,10 +346,6 @@ func TestABCProof(t *testing.T) {
 		t.Skip("Skipped TestABCProof")
 	}
 
-	if ZKCurve.C == nil {
-		Init()
-	}
-
 	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.N)
@@ -427,10 +411,6 @@ func TestInequalityProve(t *testing.T) {
 	if *NOBASIC {
 		fmt.Println("Skipped TestInequalityProve")
 		t.Skip("Skipped TestABCProof")
-	}
-
-	if ZKCurve.C == nil {
-		Init()
 	}
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
@@ -708,13 +688,6 @@ func TestAverages_Basic(t *testing.T) {
 }
 
 // ============== BENCHMARKS =================
-func BenchmarkInit(b *testing.B) {
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		Init()
-	}
-}
-
 func BenchmarkPedCommit(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.N)
 	b.ResetTimer()

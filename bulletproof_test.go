@@ -14,7 +14,6 @@ func TestSetup(t *testing.T) {
 		t.Skipf("Skipped Bulletproof setup\n")
 	}
 
-	Init()
 	BPInit()
 	fmt.Println("Bulletproof setup completed")
 }

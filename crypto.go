@@ -201,7 +201,7 @@ func GenerateH2tothe() []ECPoint {
 	return Hslice
 }
 
-func Init() {
+func init() {
 	ZKCurve = NewECPrimeGroupKey()
 	HPoints = GenerateH2tothe()
 	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
