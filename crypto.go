@@ -149,17 +149,16 @@ func (p ECPoint) Bytes() []byte {
 // * USED PedCommit and PedCommitR INSTEAD *
 // *****************************************
 
-// CommitR uses the Public Key (pk) and a random number (r mod e.N) to generate a commitment of r as an ECPoint
-// A commitment is the locking of a value with a public key that can be posted publically and verifed by everyone
-func (e zkpCrypto) CommitR(pk ECPoint, r *big.Int) ECPoint {
+// CommitR uses the Public Key (pk) and a random number (r) to generate a commitment of r as an ECPoint
+func CommitR(pk ECPoint, r *big.Int) ECPoint {
 	newR := new(big.Int).Mod(r, ZKCurve.C.Params().N)
-	X, Y := e.C.ScalarMult(pk.X, pk.Y, newR.Bytes()) // {commitR.X,commitR.Y} = newR * {pk.X, pk.Y}
+	X, Y := ZKCurve.C.ScalarMult(pk.X, pk.Y, newR.Bytes()) // {commitR.X,commitR.Y} = newR * {pk.X, pk.Y}
 	return ECPoint{X, Y}
 }
 
-// VerifyR checks if the point in question is a valid commitment of R by generating a new point and comparing it
-func (e zkpCrypto) VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
-	p := e.CommitR(pk, r) // Generate test point (P) using pk and r
+// VerifyR checks if the point in question is a valid commitment of r by generating a new point and comparing it
+func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
+	p := CommitR(pk, r) // Generate test point (P) using pk and r
 	if p.Equal(rt) {
 		return true
 	}

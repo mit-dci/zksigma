@@ -91,9 +91,9 @@ func TestZkpCryptoCommitR(t *testing.T) {
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
-	testCommit := ZKCurve.CommitR(ZKCurve.H, u)
+	testCommit := CommitR(ZKCurve.H, u)
 
-	if !(ZKCurve.VerifyR(testCommit, ZKCurve.H, u)) {
+	if !(VerifyR(testCommit, ZKCurve.H, u)) {
 		logStuff("testCommit: %v\n", testCommit)
 		logStuff("ZKCurve.H: %v, \n", ZKCurve.H)
 		logStuff("u : %v\n", u)
