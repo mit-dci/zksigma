@@ -2,6 +2,7 @@ package zkSigma
 
 import (
 	"crypto/rand"
+	"errors"
 	"math/big"
 )
 
@@ -44,25 +45,26 @@ type GSPFSProof struct {
 */
 
 // GSPFSProve generates a Schnorr proof for the value x using the ZKCurve base point
-func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
+func GSPFSProve(result ECPoint, x *big.Int) (*GSPFSProof, error) {
 	return GSPAnyBaseProve(ZKCurve.G, result, x)
 }
 
 // GSPAnyBaseProve generates a Schnorr proof for the value x using any basepoint
-func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
+func GSPAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
 	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 
 	test := base.Mult(modValue)
 
 	// res = xG, G is any base point in this proof
 	if !test.Equal(result) {
-		logStuff("GSPFSProve: the point given is not xG\n")
-		return &GSPFSProof{}
+		return &GSPFSProof{}, errors.New("GSPFSProve: the point given is not xG\n")
 	}
 
 	// u is a raondom number
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		return nil, err
+	}
 
 	// generate random point uG
 	uG := base.Mult(u)
@@ -74,7 +76,7 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
 	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.C.Params().N)
 
-	return &GSPFSProof{base, uG, HiddenValue, Challenge}
+	return &GSPFSProof{base, uG, HiddenValue, Challenge}, nil
 }
 
 // GSPFSVerify checks if a (GSPFSproof, commit) pair is valid
@@ -157,7 +159,9 @@ func EquivilanceProve(
 
 	// random number
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N) // random number to hide x later
-	check(err)
+	if err != nil {
+		return EquivProof{}, err
+	}
 
 	// uG
 	uBase1 := Base1.Mult(u)
@@ -307,13 +311,19 @@ func DisjunctiveProve(
 		logStuff("DisjunctiveProve: ProveBase and ProveResult are not related by x!\n")
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "Base and Result to be proved not related by x"}
 	}
-
 	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		return nil, err
+	}
 	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		return nil, err
+	}
 	u3, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		return nil, err
+	}
+
 	// for (-u3)yH
 	u3Neg := new(big.Int).Neg(u3)
 	u3Neg.Mod(u3Neg, ZKCurve.C.Params().N)
@@ -491,10 +501,13 @@ func ConsistencyProve(
 	}
 
 	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
-
-	u2, err2 := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err2)
+	if err != nil {
+		return nil, err
+	}
+	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		return nil, err
+	}
 
 	T1 := PedCommitR(u1, u2)
 	T2 := PubKey.Mult(u2)
@@ -629,11 +642,27 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 	// We cannot check that CM log is acutally the value, but the verification should catch that
 
 	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		return nil, err
+	}
 	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		return nil, err
+	}
+
 	u3, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		return nil, err
+	}
+
 	ub, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		return nil, err
+	}
 	uc, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		return nil, err
+	}
 
 	B := ECPoint{}
 	C := ECPoint{}

@@ -27,12 +27,6 @@ type zkpCrypto struct {
 	H ECPoint        // generator 2
 }
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 type errorProof struct {
 	t string // proof type that failed
 	s string // error message
@@ -167,12 +161,13 @@ func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 // PedCommit generates a pedersen commitment of value using the
 // generators of ZKCurve.  It returns the randomness generated for the
 // commitment.
-func PedCommit(value *big.Int) (ECPoint, *big.Int) {
+func PedCommit(value *big.Int) (ECPoint, *big.Int, error) {
 	// randomValue = rand() mod N
 	randomValue, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
-
-	return PedCommitR(value, randomValue), randomValue
+	if err != nil {
+		return Zero, nil, err
+	}
+	return PedCommitR(value, randomValue), randomValue, nil
 }
 
 // CommitWithR generates a pedersen commitment with a given random value

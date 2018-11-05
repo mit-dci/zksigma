@@ -38,7 +38,7 @@ type ProverInternalData struct {
 // ProofGenA takes in a waitgroup, index and bit
 // returns an Rpoint and Cpoint, and the k value bigint
 func ProofGenA(
-	wg *sync.WaitGroup, idx int, bit bool, s *ProverInternalData) {
+	wg *sync.WaitGroup, idx int, bit bool, s *ProverInternalData) error {
 
 	defer wg.Done()
 	var err error
@@ -50,13 +50,17 @@ func ProofGenA(
 
 	if !bit { // If bit is 0, just make a random R = k*H
 		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N) // random k
-		check(err)
+		if err != nil {
+			return err
+		}
 		s.Rpoints[idx] = ZKCurve.H.Mult(s.kScalars[idx]) // R is k * H
 	} else { // if bit is 1, actually do stuff
 
 		// get a random ri
 		s.vScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N)
-		check(err)
+		if err != nil {
+			return err
+		}
 		// get R as H*ri... what is KC..?
 		s.Rpoints[idx] = ZKCurve.H.Mult(s.vScalars[idx])
 
@@ -67,7 +71,9 @@ func ProofGenA(
 
 			// random k
 		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N)
-		check(err)
+		if err != nil {
+			return err
+		}
 
 		// make k*H for hashing
 		temp := ZKCurve.H.Mult(s.kScalars[idx])
@@ -81,19 +87,21 @@ func ProofGenA(
 	}
 	//	fmt.Printf("loop %d\n", idx)
 
-	return
+	return nil
 }
 
 // ProofGenB takes waitgroup, index, bit, along with the data to operate on
 func ProofGenB(
-	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *ProverInternalData) {
+	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *ProverInternalData) error {
 
 	defer wg.Done()
 
 	if !bit {
 		// choose a random value from the integers mod prime
 		j, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-		check(err)
+		if err != nil {
+			return err
+		}
 
 		m2 := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(idx)), ZKCurve.C.Params().N)
 		//		m2 := big.NewInt(1 << uint(idx))
@@ -128,7 +136,7 @@ func ProofGenB(
 			data.kScalars[idx], new(big.Int).Mul(e0, data.vScalars[idx]))
 	}
 
-	return
+	return nil
 }
 
 /// RangeProof
@@ -176,6 +184,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	var wg sync.WaitGroup
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
+		// TODO: Check errors
 		go ProofGenA(&wg, i, value.Bit(i) == 1, stuff)
 	}
 	wg.Wait()
@@ -198,6 +207,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	// go through all 64 part B
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
+		// TODO: Check errors
 		go ProofGenB(
 			&wg, i, value.Bit(i) == 1, e0, stuff)
 	}

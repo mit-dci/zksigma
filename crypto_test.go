@@ -47,7 +47,11 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 	value := big.NewInt(-100)
 
-	testCommit, randomValue := PedCommit(value) // xG + rH
+	testCommit, randomValue, err := PedCommit(value) // xG + rH
+
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	value = new(big.Int).Mod(value, ZKCurve.C.Params().N)
 
@@ -89,7 +93,9 @@ func TestZkpCryptoCommitR(t *testing.T) {
 	}
 
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	testCommit := CommitR(ZKCurve.H, u)
 
@@ -113,7 +119,10 @@ func TestPedersenCommit(t *testing.T) {
 	x := big.NewInt(1000)
 	badx := big.NewInt(1234)
 
-	commit, u := PedCommit(x)
+	commit, u, err := PedCommit(x)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	commitR := PedCommitR(x, u)
 
@@ -150,12 +159,17 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	// MUST use G here becuase of GSPFSProve implementation
 	result := SBaseMult(x)
 
-	testProof := GSPFSProve(result, x)
+	testProof, err := GSPFSProve(result, x)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	if !GSPFSVerify(result, testProof) {
 		logStuff("x : %v\n", x)
@@ -306,13 +320,22 @@ func TestConsistency(t *testing.T) {
 	}
 
 	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
 	pk := ZKCurve.H.Mult(sk)
 
-	comm, u := PedCommit(x)
+	comm, u, err := PedCommit(x)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
 	y := pk.Mult(u)
 
 	conProof, status1 := ConsistencyProve(comm, y, pk, x, u)
@@ -385,7 +408,11 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCVerify LEFT failed\n")
 	}
 
-	A, ua = PedCommit(big.NewInt(1000))
+	A, ua, err := PedCommit(big.NewInt(1000))
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
 	AToken = PK.Mult(ua)
 
 	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, Right)
@@ -416,8 +443,15 @@ func TestInequalityProve(t *testing.T) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	A, ua := PedCommit(a)
-	B, ub := PedCommit(b)
+	A, ua, err := PedCommit(a)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
+	B, ub, err := PedCommit(b)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
 
 	PK := ZKCurve.H.Mult(sk)
 
@@ -593,12 +627,16 @@ func TestAverages_Basic(t *testing.T) {
 	PK := ZKCurve.H.Mult(sk)
 	value := big.NewInt(0)
 	commRand := big.NewInt(0)
+	var err error
 
 	// Generate
 	for ii := 0; ii < numTx; ii++ {
 		value, _ = rand.Int(rand.Reader, ZKCurve.C.Params().N)
 		totalValue.Add(totalValue, value)
-		txn[ii].CM, commRand = PedCommit(value)
+		txn[ii].CM, commRand, err = PedCommit(value)
+		if err != nil {
+			t.Fatalf("%v\n", err)
+		}
 		totalRand.Add(totalRand, commRand)
 		txn[ii].CMTok = PK.Mult(commRand)
 		txn[ii].ABCP, _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, Right)
@@ -729,7 +767,10 @@ func BenchmarkGSPFS_Verify(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base := ZKCurve.G
 	CM := ZKCurve.G.Mult(value)
-	proof := GSPAnyBaseProve(Base, CM, value)
+	proof, err := GSPAnyBaseProve(Base, CM, value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
 
 	for ii := 0; ii < b.N; ii++ {
 		GSPFSVerify(CM, proof)
@@ -821,7 +862,11 @@ func BenchmarkConsistancyProve(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
-	CM, randVal := PedCommit(value)
+	CM, randVal, err := PedCommit(value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
 	CMTok := PK.Mult(randVal)
 
 	b.ResetTimer()
@@ -836,7 +881,11 @@ func BenchmarkConsistancyVerify(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
-	CM, randVal := PedCommit(value)
+	CM, randVal, err := PedCommit(value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
 	CMTok := PK.Mult(randVal)
 	proof, _ := ConsistencyProve(CM, CMTok, PK, value, randVal)
 	b.ResetTimer()
@@ -851,7 +900,11 @@ func BenchmarkABCProve_0(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
-	CM, randVal := PedCommit(value)
+	CM, randVal, err := PedCommit(value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
 	CMTok := PK.Mult(randVal)
 
 	b.ResetTimer()
@@ -866,7 +919,11 @@ func BenchmarkABCProve_1(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
-	CM, randVal := PedCommit(value)
+	CM, randVal, err := PedCommit(value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
 	CMTok := PK.Mult(randVal)
 
 	b.ResetTimer()
@@ -881,7 +938,11 @@ func BenchmarkABCVerify_0(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
-	CM, randVal := PedCommit(value)
+	CM, randVal, err := PedCommit(value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
 	CMTok := PK.Mult(randVal)
 	proof, _ := ABCProve(CM, CMTok, value, sk, Left)
 	b.ResetTimer()
@@ -896,7 +957,11 @@ func BenchmarkABCVerify_1(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
-	CM, randVal := PedCommit(value)
+	CM, randVal, err := PedCommit(value)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
 	CMTok := PK.Mult(randVal)
 	proof, _ := ABCProve(CM, CMTok, value, sk, Right)
 	b.ResetTimer()
@@ -910,8 +975,15 @@ func BenchmarkInequalityProve(b *testing.B) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic rarnge"
 	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	A, ua := PedCommit(a)
-	B, ub := PedCommit(bValue)
+	A, ua, err := PedCommit(a)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
+
+	B, ub, err := PedCommit(bValue)
+	if err != nil {
+		b.Fatalf("%v\n", err)
+	}
 
 	PK := ZKCurve.H.Mult(sk)
 
