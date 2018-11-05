@@ -49,13 +49,13 @@ func ProofGenA(
 	//	v := stuff.vScalars[index]
 
 	if !bit { // If bit is 0, just make a random R = k*H
-		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.N) // random k
+		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N) // random k
 		check(err)
 		s.Rpoints[idx] = ZKCurve.H.Mult(s.kScalars[idx]) // R is k * H
 	} else { // if bit is 1, actually do stuff
 
 		// get a random ri
-		s.vScalars[idx], err = rand.Int(rand.Reader, ZKCurve.N)
+		s.vScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N)
 		check(err)
 		// get R as H*ri... what is KC..?
 		s.Rpoints[idx] = ZKCurve.H.Mult(s.vScalars[idx])
@@ -66,7 +66,7 @@ func ProofGenA(
 				s.Rpoints[idx].X, s.Rpoints[idx].Y)
 
 			// random k
-		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.N)
+		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N)
 		check(err)
 
 		// make k*H for hashing
@@ -75,7 +75,7 @@ func ProofGenA(
 		// Hash of temp point (why the whole thing..?
 		hash := sha256.Sum256(append(temp.X.Bytes(), temp.Y.Bytes()...))
 		ei := new(big.Int).SetBytes(hash[:])
-		ei.Mod(ei, ZKCurve.N)
+		ei.Mod(ei, ZKCurve.C.Params().N)
 		s.Rpoints[idx].X, s.Rpoints[idx].Y =
 			ZKCurve.C.ScalarMult(s.Bpoints[idx].X, s.Bpoints[idx].Y, ei.Bytes())
 	}
@@ -92,13 +92,13 @@ func ProofGenB(
 
 	if !bit {
 		// choose a random value from the integers mod prime
-		j, err := rand.Int(rand.Reader, ZKCurve.N)
+		j, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 		check(err)
 
-		m2 := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(idx)), ZKCurve.N)
+		m2 := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(idx)), ZKCurve.C.Params().N)
 		//		m2 := big.NewInt(1 << uint(idx))
 		em2 := new(big.Int).Mul(e0, m2)
-		em2.Mod(em2, ZKCurve.N)
+		em2.Mod(em2, ZKCurve.C.Params().N)
 
 		rhsX, rhsY := ZKCurve.C.ScalarBaseMult(em2.Bytes())
 
@@ -108,9 +108,9 @@ func ProofGenB(
 
 		hash := sha256.Sum256(append(totX.Bytes(), totY.Bytes()...))
 		ei := new(big.Int).SetBytes(hash[:]) // get ei
-		ei.Mod(ei, ZKCurve.N)
+		ei.Mod(ei, ZKCurve.C.Params().N)
 
-		inverseEI := new(big.Int).ModInverse(ei, ZKCurve.N)
+		inverseEI := new(big.Int).ModInverse(ei, ZKCurve.C.Params().N)
 
 		data.vScalars[idx] = new(big.Int).Mul(inverseEI, data.kScalars[idx])
 
@@ -189,7 +189,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	hashed := rHash.Sum(nil)
 
 	e0 := new(big.Int).SetBytes(hashed[:])
-	e0.Mod(e0, ZKCurve.N)
+	e0.Mod(e0, ZKCurve.C.Params().N)
 
 	var AggregatePoint ECPoint
 	AggregatePoint.X = new(big.Int)

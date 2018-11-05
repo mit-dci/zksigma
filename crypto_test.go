@@ -49,7 +49,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 	testCommit, randomValue := PedCommit(value) // xG + rH
 
-	value = new(big.Int).Mod(value, ZKCurve.N)
+	value = new(big.Int).Mod(value, ZKCurve.C.Params().N)
 
 	// vG
 	ValEC := SBaseMult(value)
@@ -88,7 +88,7 @@ func TestZkpCryptoCommitR(t *testing.T) {
 		t.Skip("Skipped TestZkpCryptoCommitR")
 	}
 
-	u, err := rand.Int(rand.Reader, ZKCurve.N)
+	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
 	testCommit := ZKCurve.CommitR(ZKCurve.H, u)
@@ -149,7 +149,7 @@ func TestGSPFS(t *testing.T) {
 		t.Skip("Skipped TestGSPFS")
 	}
 
-	x, err := rand.Int(rand.Reader, ZKCurve.N)
+	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
 	// MUST use G here becuase of GSPFSProve implementation
@@ -186,7 +186,7 @@ func TestEquivilance(t *testing.T) {
 		t.Skip("Skipped TestEquivilance")
 	}
 
-	x, _ := rand.Int(rand.Reader, ZKCurve.N)
+	x, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(x)
 
@@ -232,7 +232,7 @@ func TestEquivilance(t *testing.T) {
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
-	x, _ = rand.Int(rand.Reader, ZKCurve.N)
+	x, _ = rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	_, status2 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
 
 	// here I check proofStatus in the else statement becuase I want to make sure
@@ -305,10 +305,10 @@ func TestConsistency(t *testing.T) {
 		t.Skip("Skipped TestConsistency")
 	}
 
-	x, err := rand.Int(rand.Reader, ZKCurve.N)
+	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
-	sk, err := rand.Int(rand.Reader, ZKCurve.N)
+	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 	pk := ZKCurve.H.Mult(sk)
 
@@ -346,9 +346,9 @@ func TestABCProof(t *testing.T) {
 		t.Skip("Skipped TestABCProof")
 	}
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	ua, _ := rand.Int(rand.Reader, ZKCurve.N)
+	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	PK := ZKCurve.H.Mult(sk)
 	A := ZKCurve.H.Mult(ua)       // uaH
@@ -413,7 +413,7 @@ func TestInequalityProve(t *testing.T) {
 		t.Skip("Skipped TestABCProof")
 	}
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	A, ua := PedCommit(a)
@@ -481,9 +481,9 @@ func TestBreakABCProve(t *testing.T) {
 		t.Skip("Skipped TestBreakABCProve")
 	}
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	ua, _ := rand.Int(rand.Reader, ZKCurve.N)
+	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	PK := ZKCurve.H.Mult(sk)
 	CM := ZKCurve.H.Mult(ua)      // uaH
@@ -493,18 +493,18 @@ func TestBreakABCProve(t *testing.T) {
 	CM = CM.Add(temp)
 	CMTok := PK.Mult(ua)
 
-	u1, _ := rand.Int(rand.Reader, ZKCurve.N)
-	u2, _ := rand.Int(rand.Reader, ZKCurve.N)
-	u3, _ := rand.Int(rand.Reader, ZKCurve.N)
-	ub, _ := rand.Int(rand.Reader, ZKCurve.N)
-	uc, _ := rand.Int(rand.Reader, ZKCurve.N)
+	u1, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u2, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u3, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	ub, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	uc, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	B := ECPoint{}
 	C := ECPoint{}
 	CToken := ZKCurve.H.Mult(uc)
 
 	// B = 2/v
-	B = PedCommitR(new(big.Int).ModInverse(new(big.Int).Quo(big.NewInt(2), value), ZKCurve.N), ub)
+	B = PedCommitR(new(big.Int).ModInverse(new(big.Int).Quo(big.NewInt(2), value), ZKCurve.C.Params().N), ub)
 
 	// C = 2G + ucH, the 2 here is the big deal
 	C = PedCommitR(big.NewInt(2), uc)
@@ -537,13 +537,13 @@ func TestBreakABCProve(t *testing.T) {
 
 	// j = u1 + v * c , can be though of as s1
 	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
-	j = new(big.Int).Mod(j, ZKCurve.N)
+	j = new(big.Int).Mod(j, ZKCurve.C.Params().N)
 
 	// k = u2 + inv(sk) * c
 	// inv(sk)
-	isk := new(big.Int).ModInverse(sk, ZKCurve.N)
+	isk := new(big.Int).ModInverse(sk, ZKCurve.C.Params().N)
 	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-	k = new(big.Int).Mod(k, ZKCurve.N)
+	k = new(big.Int).Mod(k, ZKCurve.C.Params().N)
 
 	// l = u3 + (uc - v * ub) * c
 	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
@@ -589,14 +589,14 @@ func TestAverages_Basic(t *testing.T) {
 	totalValue := big.NewInt(0)
 	totalRand := big.NewInt(0)
 	txn := make([]etx, numTx)
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 	value := big.NewInt(0)
 	commRand := big.NewInt(0)
 
 	// Generate
 	for ii := 0; ii < numTx; ii++ {
-		value, _ = rand.Int(rand.Reader, ZKCurve.N)
+		value, _ = rand.Int(rand.Reader, ZKCurve.C.Params().N)
 		totalValue.Add(totalValue, value)
 		txn[ii].CM, commRand = PedCommit(value)
 		totalRand.Add(totalRand, commRand)
@@ -689,7 +689,7 @@ func TestAverages_Basic(t *testing.T) {
 
 // ============== BENCHMARKS =================
 func BenchmarkPedCommit(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		PedCommit(value)
@@ -697,8 +697,8 @@ func BenchmarkPedCommit(b *testing.B) {
 }
 
 func BenchmarkPedCommitR(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		PedCommitR(value, randVal)
@@ -706,8 +706,8 @@ func BenchmarkPedCommitR(b *testing.B) {
 }
 
 func BenchmarkOpen(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	CM := PedCommitR(value, randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
@@ -716,7 +716,7 @@ func BenchmarkOpen(b *testing.B) {
 }
 
 func BenchmarkGSPFS_AnyBase(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base := ZKCurve.G
 	CM := ZKCurve.G.Mult(value)
 	b.ResetTimer()
@@ -726,7 +726,7 @@ func BenchmarkGSPFS_AnyBase(b *testing.B) {
 }
 
 func BenchmarkGSPFS_Verify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base := ZKCurve.G
 	CM := ZKCurve.G.Mult(value)
 	proof := GSPAnyBaseProve(Base, CM, value)
@@ -737,7 +737,7 @@ func BenchmarkGSPFS_Verify(b *testing.B) {
 }
 
 func BenchmarkEquivProve(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
@@ -749,7 +749,7 @@ func BenchmarkEquivProve(b *testing.B) {
 }
 
 func BenchmarkEquivVerify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
@@ -762,8 +762,8 @@ func BenchmarkEquivVerify(b *testing.B) {
 }
 
 func BenchmarkDisjuncProve_LEFT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
@@ -775,8 +775,8 @@ func BenchmarkDisjuncProve_LEFT(b *testing.B) {
 }
 
 func BenchmarkDisjuncProve_RIGHT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
@@ -788,8 +788,8 @@ func BenchmarkDisjuncProve_RIGHT(b *testing.B) {
 }
 
 func BenchmarkDisjuncVerify_LEFT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
@@ -802,8 +802,8 @@ func BenchmarkDisjuncVerify_LEFT(b *testing.B) {
 }
 
 func BenchmarkDisjuncVerify_RIGHT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(value)
 	Base2 := ZKCurve.H
@@ -816,9 +816,9 @@ func BenchmarkDisjuncVerify_RIGHT(b *testing.B) {
 }
 
 func BenchmarkConsistancyProve(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
 	CM, randVal := PedCommit(value)
@@ -831,9 +831,9 @@ func BenchmarkConsistancyProve(b *testing.B) {
 }
 
 func BenchmarkConsistancyVerify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
 	CM, randVal := PedCommit(value)
@@ -848,7 +848,7 @@ func BenchmarkConsistancyVerify(b *testing.B) {
 func BenchmarkABCProve_0(b *testing.B) {
 	value := big.NewInt(0)
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
 	CM, randVal := PedCommit(value)
@@ -861,9 +861,9 @@ func BenchmarkABCProve_0(b *testing.B) {
 }
 
 func BenchmarkABCProve_1(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
 	CM, randVal := PedCommit(value)
@@ -878,7 +878,7 @@ func BenchmarkABCProve_1(b *testing.B) {
 func BenchmarkABCVerify_0(b *testing.B) {
 	value := big.NewInt(0)
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
 	CM, randVal := PedCommit(value)
@@ -891,9 +891,9 @@ func BenchmarkABCVerify_0(b *testing.B) {
 }
 
 func BenchmarkABCVerify_1(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.N)
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
 
 	CM, randVal := PedCommit(value)
@@ -907,7 +907,7 @@ func BenchmarkABCVerify_1(b *testing.B) {
 
 func BenchmarkInequalityProve(b *testing.B) {
 
-	sk, _ := rand.Int(rand.Reader, ZKCurve.N)
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic rarnge"
 	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	A, ua := PedCommit(a)

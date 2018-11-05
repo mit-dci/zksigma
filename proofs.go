@@ -50,7 +50,7 @@ func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
 
 // GSPAnyBaseProve generates a Schnorr proof for the value x using any basepoint
 func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
-	modValue := new(big.Int).Mod(x, ZKCurve.N)
+	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 
 	test := base.Mult(modValue)
 
@@ -61,7 +61,7 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 	}
 
 	// u is a raondom number
-	u, err := rand.Int(rand.Reader, ZKCurve.N)
+	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
 	// generate random point uG
@@ -72,7 +72,7 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 
 	// v = u - c * x
 	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
-	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
+	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.C.Params().N)
 
 	return &GSPFSProof{base, uG, HiddenValue, Challenge}
 }
@@ -141,7 +141,7 @@ func EquivilanceProve(
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
-	modValue := new(big.Int).Mod(x, ZKCurve.N)
+	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 	check1 := Base1.Mult(modValue)
 
 	if !check1.Equal(Result1) {
@@ -156,7 +156,7 @@ func EquivilanceProve(
 	}
 
 	// random number
-	u, err := rand.Int(rand.Reader, ZKCurve.N) // random number to hide x later
+	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N) // random number to hide x later
 	check(err)
 
 	// uG
@@ -171,7 +171,7 @@ func EquivilanceProve(
 
 	// s = u + c * x
 	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, modValue))
-	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.N)
+	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.C.Params().N)
 
 	return EquivProof{
 		uBase1, // uG
@@ -250,7 +250,7 @@ func EquivilanceVerify(
 	(V perspective)						(P perspective)
 	T1, T2, c, deltaC, u3, s, u2 -----> T1, T2, c, c1, c2, s1, s2
 										c ?= HASH(T1, T2, G, A, B)
-										c ?= c1 + c2 // mod ZKCurve.N
+										c ?= c1 + c2 // mod ZKCurve.C.Params().N
 										s1G ?= T1 + c1A
 										s2G ?= T2 + c2A
 	To prove y instead:
@@ -282,7 +282,7 @@ type DisjunctiveProof struct {
 func DisjunctiveProve(
 	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option Side) (*DisjunctiveProof, error) {
 
-	modValue := new(big.Int).Mod(x, ZKCurve.N)
+	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 
 	// Declaring them like this because Golang crys otherwise
 	var ProveBase, ProveResult, OtherBase, OtherResult ECPoint
@@ -308,15 +308,15 @@ func DisjunctiveProve(
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "Base and Result to be proved not related by x"}
 	}
 
-	u1, err := rand.Int(rand.Reader, ZKCurve.N)
+	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
-	u2, err := rand.Int(rand.Reader, ZKCurve.N)
+	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
-	u3, err := rand.Int(rand.Reader, ZKCurve.N)
+	u3, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 	// for (-u3)yH
 	u3Neg := new(big.Int).Neg(u3)
-	u3Neg.Mod(u3Neg, ZKCurve.N)
+	u3Neg.Mod(u3Neg, ZKCurve.C.Params().N)
 
 	// T1 = u1G
 	T1 := ProveBase.Mult(u1)
@@ -342,7 +342,7 @@ func DisjunctiveProve(
 	}
 
 	deltaC := new(big.Int).Sub(Challenge, u3)
-	deltaC.Mod(deltaC, ZKCurve.N)
+	deltaC.Mod(deltaC, ZKCurve.C.Params().N)
 
 	s := new(big.Int).Add(u1, new(big.Int).Mul(deltaC, modValue))
 
@@ -372,7 +372,7 @@ func DisjunctiveProve(
 	Copy-Pasta from above for convienence
 	GIVEN: T1, T2, c, c1, c2, s1, s2
 	c ?= HASH(T1, T2, G, A, B)
-	c ?= c1 + c2 // mod ZKCurve.N
+	c ?= c1 + c2 // mod ZKCurve.C.Params().N
 	s1G ?= T1 + c1A
 	s2G ?= T2 + c2A
 */
@@ -400,7 +400,7 @@ func DisjunctiveVerify(
 
 	// C1 + C2
 	totalC := new(big.Int).Add(C1, C2)
-	totalC.Mod(totalC, ZKCurve.N)
+	totalC.Mod(totalC, ZKCurve.C.Params().N)
 	if totalC.Cmp(C) != 0 {
 		logStuff("DJproof failed : totalC does not agree with proofC\n")
 		return false
@@ -475,8 +475,8 @@ func ConsistencyProve(
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
-	modValue := new(big.Int).Mod(value, ZKCurve.N)
-	//modRandom := new(big.Int).Mod(randomness, ZKCurve.N)
+	modValue := new(big.Int).Mod(value, ZKCurve.C.Params().N)
+	//modRandom := new(big.Int).Mod(randomness, ZKCurve.C.Params().N)
 
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
@@ -490,10 +490,10 @@ func ConsistencyProve(
 		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "Pubkey and randomVal does not produce CMTok"}
 	}
 
-	u1, err := rand.Int(rand.Reader, ZKCurve.N)
+	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
-	u2, err2 := rand.Int(rand.Reader, ZKCurve.N)
+	u2, err2 := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err2)
 
 	T1 := PedCommitR(u1, u2)
@@ -506,8 +506,8 @@ func ConsistencyProve(
 
 	s1 := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
 	s2 := new(big.Int).Add(u2, new(big.Int).Mul(randomness, Challenge))
-	s1.Mod(s1, ZKCurve.N)
-	s2.Mod(s2, ZKCurve.N) // this was s1 instead of s2, took me an hour to find...
+	s1.Mod(s1, ZKCurve.C.Params().N)
+	s2.Mod(s2, ZKCurve.C.Params().N) // this was s1 instead of s2, took me an hour to find...
 
 	return &ConsistencyProof{T1, T2, Challenge, s1, s2}, nil
 
@@ -628,11 +628,11 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 
 	// We cannot check that CM log is acutally the value, but the verification should catch that
 
-	u1, err := rand.Int(rand.Reader, ZKCurve.N)
-	u2, err := rand.Int(rand.Reader, ZKCurve.N)
-	u3, err := rand.Int(rand.Reader, ZKCurve.N)
-	ub, err := rand.Int(rand.Reader, ZKCurve.N)
-	uc, err := rand.Int(rand.Reader, ZKCurve.N)
+	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u3, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	ub, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	uc, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
 	B := ECPoint{}
@@ -645,7 +645,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
 		// MUST:a = 0! ; side = left
 		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
-		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.N), ub)
+		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.C.Params().N), ub)
 
 		// C = 0 + ucH
 		C = PedCommitR(big.NewInt(0), uc)
@@ -656,7 +656,7 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 	} else if option == Right && value.Cmp(big.NewInt(0)) != 0 {
 		// MUST:c = 1! ; side = right
 
-		B = PedCommitR(new(big.Int).ModInverse(value, ZKCurve.N), ub)
+		B = PedCommitR(new(big.Int).ModInverse(value, ZKCurve.C.Params().N), ub)
 
 		// C = G + ucH
 		C = PedCommitR(big.NewInt(1), uc)
@@ -698,13 +698,13 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 
 	// j = u1 + v * c , can be though of as s1
 	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
-	j = new(big.Int).Mod(j, ZKCurve.N)
+	j = new(big.Int).Mod(j, ZKCurve.C.Params().N)
 
 	// k = u2 + inv(sk) * c
 	// inv(sk)
-	isk := new(big.Int).ModInverse(sk, ZKCurve.N)
+	isk := new(big.Int).ModInverse(sk, ZKCurve.C.Params().N)
 	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-	k = new(big.Int).Mod(k, ZKCurve.N)
+	k = new(big.Int).Mod(k, ZKCurve.C.Params().N)
 
 	// l = u3 + (uc - v * ub) * c
 	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))

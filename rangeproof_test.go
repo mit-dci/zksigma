@@ -38,7 +38,7 @@ func TestOutOfRangeRangeProver_Verify(t *testing.T) {
 
 	min := new(big.Int).Exp(new(big.Int).SetInt64(2), new(big.Int).SetInt64(64), nil)
 
-	value, err := rand.Int(rand.Reader, new(big.Int).Add(new(big.Int).Sub(ZKCurve.N, min), min)) // want to make sure it's out of range
+	value, err := rand.Int(rand.Reader, new(big.Int).Add(new(big.Int).Sub(ZKCurve.C.Params().N, min), min)) // want to make sure it's out of range
 	if err != nil {
 		t.Error(err)
 	}

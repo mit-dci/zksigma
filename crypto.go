@@ -27,10 +27,9 @@ type ECPoint struct {
 
 // zkpCrypto is zero knowledge proof curve and params struct, only one instance should be used
 type zkpCrypto struct {
-	C elliptic.Curve // Curve, this is primarily used for it's operations, the Curve itself is not used
+	C elliptic.Curve // Curve
 	G ECPoint        // generator 1
 	H ECPoint        // generator 2
-	N *big.Int       // exponent prime
 }
 
 func check(e error) {
@@ -75,7 +74,7 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 
 // Mult multiplies point p by scalar s and returns the resulting point
 func (p ECPoint) Mult(s *big.Int) ECPoint {
-	modS := new(big.Int).Mod(s, ZKCurve.N)
+	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
 
 	if p.Equal(Zero) {
 		logStuff("Mult: Trying to multiple with zero-point!\n")
@@ -94,7 +93,7 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 }
 
 func SBaseMult(s *big.Int) ECPoint {
-	modS := new(big.Int).Mod(s, ZKCurve.N)
+	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
 	X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
 	return ECPoint{X, Y}
 }
@@ -153,7 +152,7 @@ func (p ECPoint) Bytes() []byte {
 // CommitR uses the Public Key (pk) and a random number (r mod e.N) to generate a commitment of r as an ECPoint
 // A commitment is the locking of a value with a public key that can be posted publically and verifed by everyone
 func (e zkpCrypto) CommitR(pk ECPoint, r *big.Int) ECPoint {
-	newR := new(big.Int).Mod(r, e.N)
+	newR := new(big.Int).Mod(r, ZKCurve.C.Params().N)
 	X, Y := e.C.ScalarMult(pk.X, pk.Y, newR.Bytes()) // {commitR.X,commitR.Y} = newR * {pk.X, pk.Y}
 	return ECPoint{X, Y}
 }
@@ -180,12 +179,12 @@ func NewECPrimeGroupKey() zkpCrypto {
 	HX, HY := btcec.S256().ScalarMult(curValue.X, curValue.Y, hashedString)
 
 	return zkpCrypto{btcec.S256(), ECPoint{btcec.S256().Gx,
-		btcec.S256().Gy}, ECPoint{HX, HY}, btcec.S256().N}
+		btcec.S256().Gy}, ECPoint{HX, HY}}
 }
 
 func KeyGen() (ECPoint, *big.Int) {
 
-	sk, err := rand.Int(rand.Reader, ZKCurve.N)
+	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 	pkX, pkY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, sk.Bytes())
 
@@ -214,10 +213,10 @@ func init() {
 func PedCommit(value *big.Int) (ECPoint, *big.Int) {
 
 	// modValue = value mod N
-	modValue := new(big.Int).Mod(value, ZKCurve.N)
+	modValue := new(big.Int).Mod(value, ZKCurve.C.Params().N)
 
 	// randomValue = rand() mod N
-	randomValue, err := rand.Int(rand.Reader, ZKCurve.N)
+	randomValue, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
 	// mG, rH :: lhs, rhs
@@ -233,8 +232,8 @@ func PedCommit(value *big.Int) (ECPoint, *big.Int) {
 func PedCommitR(value, randomValue *big.Int) ECPoint {
 
 	// modValue = value mod N
-	modValue := new(big.Int).Mod(value, ZKCurve.N)
-	modRandom := new(big.Int).Mod(randomValue, ZKCurve.N)
+	modValue := new(big.Int).Mod(value, ZKCurve.C.Params().N)
+	modRandom := new(big.Int).Mod(randomValue, ZKCurve.C.Params().N)
 
 	// mG, rH :: lhs, rhs
 	lhs := SBaseMult(modValue)
@@ -263,7 +262,7 @@ func GenerateChallenge(arr ...[]byte) *big.Int {
 	}
 
 	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
-	Challenge = new(big.Int).Mod(Challenge, ZKCurve.N)
+	Challenge = new(big.Int).Mod(Challenge, ZKCurve.C.Params().N)
 
 	return Challenge
 }

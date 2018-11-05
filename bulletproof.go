@@ -48,8 +48,8 @@ func NewGen(n, m uint64) Generator {
 	BPGen.M = m
 	BPGen.MaxVal = maxVal
 
-	u1, _ := rand.Int(rand.Reader, ZKCurve.N)
-	u2, _ := rand.Int(rand.Reader, ZKCurve.N)
+	u1, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u2, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	VecG := genChain(n, m, u1.Bytes())
 	VecH := genChain(n, m, u2.Bytes())
 
@@ -65,13 +65,13 @@ func genChain(n, m uint64, initBytes []byte) []ECPoint {
 	hasher := sha256.New()
 	hasher.Write(initBytes)
 	temp := new(big.Int).SetBytes(hasher.Sum(nil))
-	temp.Mod(temp, ZKCurve.N)
+	temp.Mod(temp, ZKCurve.C.Params().N)
 	vec[0].X, vec[0].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
 
 	for ii := uint64(1); ii < n*m; ii++ {
 		hasher.Write(vec[ii-1].Bytes())
 		temp = new(big.Int).SetBytes(hasher.Sum(nil))
-		temp.Mod(temp, ZKCurve.N)
+		temp.Mod(temp, ZKCurve.C.Params().N)
 		vec[ii].X, vec[ii].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
 
 		if !ZKCurve.C.IsOnCurve(vec[ii].X, vec[ii].Y) {
@@ -101,7 +101,7 @@ func fillVecs() {
 		// Probably can save space here
 		ZeroVec[ii] = big.NewInt(0)
 		OnesVec[ii] = big.NewInt(1)
-		PowsOf2[ii] = new(big.Int).Exp(big.NewInt(2), big.NewInt(ii), ZKCurve.N)
+		PowsOf2[ii] = new(big.Int).Exp(big.NewInt(2), big.NewInt(ii), ZKCurve.C.Params().N)
 	}
 }
 
@@ -159,7 +159,7 @@ func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) (ECPoint, *big.Int) {
 		return Zero, big.NewInt(0)
 	}
 
-	randomness, _ := rand.Int(rand.Reader, ZKCurve.N)
+	randomness, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	res := ecDotProd(a, G).Add(ecDotProd(a, H))
 	temp := Zero
 	temp.X, temp.Y = ZKCurve.C.ScalarBaseMult(randomness.Bytes())
@@ -256,7 +256,7 @@ func genVec(x *big.Int) []*big.Int {
 	res := make([]*big.Int, numBits)
 
 	for ii := int64(0); ii < int64(numBits); ii++ {
-		res[ii] = new(big.Int).Exp(x, big.NewInt(ii), ZKCurve.N)
+		res[ii] = new(big.Int).Exp(x, big.NewInt(ii), ZKCurve.C.Params().N)
 	}
 	return res
 }
@@ -349,10 +349,10 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	temp1 := ecDotProd(a, G)
 	temp2 := ecDotProd(b, H)
 	P := temp1.Add(temp2)
-	c := new(big.Int).Mod(dotProd(a, b), ZKCurve.N)
+	c := new(big.Int).Mod(dotProd(a, b), ZKCurve.C.Params().N)
 
 	// Blinding factor for c
-	w, _ := rand.Int(rand.Reader, ZKCurve.N)
+	w, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	// wG where G is from the ped commit:
 	Q := ZKCurve.G.Mult(w)
@@ -390,11 +390,11 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		hasher.Write(proof.LeftVec[ii].Bytes())
 		hasher.Write(proof.RightVec[ii].Bytes())
 		u := new(big.Int).SetBytes(hasher.Sum(nil))
-		u.Mod(u, ZKCurve.N)
-		uinv := new(big.Int).ModInverse(u, ZKCurve.N)
+		u.Mod(u, ZKCurve.C.Params().N)
+		uinv := new(big.Int).ModInverse(u, ZKCurve.C.Params().N)
 		// s[ii] = uinv
-		proof.U[ii] = new(big.Int).Mod(new(big.Int).Mul(u, u), ZKCurve.N)          // we need it squared for verification
-		proof.UInv[ii] = new(big.Int).Mod(new(big.Int).Mul(uinv, uinv), ZKCurve.N) //need squared for verification
+		proof.U[ii] = new(big.Int).Mod(new(big.Int).Mul(u, u), ZKCurve.C.Params().N)          // we need it squared for verification
+		proof.UInv[ii] = new(big.Int).Mod(new(big.Int).Mul(uinv, uinv), ZKCurve.C.Params().N) //need squared for verification
 
 		// reduce vectors by half
 		// a, b are computed by verifier only
@@ -460,7 +460,7 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 		acc := big.NewInt(1)
 		for jj := uint64(0); jj < rootNumBits-1; jj++ {
 			if math.Mod(float64(ii), math.Pow(2, float64(jj))) < math.Pow(2, float64(jj-1)) {
-				acc.Mul(acc, new(big.Int).ModInverse(proof.U[jj], ZKCurve.N)) // mod inverse might not be the correct thing...
+				acc.Mul(acc, new(big.Int).ModInverse(proof.U[jj], ZKCurve.C.Params().N)) // mod inverse might not be the correct thing...
 			} else {
 				acc.Mul(acc, proof.U[jj])
 			}
