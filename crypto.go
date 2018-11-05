@@ -19,11 +19,6 @@ var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof an
 // Global variables used to maintain all the crypto constants
 var ZKCurve zkpCrypto // initialized in init()
 var HPoints []ECPoint // initialized in init()
-var Zero ECPoint      // initialized in init()
-
-type ECPoint struct {
-	X, Y *big.Int
-}
 
 // zkpCrypto is zero knowledge proof curve and params struct, only one instance should be used
 type zkpCrypto struct {
@@ -62,7 +57,13 @@ func logStuff(format string, args ...interface{}) {
 	}
 }
 
-// ============ BASIC ECPoint OPERATIONS ==================
+// ============ ECPoint OPERATIONS ==================
+
+type ECPoint struct {
+	X, Y *big.Int
+}
+
+var Zero ECPoint // initialized in init()
 
 // Equal returns true if points p (self) and p2 (arg) are the same.
 func (p ECPoint) Equal(p2 ECPoint) bool {
@@ -143,20 +144,16 @@ func (p ECPoint) Bytes() []byte {
 	return append(p.X.Bytes(), p.Y.Bytes()...)
 }
 
-// ============= BASIC zkCrypto OPERATIONS ==================
-
-// *****************************************
-// * USED PedCommit and PedCommitR INSTEAD *
-// *****************************************
-
-// CommitR uses the Public Key (pk) and a random number (r) to generate a commitment of r as an ECPoint
+// CommitR uses the Public Key (pk) and a random number (r) to
+// generate a commitment of r as an ECPoint
 func CommitR(pk ECPoint, r *big.Int) ECPoint {
 	newR := new(big.Int).Mod(r, ZKCurve.C.Params().N)
 	X, Y := ZKCurve.C.ScalarMult(pk.X, pk.Y, newR.Bytes()) // {commitR.X,commitR.Y} = newR * {pk.X, pk.Y}
 	return ECPoint{X, Y}
 }
 
-// VerifyR checks if the point in question is a valid commitment of r by generating a new point and comparing it
+// VerifyR checks if the point in question is a valid commitment of r
+// by generating a new point and comparing the two
 func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 	p := CommitR(pk, r) // Generate test point (P) using pk and r
 	if p.Equal(rt) {
@@ -167,24 +164,15 @@ func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 
 // =============== PEDERSEN COMMITMENTS ================
 
-// PedCommit generates a pedersen commitment of (value) using agreeded upon generators of (ZKCurve),
-// also returns the random value generated for the commitment
+// PedCommit generates a pedersen commitment of value using the
+// generators of ZKCurve.  It returns the randomness generated for the
+// commitment.
 func PedCommit(value *big.Int) (ECPoint, *big.Int) {
-
-	// modValue = value mod N
-	modValue := new(big.Int).Mod(value, ZKCurve.C.Params().N)
-
 	// randomValue = rand() mod N
 	randomValue, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	check(err)
 
-	// mG, rH :: lhs, rhs
-	// mG, rH :: lhs, rhs
-	lhs := SBaseMult(modValue)
-	rhs := ZKCurve.H.Mult(randomValue)
-
-	//mG + rH
-	return lhs.Add(rhs), randomValue
+	return PedCommitR(value, randomValue), randomValue
 }
 
 // CommitWithR generates a pedersen commitment with a given random value
