@@ -140,11 +140,11 @@ func dotProd(x, y []*big.Int) *big.Int {
 func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 	if len(x) != len(y) {
 		logStuff("ecDotProd: array sizes do not match! Zero ECPoint returned\n")
-		return ZKCurve.Zero()
+		return Zero
 	}
 
 	acc := y[0].Mult(x[0])
-	temp := ZKCurve.Zero()
+	temp := Zero
 
 	for ii := 1; ii < len(x); ii++ {
 		temp = y[ii].Mult(x[ii])
@@ -156,12 +156,12 @@ func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 // COM(vec1, vec2, u) -> <vec1, G> + <vec2, H> + uB', where B' is the ped commit blinder, G and H are chain vecots
 func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) (ECPoint, *big.Int) {
 	if len(a) != len(G) || len(a) != len(H) {
-		return ZKCurve.Zero(), big.NewInt(0)
+		return Zero, big.NewInt(0)
 	}
 
 	randomness, _ := rand.Int(rand.Reader, ZKCurve.N)
 	res := ecDotProd(a, G).Add(ecDotProd(a, H))
-	temp := ZKCurve.Zero()
+	temp := Zero
 	temp.X, temp.Y = ZKCurve.C.ScalarBaseMult(randomness.Bytes())
 	res = res.Add(temp)
 
@@ -339,8 +339,8 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		big.NewInt(0),
 		make([]*big.Int, k-1),
 		make([]*big.Int, k-1),
-		ZKCurve.Zero(),
-		ZKCurve.Zero(),
+		Zero,
+		Zero,
 		make([]ECPoint, k-1),
 		make([]ECPoint, k-1)}
 
@@ -430,7 +430,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 	test2 := H[0].Mult(b[0])
 	test3 := Q.Mult(tempAB)
 
-	sumTemp := ZKCurve.Zero()
+	sumTemp := Zero
 	for ii := 0; ii < 6; ii++ { // k - 1 = 6
 		// logStuff("LeftVec[%v]: %v\n", ii, proof.LeftVec[ii])
 		whatBroke1 := proof.LeftVec[ii].Mult(proof.U[ii])
@@ -474,7 +474,7 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 	thing2 := ecDotProd(sRev, H)
 	thing3 := proof.Q.Mult(new(big.Int).Mul(proof.A, proof.B))
 
-	sumTemp := ZKCurve.Zero()
+	sumTemp := Zero
 	for ii := 0; ii < 6; ii++ {
 		whatBroke1 := proof.LeftVec[ii].Mult(proof.U[ii])
 		whatBroke2 := proof.RightVec[ii].Mult(proof.UInv[ii])

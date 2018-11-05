@@ -45,13 +45,11 @@ type GSPFSProof struct {
 
 // GSPFSProve generates a Schnorr proof for the value x using the ZKCurve base point
 func GSPFSProve(result ECPoint, x *big.Int) *GSPFSProof {
-
 	return GSPAnyBaseProve(ZKCurve.G, result, x)
 }
 
 // GSPAnyBaseProve generates a Schnorr proof for the value x using any basepoint
 func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
-
 	modValue := new(big.Int).Mod(x, ZKCurve.N)
 
 	test := base.Mult(modValue)
@@ -79,10 +77,9 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) *GSPFSProof {
 	return &GSPFSProof{base, uG, HiddenValue, Challenge}
 }
 
-// GSPFSVerify checks if a GSPFSproof-commit pair is valid
+// GSPFSVerify checks if a (GSPFSproof, commit) pair is valid
 func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
-	// Remeber that result = xG and RandCommit = uG
-
+	// Remember that result = xG and RandCommit = uG
 	testC := GenerateChallenge(result.Bytes(), proof.RandCommit.Bytes())
 
 	if testC.Cmp(proof.Challenge) != 0 {
@@ -110,7 +107,7 @@ func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
 	return true
 }
 
-// =========== EQUIVILANCE PROOFS ===================
+// =========== EQUIVALANCE PROOFS ===================
 
 type EquivProof struct {
 	UG          ECPoint // kG is the scalar mult of k (random num) with base G

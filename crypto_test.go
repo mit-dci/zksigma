@@ -25,7 +25,7 @@ func TestECPointMethods(t *testing.T) {
 	p := ZKCurve.G.Mult(v)
 	negp := p.Neg()
 	sum := p.Add(negp)
-	if !sum.Equal(ZKCurve.Zero()) {
+	if !sum.Equal(Zero) {
 		logStuff("p : %v\n", p)
 		logStuff("negp : %v\n", negp)
 		logStuff("sum : %v\n", sum)
@@ -37,7 +37,7 @@ func TestECPointMethods(t *testing.T) {
 		logStuff("negnegp : %v\n", negnegp)
 		t.Fatalf("-(-p) should be p\n")
 	}
-	sum = p.Add(ZKCurve.Zero())
+	sum = p.Add(Zero)
 	if !sum.Equal(p) {
 		logStuff("p : %v\n", p)
 		logStuff("sum : %v\n", sum)
@@ -74,7 +74,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 	logStuff("TestZkpCrypto:")
 	logStuff("Added the above: %v\n", temp)
 
-	if !temp.Equal(ZKCurve.Zero()) {
+	if !temp.Equal(Zero) {
 		logStuff("Added the above: %v", temp)
 		logStuff("The above should have been (0,0)")
 		t.Fatalf("Failed Addition of inverse points failed")
@@ -636,10 +636,10 @@ func TestAverages_Basic(t *testing.T) {
 	// (Neha Nerula) paper in section 4.2
 
 	//Need to aggregate a bunch of stuff to do equivilance proofs and what not
-	totalCM := ZKCurve.Zero()
-	totalCMTok := ZKCurve.Zero()
-	totalC := ZKCurve.Zero()
-	totalCTok := ZKCurve.Zero()
+	totalCM := Zero
+	totalCMTok := Zero
+	totalC := Zero
+	totalCTok := Zero
 
 	for ii := 0; ii < numTx; ii++ {
 		totalCM = txn[ii].CM.Add(totalCM)

@@ -19,6 +19,7 @@ var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof an
 // Global variables used to maintain all the crypto constants
 var ZKCurve zkpCrypto // initialized in init()
 var HPoints []ECPoint // initialized in init()
+var Zero ECPoint      // initialized in init()
 
 type ECPoint struct {
 	X, Y *big.Int
@@ -76,7 +77,7 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 func (p ECPoint) Mult(s *big.Int) ECPoint {
 	modS := new(big.Int).Mod(s, ZKCurve.N)
 
-	if p.Equal(ZKCurve.Zero()) {
+	if p.Equal(Zero) {
 		logStuff("Mult: Trying to multiple with zero-point!\n")
 		return p
 	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
@@ -100,9 +101,9 @@ func SBaseMult(s *big.Int) ECPoint {
 
 // Add adds points p and p2 and returns the resulting point
 func (p ECPoint) Add(p2 ECPoint) ECPoint {
-	if p.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		return p2
-	} else if p2.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
+	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
 	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
@@ -116,9 +117,9 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 }
 
 func (p ECPoint) Sub(p2 ECPoint) ECPoint {
-	if p.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		return p2.Neg()
-	} else if p2.Equal(ZKCurve.Zero()) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
+	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
 	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
@@ -132,7 +133,7 @@ func (p ECPoint) Sub(p2 ECPoint) ECPoint {
 	return ECPoint{X, Y}
 }
 
-// Neg returns the addadtive inverse of point p
+// Neg returns the additive inverse of point p
 func (p ECPoint) Neg() ECPoint {
 	negY := new(big.Int).Neg(p.Y)
 	modValue := new(big.Int).Mod(negY, ZKCurve.C.Params().P)
@@ -143,7 +144,7 @@ func (p ECPoint) Bytes() []byte {
 	return append(p.X.Bytes(), p.Y.Bytes()...)
 }
 
-// ============= BASIC zklCrypto OPERATIONS ==================
+// ============= BASIC zkCrypto OPERATIONS ==================
 
 // *****************************************
 // * USED PedCommit and PedCommitR INSTEAD *
@@ -166,14 +167,9 @@ func (e zkpCrypto) VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 	return false
 }
 
-// Zero generates an ECPoint with the coordinates (0,0) typically to represent inifinty
-func (e zkpCrypto) Zero() ECPoint {
-	return ECPoint{big.NewInt(0), big.NewInt(0)}
-}
-
 // =============== KEYGEN OPERATIONS ==============
 
-// The following code was just copy-pasta'ed into this codebase,
+// The following code was just copy-past'ed into this codebase,
 // I trust that the keygen stuff works, if it doesnt ask Willy
 
 func NewECPrimeGroupKey() zkpCrypto {
@@ -208,6 +204,7 @@ func GenerateH2tothe() []ECPoint {
 func Init() {
 	ZKCurve = NewECPrimeGroupKey()
 	HPoints = GenerateH2tothe()
+	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
 }
 
 // =============== PEDERSEN COMMITMENTS ================
