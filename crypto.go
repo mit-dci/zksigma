@@ -165,46 +165,6 @@ func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 	return false
 }
 
-// =============== KEYGEN OPERATIONS ==============
-
-// The following code was just copy-past'ed into this codebase,
-// I trust that the keygen stuff works, if it doesnt ask Willy
-
-func NewECPrimeGroupKey() zkpCrypto {
-	curValue := ECPoint{btcec.S256().Gx, btcec.S256().Gy}
-	s256 := sha256.New()
-	hashedString := s256.Sum([]byte("This is the new Random point and stuff"))
-
-	HX, HY := btcec.S256().ScalarMult(curValue.X, curValue.Y, hashedString)
-
-	return zkpCrypto{btcec.S256(), ECPoint{btcec.S256().Gx,
-		btcec.S256().Gy}, ECPoint{HX, HY}}
-}
-
-func KeyGen() (ECPoint, *big.Int) {
-
-	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	check(err)
-	pkX, pkY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, sk.Bytes())
-
-	return ECPoint{pkX, pkY}, sk
-}
-
-func GenerateH2tothe() []ECPoint {
-	Hslice := make([]ECPoint, 64)
-	for i := range Hslice {
-		m := big.NewInt(1 << uint(i))
-		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
-	}
-	return Hslice
-}
-
-func init() {
-	ZKCurve = NewECPrimeGroupKey()
-	HPoints = GenerateH2tothe()
-	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
-}
-
 // =============== PEDERSEN COMMITMENTS ================
 
 // PedCommit generates a pedersen commitment of (value) using agreeded upon generators of (ZKCurve),
@@ -264,4 +224,28 @@ func GenerateChallenge(arr ...[]byte) *big.Int {
 	Challenge = new(big.Int).Mod(Challenge, ZKCurve.C.Params().N)
 
 	return Challenge
+}
+
+// ====== init =========
+
+func GenerateH2tothe() []ECPoint {
+	Hslice := make([]ECPoint, 64)
+	for i := range Hslice {
+		m := big.NewInt(1 << uint(i))
+		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
+	}
+	return Hslice
+}
+
+func init() {
+	s256 := sha256.New()
+	hashedString := s256.Sum([]byte("This is the new random point in zksigma"))
+	HX, HY := btcec.S256().ScalarMult(btcec.S256().Gx, btcec.S256().Gy, hashedString)
+	ZKCurve = zkpCrypto{
+		btcec.S256(),
+		ECPoint{btcec.S256().Gx, btcec.S256().Gy},
+		ECPoint{HX, HY},
+	}
+	HPoints = GenerateH2tothe()
+	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
 }
