@@ -190,12 +190,9 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	return lhs.Add(rhs)
 }
 
-// Open checks if the values given result in the PedComm being varifed
-func Open(value, randomValue *big.Int, PedComm ECPoint) bool {
-
-	// Generate commit using given values
-	testCommit := PedCommitR(value, randomValue)
-	return testCommit.Equal(PedComm)
+// Open checks if the values given result in the given pedersen commitment
+func Open(value, randomValue *big.Int, pcomm ECPoint) bool {
+	return PedCommitR(value, randomValue).Equal(pcomm)
 }
 
 // ====== Generalized Hash Function =========
