@@ -198,17 +198,13 @@ func Open(value, randomValue *big.Int, pcomm ECPoint) bool {
 // ====== Generalized Hash Function =========
 
 func GenerateChallenge(arr ...[]byte) *big.Int {
-
 	hasher := sha256.New()
-
 	for _, v := range arr {
 		hasher.Write(v)
 	}
-
-	Challenge := new(big.Int).SetBytes(hasher.Sum(nil))
-	Challenge = new(big.Int).Mod(Challenge, ZKCurve.C.Params().N)
-
-	return Challenge
+	c := new(big.Int).SetBytes(hasher.Sum(nil))
+	c = new(big.Int).Mod(c, ZKCurve.C.Params().N)
+	return c
 }
 
 // ====== init =========
