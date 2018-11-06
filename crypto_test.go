@@ -759,7 +759,7 @@ func BenchmarkGSPFS_AnyBase(b *testing.B) {
 	CM := ZKCurve.G.Mult(value)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		GSPAnyBaseProve(Base, CM, value)
+		GSPFSAnyBaseProve(Base, CM, value)
 	}
 }
 
@@ -767,7 +767,7 @@ func BenchmarkGSPFS_Verify(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base := ZKCurve.G
 	CM := ZKCurve.G.Mult(value)
-	proof, err := GSPAnyBaseProve(Base, CM, value)
+	proof, err := GSPFSAnyBaseProve(Base, CM, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}

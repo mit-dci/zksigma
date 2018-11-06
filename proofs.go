@@ -44,23 +44,24 @@ type GSPFSProof struct {
 
 */
 
-// GSPFSProve generates a Schnorr proof for the value x using the ZKCurve base point
+// GSPFSProve generates a Schnorr proof for the value x using the
+// first ZKCurve base point
 func GSPFSProve(result ECPoint, x *big.Int) (*GSPFSProof, error) {
-	return GSPAnyBaseProve(ZKCurve.G, result, x)
+	return GSPFSAnyBaseProve(ZKCurve.G, result, x)
 }
 
-// GSPAnyBaseProve generates a Schnorr proof for the value x using any basepoint
-func GSPAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
+// GSPFSAnyBaseProve generates a Schnorr proof for the value x using
+// base point 'base'
+func GSPFSAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
 	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 
 	test := base.Mult(modValue)
 
-	// res = xG, G is any base point in this proof
+	// result = xG, G is any base point in this proof
 	if !test.Equal(result) {
-		return &GSPFSProof{}, errors.New("GSPFSProve: the point given is not xG\n")
+		return nil, errors.New("GSPFSProve: the point given is not xG\n")
 	}
 
-	// u is a raondom number
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	if err != nil {
 		return nil, err
@@ -69,14 +70,14 @@ func GSPAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
 	// generate random point uG
 	uG := base.Mult(u)
 
-	// genereate string to hash for challenge
-	Challenge := GenerateChallenge(result.Bytes(), uG.Bytes())
+	// generate string to hash for challenge
+	c := GenerateChallenge(result.Bytes(), uG.Bytes())
 
 	// v = u - c * x
-	HiddenValue := new(big.Int).Sub(u, new(big.Int).Mul(Challenge, modValue))
-	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.C.Params().N)
+	v := new(big.Int).Sub(u, new(big.Int).Mul(c, modValue))
+	v = v.Mod(v, ZKCurve.C.Params().N)
 
-	return &GSPFSProof{base, uG, HiddenValue, Challenge}, nil
+	return &GSPFSProof{base, uG, v, c}, nil
 }
 
 // GSPFSVerify checks if a (GSPFSproof, commit) pair is valid
@@ -85,7 +86,7 @@ func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
 	testC := GenerateChallenge(result.Bytes(), proof.RandCommit.Bytes())
 
 	if testC.Cmp(proof.Challenge) != 0 {
-		logStuff("GSPFSVerify: testC and proof's challenge do not agree!\n")
+		logStuff("GSPFSVerify: our calculated challenge and proof's challenge do not agree!\n")
 		return false
 	}
 
