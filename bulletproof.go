@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"flag"
+	"fmt"
 	"math"
 	"math/big"
 )
@@ -510,11 +511,18 @@ type newInProdProof struct {
 func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec, RightVec []ECPoint) (*newInProdProof, error) {
 	n := len(a)
 	// safety
-	if n == 64 {
+	if n == int(numBits) {
 		prevChallenge = big.NewInt(0)
 	}
-	if n == 1 {
+	if len(a)%2 != 0 && (len(a) != len(b) || len(a) != len(G) || len(a) != len(H)) {
+		return nil, &errorProof{"InProdProveRecursive:", "lengths of arrays do not agree/not multiple of 2"}
+	} else if n%2 != 0 && n != 1 {
+		return nil, &errorProof{"InProdProveRecursive", "length of vectors not power of 2"}
+	} else if n == 1 {
 		return &newInProdProof{a[0], b[0], LeftVec, RightVec}, nil
+	} else {
+		//basically a no-op
+		fmt.Printf("")
 	}
 
 	aL, aR := splitVec(a)
@@ -551,6 +559,12 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 
 func InProdVerify1(G, H []ECPoint, proof *newInProdProof) bool {
 	n := len(G)
+
+	if n != int(numBits) || n != len(H) {
+		// errorProof{"InProdVerify1", "Length of vectors is not power of 2 or equal to each other"}
+		return false
+	}
+
 	prevChallenge := big.NewInt(0)
 
 	var FinalG, FinalH ECPoint
