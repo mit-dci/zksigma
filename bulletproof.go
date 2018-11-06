@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"flag"
-	"fmt"
 	"math"
 	"math/big"
 )
@@ -144,10 +143,14 @@ func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 		return Zero
 	}
 
-	acc := y[0].Mult(x[0])
-	temp := Zero
+	if len(y) == 1 {
+		return y[0].Mult(x[0])
+	}
 
-	for ii := 1; ii < len(x); ii++ {
+	temp := y[0].Mult(x[0])
+	acc := Zero
+
+	for ii := 0; ii < len(x); ii++ {
 		temp = y[ii].Mult(x[ii])
 		acc = acc.Add(temp)
 	}
@@ -520,9 +523,6 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 		return nil, &errorProof{"InProdProveRecursive", "length of vectors not power of 2"}
 	} else if n == 1 {
 		return &newInProdProof{a[0], b[0], LeftVec, RightVec}, nil
-	} else {
-		//basically a no-op
-		fmt.Printf("")
 	}
 
 	aL, aR := splitVec(a)

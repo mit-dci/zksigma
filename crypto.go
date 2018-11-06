@@ -95,10 +95,13 @@ func SBaseMult(s *big.Int) ECPoint {
 
 // Add adds points p and p2 and returns the resulting point
 func (p ECPoint) Add(p2 ECPoint) ECPoint {
-	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	if p.Equal(Zero) && p2.Equal(Zero) {
+		return Zero
+	} else if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		return p2
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
+
 	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
 		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
@@ -111,7 +114,9 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 }
 
 func (p ECPoint) Sub(p2 ECPoint) ECPoint {
-	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	if p.Equal(Zero) && p2.Equal(Zero) {
+		return Zero
+	} else if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		return p2.Neg()
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
