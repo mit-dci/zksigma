@@ -129,13 +129,15 @@ func TestInProdProve(t *testing.T) {
 		b[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
 	}
 
-	proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
+	// proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
 
-	if !status {
+	proof, status := InProdProveRecursive(a, b, big.NewInt(0), ZKGen.VecG, ZKGen.VecH, make([]ECPoint, 0), make([]ECPoint, 0))
+
+	if status != nil {
 		t.Fatalf("InProdProof did not generate properly!\n")
 	}
 
-	if !InProdVerify(ZKGen.VecG, ZKGen.VecH, proof) {
+	if !InProdVerify1(ZKGen.VecG, ZKGen.VecH, proof) {
 		t.Fatalf("InProdProof did not verify!\n")
 	}
 

@@ -261,21 +261,21 @@ func genVec(x *big.Int) []*big.Int {
 	return res
 }
 
-func scalar(x []*big.Int, y *big.Int) []*big.Int {
-	if len(x)%2 != 0 && len(x) != 1 {
+func scalar(x *big.Int, y []*big.Int) []*big.Int {
+	if len(y) != 0 {
 		return []*big.Int{}
 	}
 
-	res := make([]*big.Int, len(x))
-	for ii := 0; ii < len(x); ii++ {
-		res[ii] = new(big.Int).Mul(x[ii], y)
+	res := make([]*big.Int, len(y))
+	for ii := 0; ii < len(y); ii++ {
+		res[ii] = new(big.Int).Mul(y[ii], x)
 	}
 	return res
 
 }
 
 func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
-	if len(G)%2 != 0 && len(G) != 1 {
+	if len(G) != 0 {
 		return []ECPoint{}
 	}
 
@@ -285,6 +285,14 @@ func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
 	}
 	return res
 
+}
+
+func ecVecBytes(x []ECPoint) []byte {
+	var byteArr []byte
+	for _, vv := range x {
+		byteArr = append(byteArr, vv.Bytes()...)
+	}
+	return byteArr
 }
 
 //========== INNER PRODUCT PROOF =========
@@ -398,8 +406,8 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 		// reduce vectors by half
 		// a, b are computed by verifier only
-		a = vecAdd(scalar(aL, u), scalar(aR, uinv))
-		b = vecAdd(scalar(bR, u), scalar(bL, uinv))
+		a = vecAdd(scalar(u, aL), scalar(uinv, aR))
+		b = vecAdd(scalar(u, bR), scalar(uinv, bL))
 		// G, H are computed by both parites
 		G = vecAddEC(scalarEC(u, GR), scalarEC(uinv, GL))
 		H = vecAddEC(scalarEC(u, HL), scalarEC(uinv, HR))
@@ -490,4 +498,104 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 	}
 
 	return true
+}
+
+type newInProdProof struct {
+	a        *big.Int
+	b        *big.Int
+	LeftVec  []ECPoint
+	RightVec []ECPoint
+}
+
+func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec, RightVec []ECPoint) (*newInProdProof, error) {
+	n := len(a)
+	// safety
+	if n == 64 {
+		prevChallenge = big.NewInt(0)
+	}
+	if n == 1 {
+		return &newInProdProof{a[0], b[0], LeftVec, RightVec}, nil
+	}
+
+	aL, aR := splitVec(a)
+	bL, bR := splitVec(b)
+	GL, GR := splitVecEC(G)
+	HL, HR := splitVecEC(H)
+
+	cL := dotProd(aL, bR)
+	cR := dotProd(aR, bL)
+
+	LeftTemp := ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(ZKCurve.H.Mult(cL)))
+	RightTemp := ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(ZKCurve.H.Mult(cR)))
+
+	LeftVec = append(LeftVec, LeftTemp)
+	RightVec = append(RightVec, RightTemp)
+
+	U := GenerateChallenge(prevChallenge.Bytes(), LeftTemp.Bytes(), RightTemp.Bytes())
+	UInv := new(big.Int).ModInverse(U, ZKCurve.C.Params().N)
+
+	// U2 := new(big.Int).Mul(U, U)
+	// U2Inv := new(big.Int).Mul(UInv, UInv)
+
+	NewG := vecAddEC(scalarEC(UInv, GL), scalarEC(U, GR))
+	NewH := vecAddEC(scalarEC(U, HL), scalarEC(UInv, HR))
+
+	NewA := vecAdd(scalar(U, aL), scalar(UInv, aR))
+	NewB := vecAdd(scalar(UInv, bL), scalar(U, bR))
+
+	//NewP := vecAddEC(scalarEC(U2, LeftVec), scalarEC(U2Inv, RightVec))
+
+	return InProdProveRecursive(NewA, NewB, prevChallenge, NewG, NewH, LeftVec, RightVec)
+
+}
+
+func InProdVerify1(G, H []ECPoint, proof *newInProdProof) bool {
+	n := len(G)
+	prevChallenge := big.NewInt(0)
+
+	var FinalG, FinalH ECPoint
+	checkC := Zero
+
+	for ii, _ := range proof.LeftVec {
+		L := proof.LeftVec[ii]
+		R := proof.RightVec[ii]
+
+		GL, GR := splitVecEC(G)
+		HL, HR := splitVecEC(H)
+
+		U := GenerateChallenge(prevChallenge.Bytes(), proof.LeftVec[ii].Bytes(), proof.RightVec[ii].Bytes())
+		UInv := new(big.Int).ModInverse(U, ZKCurve.C.Params().N)
+
+		U2 := new(big.Int).Mul(U, U)
+		U2Inv := new(big.Int).Mul(UInv, UInv)
+
+		NewG := vecAddEC(scalarEC(UInv, GL), scalarEC(U, GR))
+		NewH := vecAddEC(scalarEC(U, HL), scalarEC(UInv, HR))
+
+		// if this is true then n = 1, should only happen once
+		if n%2 == 1 && len(G) == 1 {
+			FinalG = NewG[0].Add(G[n-1])
+			FinalH = NewH[0].Add(H[n-1])
+		}
+		// setting variables for next iteration of loop
+		n = n / 2
+		G = NewG
+		H = NewH
+		prevChallenge = U
+
+		// verification value accumulator
+		checkC = L.Mult(U2).Add(R.Mult(U2Inv).Add(checkC))
+	}
+
+	if len(G) != 1 {
+		return false
+	}
+
+	prodAB := new(big.Int).Mul(proof.a, proof.b)
+	proofC := FinalG.Mult(proof.a).Add(FinalH.Mult(proof.b).Add(ZKCurve.G.Mult(prodAB)))
+
+	if proofC.Equal(checkC) {
+		return true
+	}
+	return false
 }
