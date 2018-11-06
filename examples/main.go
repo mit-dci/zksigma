@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/mit-dci/zkSigma"
+	"github.com/mit-dci/zksigma"
 )
 
 func main() {
-	zkSigma.Init()
-	fmt.Println(zkSigma.ZKCurve)
+	zksigma.Init()
+	fmt.Println(zksigma.ZKCurve)
 }

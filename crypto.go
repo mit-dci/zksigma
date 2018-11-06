@@ -1,4 +1,4 @@
-package zkSigma
+package zksigma
 
 import (
 	"crypto/elliptic"
