@@ -46,19 +46,17 @@ type GSPFSProof struct {
 
 // GSPFSProve generates a Schnorr proof for the value x using the
 // first ZKCurve base point
-func GSPFSProve(result ECPoint, x *big.Int) (*GSPFSProof, error) {
-	return GSPFSAnyBaseProve(ZKCurve.G, result, x)
+func GSPFSProve(A ECPoint, x *big.Int) (*GSPFSProof, error) {
+	return GSPFSAnyBaseProve(ZKCurve.G, A, x)
 }
 
 // GSPFSAnyBaseProve generates a Schnorr proof for the value x using
 // base point 'base'
-func GSPFSAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
+func GSPFSAnyBaseProve(base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
 	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 
-	test := base.Mult(modValue)
-
-	// result = xG, G is any base point in this proof
-	if !test.Equal(result) {
+	// A = xG, G is any base point in this proof
+	if !base.Mult(modValue).Equal(A) {
 		return nil, errors.New("GSPFSProve: the point given is not xG\n")
 	}
 
@@ -70,8 +68,8 @@ func GSPFSAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
 	// generate random point uG
 	uG := base.Mult(u)
 
-	// generate string to hash for challenge
-	c := GenerateChallenge(result.Bytes(), uG.Bytes())
+	// generate hashed string challenge
+	c := GenerateChallenge(A.Bytes(), uG.Bytes())
 
 	// v = u - c * x
 	v := new(big.Int).Sub(u, new(big.Int).Mul(c, modValue))
@@ -81,25 +79,20 @@ func GSPFSAnyBaseProve(base, result ECPoint, x *big.Int) (*GSPFSProof, error) {
 }
 
 // GSPFSVerify checks if a (GSPFSproof, commit) pair is valid
-func GSPFSVerify(result ECPoint, proof *GSPFSProof) bool {
-	// Remember that result = xG and RandCommit = uG
-	testC := GenerateChallenge(result.Bytes(), proof.RandCommit.Bytes())
+func GSPFSVerify(A ECPoint, proof *GSPFSProof) bool {
+	// A = xG and RandCommit = uG
+	testC := GenerateChallenge(A.Bytes(), proof.RandCommit.Bytes())
 
 	if testC.Cmp(proof.Challenge) != 0 {
 		logStuff("GSPFSVerify: our calculated challenge and proof's challenge do not agree!\n")
 		return false
 	}
 
-	var s ECPoint
-	if proof.Base.Equal(ZKCurve.G) {
-		// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
-		s = SBaseMult(proof.HiddenValue)
-	} else {
-		s = proof.Base.Mult(proof.HiddenValue)
-	}
+	// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
+	s := proof.Base.Mult(proof.HiddenValue)
 
 	// cResult = c(xG), we use testC as that follows the proof verficaion process more closely than using Challenge
-	c := result.Mult(proof.Challenge)
+	c := A.Mult(proof.Challenge)
 
 	// cxG + (u - cx)G = uG
 	tot := s.Add(c)

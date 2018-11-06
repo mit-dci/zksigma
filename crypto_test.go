@@ -56,7 +56,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 	value = new(big.Int).Mod(value, ZKCurve.C.Params().N)
 
 	// vG
-	ValEC := SBaseMult(value)
+	ValEC := ZKCurve.G.Mult(value)
 	InvValEC := ValEC.Neg() // 1/vG (acutally mod operation but whatever you get it)
 
 	logStuff("         vG : %v --- value : %v \n", ValEC, value)
@@ -164,7 +164,7 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	// MUST use G here becuase of GSPFSProve implementation
-	result := SBaseMult(x)
+	result := ZKCurve.G.Mult(x)
 
 	testProof, err := GSPFSProve(result, x)
 	if err != nil {

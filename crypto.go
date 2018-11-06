@@ -74,23 +74,16 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 	if p.Equal(Zero) {
 		logStuff("Mult: Trying to multiple with zero-point!\n")
 		return p
+	} else if p.Equal(ZKCurve.G) {
+		X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
+		return ECPoint{X, Y}
 	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
 		return ECPoint{X, Y}
-	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) {
-		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		logStuff(" -  POINT: %v\n - SCALAR: %v\n", p, s)
-		return ECPoint{nil, nil}
 	}
-
-	logStuff("Mult: we should not get here...")
+	logStuff("ECPoint.Mult():\n - p is not on the curve\n")
+	logStuff(" -  POINT: %v\n - SCALAR: %v\n", p, s)
 	return ECPoint{nil, nil}
-}
-
-func SBaseMult(s *big.Int) ECPoint {
-	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
-	X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
-	return ECPoint{X, Y}
 }
 
 // Add adds points p and p2 and returns the resulting point
@@ -183,7 +176,7 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	modRandom := new(big.Int).Mod(randomValue, ZKCurve.C.Params().N)
 
 	// mG, rH :: lhs, rhs
-	lhs := SBaseMult(modValue)
+	lhs := ZKCurve.G.Mult(modValue)
 	rhs := ZKCurve.H.Mult(modRandom)
 
 	//mG + rH
