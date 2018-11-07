@@ -557,12 +557,12 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 
 }
 
-func InProdVerify1(G, H []ECPoint, proof *newInProdProof) bool {
+func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 	n := len(G)
 
 	if n != int(numBits) || n != len(H) {
 		// errorProof{"InProdVerify1", "Length of vectors is not power of 2 or equal to each other"}
-		return false
+		return false, &errorProof{"InProdVerify1", "length of input vectors are not the reuqired length"}
 	}
 
 	prevChallenge := big.NewInt(0)
@@ -602,14 +602,14 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) bool {
 	}
 
 	if len(G) != 1 {
-		return false
+		return false, &errorProof{"InProdVerify1", "final length of proof vectors are not length 1, compression failed"}
 	}
 
 	prodAB := new(big.Int).Mul(proof.a, proof.b)
 	proofC := FinalG.Mult(proof.a).Add(FinalH.Mult(proof.b).Add(ZKCurve.G.Mult(prodAB)))
 
 	if proofC.Equal(checkC) {
-		return true
+		return true, nil
 	}
-	return false
+	return false, &errorProof{"InProdVerify1", "final verification step did not pass"}
 }

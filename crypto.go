@@ -37,8 +37,8 @@ func (e *errorProof) Error() string {
 }
 
 func proofStatus(e *errorProof) int {
-	if e != nil {
-		logStuff("ERROR: %v \n", e.Error())
+	if *DEBUG && e != nil {
+		fmt.Printf("ERROR: %v \n", e.Error())
 		return -1
 	}
 	return 0

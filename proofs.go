@@ -2,7 +2,7 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"errors"
+	"fmt"
 	"math/big"
 )
 
@@ -57,7 +57,7 @@ func GSPFSAnyBaseProve(base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
 
 	// A = xG, G is any base point in this proof
 	if !base.Mult(modValue).Equal(A) {
-		return nil, errors.New("GSPFSProve: the point given is not xG\n")
+		return nil, &errorProof{"GSPFSProve:", "the point given is not xG"}
 	}
 
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
@@ -79,13 +79,12 @@ func GSPFSAnyBaseProve(base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
 }
 
 // GSPFSVerify checks if a (GSPFSproof, commit) pair is valid
-func GSPFSVerify(A ECPoint, proof *GSPFSProof) bool {
+func GSPFSVerify(A ECPoint, proof *GSPFSProof) (bool, error) {
 	// A = xG and RandCommit = uG
 	testC := GenerateChallenge(A.Bytes(), proof.RandCommit.Bytes())
 
 	if testC.Cmp(proof.Challenge) != 0 {
-		logStuff("GSPFSVerify: our calculated challenge and proof's challenge do not agree!\n")
-		return false
+		return false, &errorProof{"GSPFSVerify", "calculated challenge and proof's challenge do not agree!"}
 	}
 
 	// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
@@ -98,9 +97,9 @@ func GSPFSVerify(A ECPoint, proof *GSPFSProof) bool {
 	tot := s.Add(c)
 
 	if !proof.RandCommit.Equal(tot) {
-		return false
+		return false, &errorProof{"GSPFSVerify", "proof's final value and verification final value do not agree!"}
 	}
-	return true
+	return true, nil
 }
 
 // =========== EQUIVALANCE PROOFS ===================
@@ -141,13 +140,11 @@ func EquivilanceProve(
 	check1 := Base1.Mult(modValue)
 
 	if !check1.Equal(Result1) {
-		logStuff("EquivProof check: Base1 and Result1 are not related by x\n")
 		return EquivProof{}, &errorProof{"EquivilanceProve", "Base1 and Result1 are not related by x"}
 	}
 
 	check2 := Base2.Mult(modValue)
 	if !check2.Equal(Result2) {
-		logStuff("EquivProof check: Base2 and Result2 are not related by x... \n")
 		return EquivProof{}, &errorProof{"EquivilanceProve", "Base2 and Result2 are not related by x"}
 	}
 
@@ -187,16 +184,15 @@ func EquivilanceProve(
 
 // EquivilanceVerify checks if a proof is valid
 func EquivilanceVerify(
-	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) bool {
+	Base1, Result1, Base2, Result2 ECPoint, eqProof EquivProof) (bool, error) {
 	// Regenerate challenge string
-	Challenge := GenerateChallenge(Base1.Bytes(), Result1.Bytes(),
+	c := GenerateChallenge(Base1.Bytes(), Result1.Bytes(),
 		Base2.Bytes(), Result2.Bytes(),
 		eqProof.UG.Bytes(), eqProof.UH.Bytes())
 
-	if Challenge.Cmp(eqProof.Challenge) != 0 {
-		logStuff(" [crypto] c comparison failed. proof: %v calculated: %v\n",
-			eqProof.Challenge, Challenge)
-		return false
+	if c.Cmp(eqProof.Challenge) != 0 {
+		return false, &errorProof{"EquivilanceVerify", fmt.Sprintf("challenge comparison failed. proof: %v calculated: %v",
+			eqProof.Challenge, c)}
 	}
 
 	// sG ?= uG + cA
@@ -205,8 +201,7 @@ func EquivilanceVerify(
 	test := eqProof.UG.Add(cG)
 
 	if !sG.Equal(test) {
-		logStuff("EquiviVerify: sG comparison did not pass\n")
-		return false
+		return false, &errorProof{"EquivilanceVerify", "sG comparison did not pass"}
 	}
 
 	// sH ?= uH + cB
@@ -215,12 +210,11 @@ func EquivilanceVerify(
 	test = eqProof.UH.Add(cH)
 
 	if !sH.Equal(test) {
-		logStuff("EquivVerify: sH comparison did not pass\n")
-		return false
+		return false, &errorProof{"EquivilanceVerify", "sH comparison did not pass"}
 	}
 
 	// All three checks passed, proof must be correct
-	return true
+	return true, nil
 
 }
 
@@ -297,12 +291,10 @@ func DisjunctiveProve(
 		OtherBase = Base1
 		OtherResult = Result1
 	} else { // number for option is not correct
-		logStuff("DisjunctiveProve: side provided is not valid\n")
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "invalid side provided"}
 	}
 
 	if !ProveBase.Mult(x).Equal(ProveResult) {
-		logStuff("DisjunctiveProve: ProveBase and ProveResult are not related by x!\n")
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "Base and Result to be proved not related by x"}
 	}
 	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
@@ -383,7 +375,7 @@ func DisjunctiveProve(
 
 // DisjunctiveVerify checks if a djProof is valid for the given bases and results
 func DisjunctiveVerify(
-	Base1, Result1, Base2, Result2 ECPoint, djProof *DisjunctiveProof) bool {
+	Base1, Result1, Base2, Result2 ECPoint, djProof *DisjunctiveProof) (bool, error) {
 
 	T1 := djProof.T1
 	T2 := djProof.T2
@@ -398,16 +390,14 @@ func DisjunctiveVerify(
 		T1.Bytes(), T2.Bytes())
 
 	if checkC.Cmp(C) != 0 {
-		logStuff("DJproof failed : checkC does not agree with proofC\n")
-		return false
+		return false, &errorProof{"DisjunctiveVerify", "checkC does not agree with proofC"}
 	}
 
 	// C1 + C2
 	totalC := new(big.Int).Add(C1, C2)
 	totalC.Mod(totalC, ZKCurve.C.Params().N)
 	if totalC.Cmp(C) != 0 {
-		logStuff("DJproof failed : totalC does not agree with proofC\n")
-		return false
+		return false, &errorProof{"DisjunctiveVerify", "totalC does not agree with proofC"}
 	}
 
 	// T1 + c1A
@@ -416,8 +406,7 @@ func DisjunctiveVerify(
 	s1G := Base1.Mult(S1)
 
 	if !checks1G.Equal(s1G) {
-		logStuff("DJproof failed : s1G not equal to T1 + c1A\n")
-		return false
+		return false, &errorProof{"DisjunctiveVerify", "s1G not equal to T1 + c1A"}
 	}
 
 	// T2 + c2B
@@ -426,11 +415,10 @@ func DisjunctiveVerify(
 	s2G := Base2.Mult(S2)
 
 	if !checks2G.Equal(s2G) {
-		logStuff("DJproof failed : s2G not equal to T2 + c2B\n")
-		return false
+		return false, &errorProof{"DisjuntiveVerify", "s2G not equal to T2 + c2B"}
 	}
 
-	return true
+	return true, nil
 }
 
 // ============ zkLedger Stuff =======================
@@ -485,12 +473,10 @@ func ConsistencyProve(
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
 	if !CM.Equal(PedCommitR(value, randomness)) {
-		logStuff("ConsistancyProve: Commitment passed does not match value and randomness\n")
 		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "value and randomVal does not produce CM"}
 	}
 
 	if !CMTok.Equal(PubKey.Mult(randomness)) {
-		logStuff("ConsistancyProve:Randomness token does not match pubkey and randomValue\n")
 		return &ConsistencyProof{}, &errorProof{"ConsistancyProve", "Pubkey and randomVal does not produce CMTok"}
 	}
 
@@ -530,7 +516,7 @@ func ConsistencyProve(
 
 // ConsistencyVerify checks if a proof is valid
 func ConsistencyVerify(
-	CM, CMTok, PubKey ECPoint, conProof *ConsistencyProof) bool {
+	CM, CMTok, PubKey ECPoint, conProof *ConsistencyProof) (bool, error) {
 
 	// CM should be point1, Y should be point2
 
@@ -542,9 +528,8 @@ func ConsistencyVerify(
 
 	// c ?= HASH(G, H, T1, T2, PK, CM, Y)
 	if Challenge.Cmp(conProof.Challenge) != 0 {
-		logStuff("ConsistancyVerify: c comparison failed. proof: %v calculated: %v\n",
-			conProof.Challenge, Challenge)
-		return false
+		return false, &errorProof{"ConsistencyVerify", fmt.Sprintf("c comparison failed. proof: %v calculated: %v",
+			conProof.Challenge, Challenge)}
 	}
 	// lhs = left hand side, rhs = right hand side
 	// s1G + s2H ?= T1 + cCM, CM should be point1
@@ -556,8 +541,7 @@ func ConsistencyVerify(
 	rhs := conProof.T1.Add(temp1)
 
 	if !lhs.Equal(rhs) {
-		logStuff("CM check is failing\n")
-		return false
+		return false, &errorProof{"ConsistencyVerify", "CM check is failing"}
 	}
 
 	// s2PK ?= T2 + cY
@@ -566,13 +550,11 @@ func ConsistencyVerify(
 	rhs = conProof.T2.Add(temp1)
 
 	if !lhs.Equal(rhs) {
-		logStuff("CMTok check is failing\n")
-		return false
+		return false, &errorProof{"ConsistencyVerify", "CMTok check is failing"}
 	}
 
 	// All three checks passed, proof must be correct
-	return true
-
+	return true, nil
 }
 
 // =================== a * b = c MULTIPLICATIVE RELATIONSHIP ===================
@@ -687,12 +669,10 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 		// Look at notes a couple lines above on what the input is like this
 		disjuncAC, e = DisjunctiveProve(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, Right)
 	} else {
-		logStuff("ABCProof: Side/value combination not correct\n")
 		return &ABCProof{}, &errorProof{"ABCProof", "invalid side-value pair passed"}
 	}
 
 	if e != nil {
-		logStuff("Disjunctive Proof in ABCProof failed to generated!\n")
 		return &ABCProof{}, &errorProof{"ABCProof", "DisjuntiveProve within ABCProve failed to generate"}
 	}
 
@@ -753,13 +733,13 @@ func ABCProve(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, er
 */
 
 // ABCVerify checks if an ABCProof with appropraite commits are correct
-func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
+func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) (bool, error) {
 
 	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
 	// Here it is important that you subtract exactly 1 G from the aProof.C becuase that only allows for you to prove c = 1!
-	if !DisjunctiveVerify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC) {
-		logStuff("ABCProof for disjuncAC is false or not generated properly\n")
-		return false
+	_, status := DisjunctiveVerify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G), aProof.disjuncAC)
+	if status != nil {
+		return false, &errorProof{"ABCVerify", "ABCProof for disjuncAC is false or not generated properly"}
 	}
 
 	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
@@ -769,8 +749,7 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 
 	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
 	if Challenge.Cmp(aProof.Challenge) != 0 {
-		logStuff("ABCVerify: proof contains incorrect challenge\n")
-		return false
+		return false, &errorProof{"ABCVerify", "proof contains incorrect challenge"}
 	}
 
 	// cCM + T1 ?= jG + kCMTok
@@ -786,8 +765,7 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 	rhs1 := jG.Add(kCMTok)
 
 	if !lhs1.Equal(rhs1) {
-		logStuff("ABCVerify: cCM + T1 != jG + kCMTok\n")
-		return false
+		return false, &errorProof{"ABCProof", "cCM + T1 != jG + kCMTok"}
 	}
 
 	// cC + T2 ?= jB + lH
@@ -799,11 +777,10 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 	rhs2 := jB.Add(lH)
 
 	if !lhs2.Equal(rhs2) {
-		logStuff("ABCVerify: cC + T2 != jB + lH\n")
-		return false
+		return false, &errorProof{"ABCVerify", "cC + T2 != jB + lH"}
 	}
 
-	return true
+	return true, nil
 }
 
 // InequalityProve generates a proof to show that two commitments, A and B, are not equal
@@ -813,7 +790,6 @@ func ABCVerify(CM, CMTok ECPoint, aProof *ABCProof) bool {
 func InequalityProve(A, B, CMTokA, CMTokB ECPoint, a, b, sk *big.Int) (*ABCProof, error) {
 
 	if a.Cmp(b) == 0 {
-		logStuff("InequalityProve: a and b should not be equal! Duh!\n")
 		return &ABCProof{}, &errorProof{"InequalityProve", "a and b should not be equal..."}
 	}
 

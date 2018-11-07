@@ -166,7 +166,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	// check to see if our value is out of range
 	if proofSize > 40 || value.Cmp(big.NewInt(0)) == -1 {
 		//if so, then we can't play
-		logStuff("** Trying to get a value that is out of range! Range Proof will not work!\n")
+		fmt.Printf("** Trying to get a value that is out of range! Range Proof will not work!\n")
 		return nil, nil
 	}
 
