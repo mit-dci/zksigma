@@ -171,7 +171,8 @@ func TestGSPFS(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	if !GSPFSVerify(result, testProof) {
+	status, err := GSPFSVerify(result, testProof)
+	if !status && err == nil {
 		logStuff("x : %v\n", x)
 		logStuff("randPoint : %v\n", result)
 		logStuff("testProof : %v\n", testProof)
@@ -182,7 +183,8 @@ func TestGSPFS(t *testing.T) {
 	result = ZKCurve.H.Mult(x)
 
 	logStuff("Next GSPFSVerify should fail\n")
-	if GSPFSVerify(result, testProof) {
+	status, err = GSPFSVerify(result, testProof)
+	if status && err != nil {
 		logStuff("x : %v\n", x)
 		logStuff("randPoint : %v\n", result)
 		logStuff("testProof : %v\n", testProof)
@@ -214,7 +216,8 @@ func TestEquivilance(t *testing.T) {
 		t.Fatalf("error code should have indicated successful proof")
 	}
 
-	if !EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof) {
+	check, err := EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof)
+	if !check || err != nil {
 		logStuff("Base1 : %v\n", Base1)
 		logStuff("Result1 : %v\n", Result1)
 		logStuff("Base2 : %v\n", Base2)
@@ -225,7 +228,8 @@ func TestEquivilance(t *testing.T) {
 
 	logStuff("Next comparison should fail\n")
 	// Bases swapped shouldnt work
-	if EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof) {
+	check, err = EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof)
+	if check || err == nil {
 		logStuff("Base1 : %v\n", Base1)
 		logStuff("Result1 : %v\n", Result1)
 		logStuff("Base2 : %v\n", Base2)
@@ -237,7 +241,8 @@ func TestEquivilance(t *testing.T) {
 	logStuff("Next comparison should fail\n")
 	// Bad proof
 	eqProof.HiddenValue = big.NewInt(-1)
-	if EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof) {
+	check, err = EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof)
+	if check || err == nil {
 		logStuff("Base1 : %v\n", Base1)
 		logStuff("Result1 : %v\n", Result1)
 		logStuff("Base2 : %v\n", Base2)
@@ -292,19 +297,21 @@ func TestDisjunctive(t *testing.T) {
 
 	logStuff("Testing DisjunctiveProof:\n")
 	logStuff("First djProof : ")
-	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT) {
+	check, err := DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT)
+	if !check || err != nil {
 		t.Fatalf("djProof failed to generate properly for left side\n")
 	}
 
 	logStuff("Passed \n [testing] Second djProof : ")
-	if !DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofRIGHT) {
+	check, err = DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofRIGHT)
+	if !check || err != nil {
 		t.Fatalf("djProof failed to generate properly for right side\n")
 	}
 
 	logStuff("Passed \n [testing] Next djProof attemp should result in an error message\n")
 	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, Left) // This should fail
 
-	if proofStatus(status3.(*errorProof)) == 0 {
+	if status3 != nil {
 		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
 	}
 
@@ -346,7 +353,8 @@ func TestConsistency(t *testing.T) {
 	}
 
 	logStuff(" [testing] Testing correct consistency proof\n")
-	if !ConsistencyVerify(comm, y, pk, conProof) {
+	check, err := ConsistencyVerify(comm, y, pk, conProof)
+	if !check || err != nil {
 		t.Fatalf("Error -- Proof should be correct\n")
 	}
 
@@ -389,7 +397,8 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCProof RIGHT failed\n")
 	}
 
-	if !ABCVerify(A, AToken, aProof) {
+	check, err := ABCVerify(A, AToken, aProof)
+	if !check || err != nil {
 		logStuff("ABCProof RIGHT Failed to verify!\n")
 		t.Fatalf("ABCVerify RIGHT failed\n")
 	}
@@ -403,12 +412,13 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCProof LEFT failed\n")
 	}
 
-	if !ABCVerify(A, AToken, aProof) {
+	check, err = ABCVerify(A, AToken, aProof)
+	if !check || err != nil {
 		logStuff("ABCProof LEFT Failed to verify!\n")
 		t.Fatalf("ABCVerify LEFT failed\n")
 	}
 
-	A, ua, err := PedCommit(big.NewInt(1000))
+	A, ua, err = PedCommit(big.NewInt(1000))
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
@@ -424,7 +434,8 @@ func TestABCProof(t *testing.T) {
 
 	logStuff("Next ABCVerify should catch false proof\n")
 
-	if ABCVerify(A, AToken, aProof) {
+	check, err = ABCVerify(A, AToken, aProof)
+	if check || err == nil {
 		logStuff("ABCVerify: should have failed on false proof check!\n")
 		t.Fatalf("ABCVerify: not working...\n")
 	}
@@ -469,7 +480,8 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
-	if !ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof) {
+	check, err := ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof)
+	if !check || err != nil {
 		logStuff("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
@@ -483,7 +495,8 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
-	if !ABCVerify(B.Sub(A), CMTokB.Sub(CMTokA), aProof) {
+	check, err = ABCVerify(B.Sub(A), CMTokB.Sub(CMTokA), aProof)
+	if !check || err != nil {
 		logStuff("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
@@ -499,7 +512,8 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
-	if ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof) {
+	check, err = ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof)
+	if check || err == nil {
 		logStuff("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
@@ -595,7 +609,8 @@ func TestBreakABCProve(t *testing.T) {
 	logStuff("Attemping to pass malicious true proof into verification function\n")
 	logStuff("This test should throw a couple error messages in debug\n")
 
-	if ABCVerify(CM, CMTok, evilProof) {
+	check, err := ABCVerify(CM, CMTok, evilProof)
+	if check || err == nil {
 		logStuff("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
 		t.Fatalf("ABCVerify - EVIL: failed to catch attack!\n")
 	}
@@ -704,7 +719,7 @@ func TestAverages_Basic(t *testing.T) {
 	B2 = ZKCurve.H
 	R2 = PK
 
-	checkTx := EquivilanceVerify(B1, R1, B2, R2, eProofNumTx)
+	checkTx, err := EquivilanceVerify(B1, R1, B2, R2, eProofNumTx)
 
 	if !checkTx {
 		logStuff("Average Test: NUMTX equivilance proof did not verify\n")
@@ -714,7 +729,7 @@ func TestAverages_Basic(t *testing.T) {
 	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
 	R1 = totalCMTok
 
-	checkVal := EquivilanceVerify(B1, R1, B2, R2, eProofValue)
+	checkVal, err := EquivilanceVerify(B1, R1, B2, R2, eProofValue)
 
 	if !checkVal {
 		logStuff("Average Test: SUM equivilance proof did not verify\n")

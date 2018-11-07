@@ -131,13 +131,14 @@ func TestInProdProve(t *testing.T) {
 
 	// proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
 
-	proof, status := InProdProveRecursive(a, b, big.NewInt(0), ZKGen.VecG, ZKGen.VecH, make([]ECPoint, 0), make([]ECPoint, 0))
+	proof, err := InProdProveRecursive(a, b, big.NewInt(0), ZKGen.VecG, ZKGen.VecH, make([]ECPoint, 0), make([]ECPoint, 0))
 
-	if status != nil {
+	if err != nil {
 		t.Fatalf("InProdProof did not generate properly!\n")
 	}
 
-	if !InProdVerify1(ZKGen.VecG, ZKGen.VecH, proof) {
+	status, err := InProdVerify1(ZKGen.VecG, ZKGen.VecH, proof)
+	if !status || err != nil {
 		t.Fatalf("InProdProof did not verify!\n")
 	}
 
