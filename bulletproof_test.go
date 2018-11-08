@@ -112,13 +112,56 @@ func TestCallEachFunc(t *testing.T) {
 	fmt.Println("Passed TestCallEachFunc")
 }
 
-func TestInProdProve(t *testing.T) {
+func TestInProdProveOriginal(t *testing.T) {
 
 	if !*BULLET {
-		fmt.Println("Skipped Bulletproof TestInProdProve")
-		t.Skip("Skipped Bulletproof TestInProdProve")
+		fmt.Println("Skipped Bulletproof InProdProveOrigianl")
+		t.Skip("Skipped Bulletproof InProdProveOrigianl")
 	} else {
-		fmt.Println("WARNING: InProdProve currently broken, next test will fail")
+		fmt.Println("WARNING: InProdProveOrigianl currently broken, next test will fail")
+	}
+
+	a := make([]*big.Int, numBits)
+	b := make([]*big.Int, numBits)
+
+	for ii := range a {
+		a[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
+		b[ii], _ = rand.Int(rand.Reader, ZKGen.MaxVal)
+	}
+
+	// proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
+
+	inputG := make([]ECPoint, len(ZKGen.VecG))
+	inputH := make([]ECPoint, len(ZKGen.VecH))
+	copy(inputG, ZKGen.VecG)
+	copy(inputH, ZKGen.VecH)
+
+	proof, status := InProdProve(a, b, inputG, inputH)
+
+	if !status {
+		t.Fatalf("InProdProof did not generate properly!\n")
+	}
+
+	inputG = make([]ECPoint, len(ZKGen.VecG))
+	inputH = make([]ECPoint, len(ZKGen.VecH))
+	copy(inputG, ZKGen.VecG)
+	copy(inputH, ZKGen.VecH)
+
+	status = InProdVerify(inputG, inputH, proof)
+	if !status {
+		t.Fatalf("InProdProof did not verify!\n")
+	}
+
+	fmt.Println("Passed TestInProdProve")
+}
+
+func TestInProdProveRecusive(t *testing.T) {
+
+	if !*BULLET {
+		fmt.Println("Skipped Bulletproof TestInProdProveRecusive")
+		t.Skip("Skipped Bulletproof TestInProdProveRecusive")
+	} else {
+		fmt.Println("WARNING: TestInProdProveRecusive currently broken, next test will fail")
 	}
 
 	a := make([]*big.Int, numBits)
