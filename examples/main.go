@@ -7,6 +7,5 @@ import (
 )
 
 func main() {
-	zksigma.Init()
 	fmt.Println(zksigma.ZKCurve)
 }
