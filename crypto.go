@@ -71,10 +71,11 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 func (p ECPoint) Mult(s *big.Int) ECPoint {
 	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
 
-	if p.Equal(Zero) {
-		logStuff("Mult: Trying to multiple with zero-point!\n")
-		return p
-	} else if p.Equal(ZKCurve.G) {
+	// if p.Equal(Zero) {
+	// 	logStuff("Mult: Trying to multiple with zero-point!\n")
+	// 	return p
+	// } else
+	if p.Equal(ZKCurve.G) {
 		X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
 		return ECPoint{X, Y}
 	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
@@ -88,9 +89,10 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 
 // Add adds points p and p2 and returns the resulting point
 func (p ECPoint) Add(p2 ECPoint) ECPoint {
-	if p.Equal(Zero) && p2.Equal(Zero) {
-		return Zero
-	} else if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	// if p.Equal(Zero) && p2.Equal(Zero) {
+	// 	return Zero
+	// } else
+	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		return p2
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
@@ -107,9 +109,10 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 }
 
 func (p ECPoint) Sub(p2 ECPoint) ECPoint {
-	if p.Equal(Zero) && p2.Equal(Zero) {
-		return Zero
-	} else if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	// if p.Equal(Zero) && p2.Equal(Zero) {
+	// 	return Zero
+	// } else
+	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
 		return p2.Neg()
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p

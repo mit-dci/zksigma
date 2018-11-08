@@ -519,8 +519,8 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 }
 
 type newInProdProof struct {
-	a        *big.Int
-	b        *big.Int
+	A        *big.Int
+	B        *big.Int
 	LeftVec  []ECPoint
 	RightVec []ECPoint
 }
@@ -528,7 +528,7 @@ type newInProdProof struct {
 func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec, RightVec []ECPoint) (*newInProdProof, error) {
 	n := len(a)
 
-	fmt.Printf("LENGTH OF A: %v\n", len(a))
+	// fmt.Printf("LENGTH OF A: %v\n", len(a))
 
 	// safety
 	if n == int(numBits) {
@@ -553,27 +553,27 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 	GL, GR := splitVecEC(G)
 	HL, HR := splitVecEC(H)
 
-	fmt.Printf("Lengths after split vec:\n")
-	fmt.Printf(" - aL, aR: %v, %v\n", len(aL), len(aR))
-	fmt.Printf(" - bL, bR: %v, %v\n", len(bL), len(bR))
-	fmt.Printf(" - GL, GR: %v, %v\n", len(GL), len(GR))
-	fmt.Printf(" - HL, HR: %v, %v\n", len(HL), len(HR))
+	// fmt.Printf("Lengths after split vec:\n")
+	// fmt.Printf(" - aL, aR: %v, %v\n", len(aL), len(aR))
+	// fmt.Printf(" - bL, bR: %v, %v\n", len(bL), len(bR))
+	// fmt.Printf(" - GL, GR: %v, %v\n", len(GL), len(GR))
+	// fmt.Printf(" - HL, HR: %v, %v\n", len(HL), len(HR))
 
 	cL := dotProd(aL, bR)
 	cR := dotProd(aR, bL)
 
-	fmt.Printf(" - cL, cR: %v, %v\n", cL, cR)
+	// fmt.Printf(" - cL, cR: %v, %v\n", cL, cR)
 
 	LeftTemp := ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(ZKCurve.H.Mult(cL)))
 	RightTemp := ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(ZKCurve.H.Mult(cR)))
 
-	fmt.Printf(" - LeftTemp: %v\n", LeftTemp)
-	fmt.Printf(" - RightTmp: %v\n", RightTemp)
+	// fmt.Printf(" - LeftTemp: %v\n", LeftTemp)
+	// fmt.Printf(" - RightTmp: %v\n", RightTemp)
 
 	LeftVec = append(LeftVec, LeftTemp)
 	RightVec = append(RightVec, RightTemp)
-	fmt.Printf(" - LeftVec: %v\n", len(LeftVec))
-	fmt.Printf(" - RightVc: %v\n", len(RightVec))
+	// fmt.Printf(" - LeftVec: %v\n", len(LeftVec))
+	// fmt.Printf(" - RightVc: %v\n", len(RightVec))
 
 	U := GenerateChallenge(prevChallenge.Bytes(), LeftTemp.Bytes(), RightTemp.Bytes())
 	UInv := new(big.Int).ModInverse(U, ZKCurve.C.Params().N)
@@ -587,14 +587,14 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 	NewA := vecAdd(scalar(U, aL), scalar(UInv, aR))
 	NewB := vecAdd(scalar(UInv, bL), scalar(U, bR))
 
-	fmt.Printf(" - NewG: %v\n", len(NewG))
-	fmt.Printf(" - NewH: %v\n", len(NewH))
-	fmt.Printf(" - NewA: %v\n", len(NewA))
-	fmt.Printf(" - NewB: %v\n", len(NewB))
+	// fmt.Printf(" - NewG: %v\n", len(NewG))
+	// fmt.Printf(" - NewH: %v\n", len(NewH))
+	// fmt.Printf(" - NewA: %v\n", len(NewA))
+	// fmt.Printf(" - NewB: %v\n", len(NewB))
 
 	//NewP := vecAddEC(scalarEC(U2, LeftVec), scalarEC(U2Inv, RightVec))
 
-	fmt.Println("Recursing...")
+	// fmt.Println("Recursing...")
 
 	return InProdProveRecursive(NewA, NewB, prevChallenge, NewG, NewH, LeftVec, RightVec)
 
@@ -620,6 +620,9 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 		GL, GR := splitVecEC(G)
 		HL, HR := splitVecEC(H)
 
+		fmt.Printf(" - GL, GR: %v, %v\n", len(GL), len(GR))
+		fmt.Printf(" - HL, HR: %v, %v\n", len(HL), len(HR))
+
 		U := GenerateChallenge(prevChallenge.Bytes(), proof.LeftVec[ii].Bytes(), proof.RightVec[ii].Bytes())
 		UInv := new(big.Int).ModInverse(U, ZKCurve.C.Params().N)
 
@@ -629,10 +632,15 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 		NewG := vecAddEC(scalarEC(UInv, GL), scalarEC(U, GR))
 		NewH := vecAddEC(scalarEC(U, HL), scalarEC(UInv, HR))
 
+		fmt.Printf(" - NewG: %v\n", len(NewG))
+		fmt.Printf(" - NewH: %v\n", len(NewH))
+
 		// if this is true then n = 1, should only happen once
-		if n%2 == 1 && len(G) == 1 {
+		if len(GL) == 1 {
 			FinalG = NewG[0].Add(G[n-1])
 			FinalH = NewH[0].Add(H[n-1])
+			checkC = L.Mult(U2).Add(R.Mult(U2Inv).Add(checkC))
+			break
 		}
 		// setting variables for next iteration of loop
 		n = n / 2
@@ -648,8 +656,11 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 		return false, &errorProof{"InProdVerify1", "final length of proof vectors are not length 1, compression failed"}
 	}
 
-	prodAB := new(big.Int).Mul(proof.a, proof.b)
-	proofC := FinalG.Mult(proof.a).Add(FinalH.Mult(proof.b).Add(ZKCurve.G.Mult(prodAB)))
+	prodAB := new(big.Int).Mul(proof.A, proof.B)
+	abGBase := ZKCurve.G.Mult(prodAB)
+	aGVec := FinalG.Mult(proof.A)
+	bHVec := FinalH.Mult(proof.B)
+	proofC := aGVec.Add(bHVec.Add(abGBase)) // maybe a Sub instead of Add for second Add?
 
 	if proofC.Equal(checkC) {
 		return true, nil
