@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"flag"
+	"fmt"
+	"log"
 	"math"
 	"math/big"
 )
@@ -182,7 +184,8 @@ func vecMult(x, y []*big.Int) []*big.Int {
 	res := make([]*big.Int, len(x))
 
 	for ii := 0; ii < len(x); ii++ {
-		res[ii] = new(big.Int).Mul(x[ii], y[ii]) // res is not declared yet so we need assignment statement
+		res[ii] = new(big.Int)
+		res[ii].Mul(x[ii], y[ii]) // res is not declared yet so we need assignment statement
 	}
 	return res
 }
@@ -195,7 +198,8 @@ func vecAdd(x, y []*big.Int) []*big.Int {
 	res := make([]*big.Int, len(x))
 
 	for ii := 0; ii < len(x); ii++ {
-		res[ii] = new(big.Int).Add(x[ii], y[ii]) // res is not declared yet so we need assignment statement
+		res[ii] = new(big.Int)
+		res[ii].Add(x[ii], y[ii]) // res is not declared yet so we need assignment statement
 	}
 	return res
 }
@@ -276,7 +280,7 @@ func genVec(x *big.Int) []*big.Int {
 }
 
 func scalar(x *big.Int, y []*big.Int) []*big.Int {
-	if len(y) != 0 {
+	if len(y) == 0 {
 		return nil
 	}
 
@@ -289,7 +293,7 @@ func scalar(x *big.Int, y []*big.Int) []*big.Int {
 }
 
 func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
-	if len(G) != 0 {
+	if len(G) == 0 {
 		return nil
 	}
 
@@ -523,16 +527,25 @@ type newInProdProof struct {
 
 func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec, RightVec []ECPoint) (*newInProdProof, error) {
 	n := len(a)
+
+	fmt.Printf("LENGTH OF A: %v\n", len(a))
+
 	// safety
 	if n == int(numBits) {
 		prevChallenge = big.NewInt(0)
 	}
 	if len(a)%2 != 0 && (len(a) != len(b) || len(a) != len(G) || len(a) != len(H)) {
 		return nil, &errorProof{"InProdProveRecursive:", "lengths of arrays do not agree/not multiple of 2"}
-	} else if n%2 != 0 && n != 1 {
+	}
+	if n%2 != 0 && n != 1 {
 		return nil, &errorProof{"InProdProveRecursive", "length of vectors not power of 2"}
-	} else if n == 1 {
+	}
+	if n == 1 {
 		return &newInProdProof{a[0], b[0], LeftVec, RightVec}, nil
+	}
+	if n == 0 {
+		log.Println("======= How did we get here!!!!??? ========")
+		return nil, &errorProof{"InProdProveRecursive", "not sure how we got here..."}
 	}
 
 	aL, aR := splitVec(a)
@@ -540,14 +553,27 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 	GL, GR := splitVecEC(G)
 	HL, HR := splitVecEC(H)
 
+	fmt.Printf("Lengths after split vec:\n")
+	fmt.Printf(" - aL, aR: %v, %v\n", len(aL), len(aR))
+	fmt.Printf(" - bL, bR: %v, %v\n", len(bL), len(bR))
+	fmt.Printf(" - GL, GR: %v, %v\n", len(GL), len(GR))
+	fmt.Printf(" - HL, HR: %v, %v\n", len(HL), len(HR))
+
 	cL := dotProd(aL, bR)
 	cR := dotProd(aR, bL)
+
+	fmt.Printf(" - cL, cR: %v, %v\n", cL, cR)
 
 	LeftTemp := ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(ZKCurve.H.Mult(cL)))
 	RightTemp := ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(ZKCurve.H.Mult(cR)))
 
+	fmt.Printf(" - LeftTemp: %v\n", LeftTemp)
+	fmt.Printf(" - RightTmp: %v\n", RightTemp)
+
 	LeftVec = append(LeftVec, LeftTemp)
 	RightVec = append(RightVec, RightTemp)
+	fmt.Printf(" - LeftVec: %v\n", len(LeftVec))
+	fmt.Printf(" - RightVc: %v\n", len(RightVec))
 
 	U := GenerateChallenge(prevChallenge.Bytes(), LeftTemp.Bytes(), RightTemp.Bytes())
 	UInv := new(big.Int).ModInverse(U, ZKCurve.C.Params().N)
@@ -561,7 +587,14 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 	NewA := vecAdd(scalar(U, aL), scalar(UInv, aR))
 	NewB := vecAdd(scalar(UInv, bL), scalar(U, bR))
 
+	fmt.Printf(" - NewG: %v\n", len(NewG))
+	fmt.Printf(" - NewH: %v\n", len(NewH))
+	fmt.Printf(" - NewA: %v\n", len(NewA))
+	fmt.Printf(" - NewB: %v\n", len(NewB))
+
 	//NewP := vecAddEC(scalarEC(U2, LeftVec), scalarEC(U2Inv, RightVec))
+
+	fmt.Println("Recursing...")
 
 	return InProdProveRecursive(NewA, NewB, prevChallenge, NewG, NewH, LeftVec, RightVec)
 
