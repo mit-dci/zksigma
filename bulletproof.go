@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"flag"
-	"fmt"
 	"log"
 	"math"
 	"math/big"
@@ -564,8 +563,10 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 
 	// fmt.Printf(" - cL, cR: %v, %v\n", cL, cR)
 
-	LeftTemp := ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(ZKCurve.H.Mult(cL)))
-	RightTemp := ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(ZKCurve.H.Mult(cR)))
+	LeftTemp := Zero
+	RightTemp := Zero
+	LeftTemp = ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(ZKCurve.H.Mult(cL)))
+	RightTemp = ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(ZKCurve.H.Mult(cR)))
 
 	// fmt.Printf(" - LeftTemp: %v\n", LeftTemp)
 	// fmt.Printf(" - RightTmp: %v\n", RightTemp)
@@ -614,14 +615,15 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 	checkC := Zero
 
 	for ii, _ := range proof.LeftVec {
+		n = n / 2
 		L := proof.LeftVec[ii]
 		R := proof.RightVec[ii]
 
 		GL, GR := splitVecEC(G)
 		HL, HR := splitVecEC(H)
 
-		fmt.Printf(" - GL, GR: %v, %v\n", len(GL), len(GR))
-		fmt.Printf(" - HL, HR: %v, %v\n", len(HL), len(HR))
+		// fmt.Printf(" - GL, GR: %v, %v\n", len(GL), len(GR))
+		// fmt.Printf(" - HL, HR: %v, %v\n", len(HL), len(HR))
 
 		U := GenerateChallenge(prevChallenge.Bytes(), proof.LeftVec[ii].Bytes(), proof.RightVec[ii].Bytes())
 		UInv := new(big.Int).ModInverse(U, ZKCurve.C.Params().N)
@@ -632,18 +634,17 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 		NewG := vecAddEC(scalarEC(UInv, GL), scalarEC(U, GR))
 		NewH := vecAddEC(scalarEC(U, HL), scalarEC(UInv, HR))
 
-		fmt.Printf(" - NewG: %v\n", len(NewG))
-		fmt.Printf(" - NewH: %v\n", len(NewH))
+		// fmt.Printf(" - NewG: %v\n", len(NewG))
+		// fmt.Printf(" - NewH: %v\n", len(NewH))
 
 		// if this is true then n = 1, should only happen once
-		if len(GL) == 1 {
+		if n%2 == 1 {
 			FinalG = NewG[0].Add(G[n-1])
 			FinalH = NewH[0].Add(H[n-1])
 			checkC = L.Mult(U2).Add(R.Mult(U2Inv).Add(checkC))
 			break
 		}
 		// setting variables for next iteration of loop
-		n = n / 2
 		G = NewG
 		H = NewH
 		prevChallenge = U
@@ -657,7 +658,7 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 	}
 
 	prodAB := new(big.Int).Mul(proof.A, proof.B)
-	abGBase := ZKCurve.G.Mult(prodAB)
+	abGBase := ZKCurve.H.Mult(prodAB)
 	aGVec := FinalG.Mult(proof.A)
 	bHVec := FinalH.Mult(proof.B)
 	proofC := aGVec.Add(bHVec.Add(abGBase)) // maybe a Sub instead of Add for second Add?

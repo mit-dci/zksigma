@@ -131,13 +131,23 @@ func TestInProdProve(t *testing.T) {
 
 	// proof, status := InProdProve(a, b, ZKGen.VecG, ZKGen.VecH)
 
-	proof, err := InProdProveRecursive(a, b, big.NewInt(0), ZKGen.VecG, ZKGen.VecH, make([]ECPoint, 0), make([]ECPoint, 0))
+	inputG := make([]ECPoint, len(ZKGen.VecG))
+	inputH := make([]ECPoint, len(ZKGen.VecH))
+	copy(inputG, ZKGen.VecG)
+	copy(inputH, ZKGen.VecH)
+
+	proof, err := InProdProveRecursive(a, b, big.NewInt(0), inputG, inputH, make([]ECPoint, 0), make([]ECPoint, 0))
 
 	if err != nil {
 		t.Fatalf("InProdProof did not generate properly!\n")
 	}
 
-	status, err := InProdVerify1(ZKGen.VecG, ZKGen.VecH, proof)
+	inputG = make([]ECPoint, len(ZKGen.VecG))
+	inputH = make([]ECPoint, len(ZKGen.VecH))
+	copy(inputG, ZKGen.VecG)
+	copy(inputH, ZKGen.VecH)
+
+	status, err := InProdVerify1(inputG, inputH, proof)
 	if !status || err != nil {
 		t.Fatalf("InProdProof did not verify!\n")
 	}
