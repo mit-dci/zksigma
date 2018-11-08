@@ -38,7 +38,7 @@ var Giant64 = []*big.Int{
 func TestBinaryDecomp(t *testing.T) {
 
 	if !*BULLET {
-		fmt.Println("Skipped Bulletproof TestBinaryDecomp")
+		fmt.Println("Skipped Bulletproof TestBinaryDecomp, use -bullet to run")
 		t.Skip("Skipped Bulletproof TestBinaryDecomp")
 	}
 
@@ -57,9 +57,9 @@ func TestBinaryDecomp(t *testing.T) {
 
 	for ii, vv := range answer {
 		if vv.Cmp(check[ii]) != 0 {
-			logStuff("BianryDecomp failed at:\n")
-			logStuff("answer[%v]: %v\n", ii, vv)
-			logStuff(" check[%v]: %v\n", ii, check[ii])
+			t.Logf("BianryDecomp failed at:\n")
+			t.Logf("answer[%v]: %v\n", ii, vv)
+			t.Logf(" check[%v]: %v\n", ii, check[ii])
 			t.Fatalf("binaryDecomp did not generate the correct array\n")
 		}
 	}
@@ -75,8 +75,8 @@ func TestDotProd(t *testing.T) {
 	}
 
 	if big.NewInt(42*42+10*10).Cmp(dotProd(Giant64, Giant64)) != 0 {
-		logStuff("dotProd not working properly:\n")
-		logStuff("expected: %v\n", big.NewInt(42*42))
+		t.Logf("dotProd not working properly:\n")
+		t.Logf("expected: %v\n", big.NewInt(42*42))
 		t.Fatalf("Failed TestDotProd\n")
 	}
 

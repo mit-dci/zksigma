@@ -19,21 +19,21 @@ func TestECPointMethods(t *testing.T) {
 	negp := p.Neg()
 	sum := p.Add(negp)
 	if !sum.Equal(Zero) {
-		logStuff("p : %v\n", p)
-		logStuff("negp : %v\n", negp)
-		logStuff("sum : %v\n", sum)
+		t.Logf("p : %v\n", p)
+		t.Logf("negp : %v\n", negp)
+		t.Logf("sum : %v\n", sum)
 		t.Fatalf("p + -p should be 0\n")
 	}
 	negnegp := negp.Neg()
 	if !negnegp.Equal(p) {
-		logStuff("p : %v\n", p)
-		logStuff("negnegp : %v\n", negnegp)
+		t.Logf("p : %v\n", p)
+		t.Logf("negnegp : %v\n", negnegp)
 		t.Fatalf("-(-p) should be p\n")
 	}
 	sum = p.Add(Zero)
 	if !sum.Equal(p) {
-		logStuff("p : %v\n", p)
-		logStuff("sum : %v\n", sum)
+		t.Logf("p : %v\n", p)
+		t.Logf("sum : %v\n", sum)
 		t.Fatalf("p + 0 should be p\n")
 	}
 	fmt.Println("Passed TestZKCurveMethods")
@@ -59,16 +59,16 @@ func TestZkpCryptoStuff(t *testing.T) {
 	ValEC := ZKCurve.G.Mult(value)
 	InvValEC := ValEC.Neg() // 1/vG (acutally mod operation but whatever you get it)
 
-	logStuff("         vG : %v --- value : %v \n", ValEC, value)
-	logStuff("       1/vG : %v\n", InvValEC)
+	t.Logf("         vG : %v --- value : %v \n", ValEC, value)
+	t.Logf("       1/vG : %v\n", InvValEC)
 
 	temp := ValEC.Add(InvValEC)
-	logStuff("TestZkpCrypto:")
-	logStuff("Added the above: %v\n", temp)
+	t.Logf("TestZkpCrypto:")
+	t.Logf("Added the above: %v\n", temp)
 
 	if !temp.Equal(Zero) {
-		logStuff("Added the above: %v", temp)
-		logStuff("The above should have been (0,0)")
+		t.Logf("Added the above: %v", temp)
+		t.Logf("The above should have been (0,0)")
 		t.Fatalf("Failed Addition of inverse points failed")
 	}
 
@@ -76,8 +76,8 @@ func TestZkpCryptoStuff(t *testing.T) {
 	RandEC := ZKCurve.H.Mult(randomValue) // rH
 
 	if !RandEC.Equal(testOpen) {
-		logStuff("RandEC : %v\n", RandEC)
-		logStuff("testOpen : %v\n", testOpen)
+		t.Logf("RandEC : %v\n", RandEC)
+		t.Logf("testOpen : %v\n", testOpen)
 		t.Fatalf("RandEC should have been equal to testOpen\n")
 	}
 
@@ -100,9 +100,9 @@ func TestZkpCryptoCommitR(t *testing.T) {
 	testCommit := CommitR(ZKCurve.H, u)
 
 	if !(VerifyR(testCommit, ZKCurve.H, u)) {
-		logStuff("testCommit: %v\n", testCommit)
-		logStuff("ZKCurve.H: %v, \n", ZKCurve.H)
-		logStuff("u : %v\n", u)
+		t.Logf("testCommit: %v\n", testCommit)
+		t.Logf("ZKCurve.H: %v, \n", ZKCurve.H)
+		t.Logf("u : %v\n", u)
 		t.Fatalf("testCommit should have passed verification\n")
 	}
 
@@ -127,23 +127,23 @@ func TestPedersenCommit(t *testing.T) {
 	commitR := PedCommitR(x, u)
 
 	if !commit.Equal(commitR) {
-		logStuff("x : %v --- u : %v\n", x, u)
-		logStuff("commit: %v\n", commit)
-		logStuff("commitR: %v\n", commitR)
+		t.Logf("x : %v --- u : %v\n", x, u)
+		t.Logf("commit: %v\n", commit)
+		t.Logf("commitR: %v\n", commitR)
 		t.Fatalf("commit and commitR should be equal")
 	}
 
 	if !Open(x, u, commit) || !Open(x, u, commitR) {
-		logStuff("x : %v --- u : %v\n", x, u)
-		logStuff("commit: %v\n", commit)
-		logStuff("commitR: %v\n", commitR)
+		t.Logf("x : %v --- u : %v\n", x, u)
+		t.Logf("commit: %v\n", commit)
+		t.Logf("commitR: %v\n", commitR)
 		t.Fatalf("commit and/or commitR did not successfully open")
 	}
 
 	if Open(badx, u.Neg(u), commit) || Open(badx, u.Neg(u), commitR) {
-		logStuff("x : %v --- u : %v\n", x, u)
-		logStuff("commit: %v\n", commit)
-		logStuff("commitR: %v\n", commitR)
+		t.Logf("x : %v --- u : %v\n", x, u)
+		t.Logf("commit: %v\n", commit)
+		t.Logf("commitR: %v\n", commitR)
 		t.Fatalf("commit and/or commitR should not have opened properly")
 	}
 
@@ -173,21 +173,21 @@ func TestGSPFS(t *testing.T) {
 
 	status, err := GSPFSVerify(result, testProof)
 	if !status && err == nil {
-		logStuff("x : %v\n", x)
-		logStuff("randPoint : %v\n", result)
-		logStuff("testProof : %v\n", testProof)
+		t.Logf("x : %v\n", x)
+		t.Logf("randPoint : %v\n", result)
+		t.Logf("testProof : %v\n", testProof)
 		t.Fatalf("GSPFS Proof didnt generate properly - 1\n")
 	}
 
 	// Using H here should break the proof
 	result = ZKCurve.H.Mult(x)
 
-	logStuff("Next GSPFSVerify should fail\n")
+	t.Logf("Next GSPFSVerify should fail\n")
 	status, err = GSPFSVerify(result, testProof)
 	if status && err != nil {
-		logStuff("x : %v\n", x)
-		logStuff("randPoint : %v\n", result)
-		logStuff("testProof : %v\n", testProof)
+		t.Logf("x : %v\n", x)
+		t.Logf("randPoint : %v\n", result)
+		t.Logf("testProof : %v\n", testProof)
 		t.Fatalf("GSPFS Proof should not have worked - 2\n")
 	}
 
@@ -218,36 +218,36 @@ func TestEquivilance(t *testing.T) {
 
 	check, err := EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof)
 	if !check || err != nil {
-		logStuff("Base1 : %v\n", Base1)
-		logStuff("Result1 : %v\n", Result1)
-		logStuff("Base2 : %v\n", Base2)
-		logStuff("Result2 : %v\n", Result2)
-		logStuff("Proof : %v \n", eqProof)
+		t.Logf("Base1 : %v\n", Base1)
+		t.Logf("Result1 : %v\n", Result1)
+		t.Logf("Base2 : %v\n", Base2)
+		t.Logf("Result2 : %v\n", Result2)
+		t.Logf("Proof : %v \n", eqProof)
 		t.Fatalf("Equivilance Proof verification failed")
 	}
 
-	logStuff("Next comparison should fail\n")
+	t.Logf("Next comparison should fail\n")
 	// Bases swapped shouldnt work
 	check, err = EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof)
 	if check || err == nil {
-		logStuff("Base1 : %v\n", Base1)
-		logStuff("Result1 : %v\n", Result1)
-		logStuff("Base2 : %v\n", Base2)
-		logStuff("Result2 : %v\n", Result2)
-		logStuff("Proof : %v \n", eqProof)
+		t.Logf("Base1 : %v\n", Base1)
+		t.Logf("Result1 : %v\n", Result1)
+		t.Logf("Base2 : %v\n", Base2)
+		t.Logf("Result2 : %v\n", Result2)
+		t.Logf("Proof : %v \n", eqProof)
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
-	logStuff("Next comparison should fail\n")
+	t.Logf("Next comparison should fail\n")
 	// Bad proof
 	eqProof.HiddenValue = big.NewInt(-1)
 	check, err = EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof)
 	if check || err == nil {
-		logStuff("Base1 : %v\n", Base1)
-		logStuff("Result1 : %v\n", Result1)
-		logStuff("Base2 : %v\n", Base2)
-		logStuff("Result2 : %v\n", Result2)
-		logStuff("Proof : %v \n", eqProof)
+		t.Logf("Base1 : %v\n", Base1)
+		t.Logf("Result1 : %v\n", Result1)
+		t.Logf("Base2 : %v\n", Base2)
+		t.Logf("Result2 : %v\n", Result2)
+		t.Logf("Proof : %v \n", eqProof)
 		t.Fatalf("Equivilance Proof verification doesnt work")
 	}
 
@@ -295,23 +295,23 @@ func TestDisjunctive(t *testing.T) {
 		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 2\n")
 	}
 
-	logStuff("Testing DisjunctiveProof:\n")
-	logStuff("First djProof : ")
+	t.Logf("Testing DisjunctiveProof:\n")
+	t.Logf("First djProof : ")
 	check, err := DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT)
 	if !check || err != nil {
 		t.Fatalf("djProof failed to generate properly for left side\n")
 	}
 
-	logStuff("Passed \n [testing] Second djProof : ")
+	t.Logf("Passed \n [testing] Second djProof : ")
 	check, err = DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofRIGHT)
 	if !check || err != nil {
 		t.Fatalf("djProof failed to generate properly for right side\n")
 	}
 
-	logStuff("Passed \n [testing] Next djProof attemp should result in an error message\n")
+	t.Logf("Passed \n [testing] Next djProof attemp should result in an error message\n")
 	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, Left) // This should fail
 
-	if status3 != nil {
+	if status3 == nil {
 		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
 	}
 
@@ -348,21 +348,20 @@ func TestConsistency(t *testing.T) {
 	conProof, status1 := ConsistencyProve(comm, y, pk, x, u)
 
 	if status1 != nil {
-		proofStatus(status1.(*errorProof))
 		t.Fatalf("TestConsistancy - incorrect error message for correct proof, case 1\n")
 	}
 
-	logStuff(" [testing] Testing correct consistency proof\n")
+	t.Logf(" [testing] Testing correct consistency proof\n")
 	check, err := ConsistencyVerify(comm, y, pk, conProof)
 	if !check || err != nil {
 		t.Fatalf("Error -- Proof should be correct\n")
 	}
 
-	logStuff(" [testing] Next proof should fail\n")
+	t.Logf(" [testing] Next proof should fail\n")
 
 	conProof, status2 := ConsistencyProve(y, comm, pk, x, u)
 
-	if proofStatus(status2.(*errorProof)) == 0 {
+	if status2 == nil {
 		t.Fatalf("TestConsistancy - incorrect error message for correct proof, case 2\n")
 	}
 
@@ -393,13 +392,13 @@ func TestABCProof(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		logStuff("ABCProof RIGHT failed to generate!\n")
+		t.Logf("ABCProof RIGHT failed to generate!\n")
 		t.Fatalf("ABCProof RIGHT failed\n")
 	}
 
 	check, err := ABCVerify(A, AToken, aProof)
 	if !check || err != nil {
-		logStuff("ABCProof RIGHT Failed to verify!\n")
+		t.Logf("ABCProof RIGHT Failed to verify!\n")
 		t.Fatalf("ABCVerify RIGHT failed\n")
 	}
 
@@ -408,13 +407,13 @@ func TestABCProof(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		logStuff("ABCProof LEFT failed to generate!\n")
+		t.Logf("ABCProof LEFT failed to generate!\n")
 		t.Fatalf("ABCProof LEFT failed\n")
 	}
 
 	check, err = ABCVerify(A, AToken, aProof)
 	if !check || err != nil {
-		logStuff("ABCProof LEFT Failed to verify!\n")
+		t.Logf("ABCProof LEFT Failed to verify!\n")
 		t.Fatalf("ABCVerify LEFT failed\n")
 	}
 
@@ -428,15 +427,15 @@ func TestABCProof(t *testing.T) {
 	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, Right)
 
 	if status != nil {
-		logStuff("False proof genereation succeeded! (bad)\n")
+		t.Logf("False proof genereation succeeded! (bad)\n")
 		t.Fatalf("ABCProve generated for false proof\n")
 	}
 
-	logStuff("Next ABCVerify should catch false proof\n")
+	t.Logf("Next ABCVerify should catch false proof\n")
 
 	check, err = ABCVerify(A, AToken, aProof)
 	if check || err == nil {
-		logStuff("ABCVerify: should have failed on false proof check!\n")
+		t.Logf("ABCVerify: should have failed on false proof check!\n")
 		t.Fatalf("ABCVerify: not working...\n")
 	}
 
@@ -476,13 +475,13 @@ func TestInequalityProve(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		logStuff("ABCProof for InequalityProve failed to generate!\n")
+		t.Logf("ABCProof for InequalityProve failed to generate!\n")
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
 	check, err := ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof)
 	if !check || err != nil {
-		logStuff("ABCProof for InequalityProve failed to verify!\n")
+		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
 
@@ -491,13 +490,13 @@ func TestInequalityProve(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		logStuff("ABCProof for InequalityProve failed to generate!\n")
+		t.Logf("ABCProof for InequalityProve failed to generate!\n")
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
 	check, err = ABCVerify(B.Sub(A), CMTokB.Sub(CMTokA), aProof)
 	if !check || err != nil {
-		logStuff("ABCProof for InequalityProve failed to verify!\n")
+		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
 
@@ -508,13 +507,13 @@ func TestInequalityProve(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		logStuff("ABCProof for InequalityProve failed to generate!\n")
+		t.Logf("ABCProof for InequalityProve failed to generate!\n")
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
 	check, err = ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof)
 	if check || err == nil {
-		logStuff("ABCProof for InequalityProve failed to verify!\n")
+		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
 
@@ -606,12 +605,12 @@ func TestBreakABCProve(t *testing.T) {
 		j, k, l, CToken,
 		disjuncAC}
 
-	logStuff("Attemping to pass malicious true proof into verification function\n")
-	logStuff("This test should throw a couple error messages in debug\n")
+	t.Logf("Attemping to pass malicious true proof into verification function\n")
+	t.Logf("This test should throw a couple error messages in debug\n")
 
 	check, err := ABCVerify(CM, CMTok, evilProof)
 	if check || err == nil {
-		logStuff("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
+		t.Logf("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
 		t.Fatalf("ABCVerify - EVIL: failed to catch attack!\n")
 	}
 
@@ -691,7 +690,7 @@ func TestAverages_Basic(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		logStuff("Average Test: equivilance proof failed to generate for numTx\n")
+		t.Logf("Average Test: equivilance proof failed to generate for numTx\n")
 		t.Fatalf("Averages did not gerneate correct NUMTX equivilance proof\n")
 	}
 
@@ -702,7 +701,7 @@ func TestAverages_Basic(t *testing.T) {
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
-		logStuff("Average Test: equivilance proof failed to generate for value sum\n")
+		t.Logf("Average Test: equivilance proof failed to generate for value sum\n")
 		t.Fatalf("Averages did not gerneate correct VALUE equivilance proof\n")
 	}
 
@@ -722,7 +721,7 @@ func TestAverages_Basic(t *testing.T) {
 	checkTx, err := EquivilanceVerify(B1, R1, B2, R2, eProofNumTx)
 
 	if !checkTx {
-		logStuff("Average Test: NUMTX equivilance proof did not verify\n")
+		t.Logf("Average Test: NUMTX equivilance proof did not verify\n")
 		t.Fatalf("Equivilance proof of NUMTX did not verify\n")
 	}
 
@@ -732,7 +731,7 @@ func TestAverages_Basic(t *testing.T) {
 	checkVal, err := EquivilanceVerify(B1, R1, B2, R2, eProofValue)
 
 	if !checkVal {
-		logStuff("Average Test: SUM equivilance proof did not verify\n")
+		t.Logf("Average Test: SUM equivilance proof did not verify\n")
 		t.Fatalf("Equivilance proof of SUM did not verify\n")
 	}
 
