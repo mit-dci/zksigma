@@ -125,7 +125,7 @@ func dotProd(x, y []*big.Int) *big.Int {
 
 	if len(x) != len(y) {
 		logStuff("dorProd: anrray sizes do not match! Zero *big.Int returned\n")
-		return big.NewInt(0)
+		return nil
 	}
 
 	acc := big.NewInt(0)
@@ -147,7 +147,7 @@ func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 		return y[0].Mult(x[0])
 	}
 
-	temp := y[0].Mult(x[0])
+	temp := Zero
 	acc := Zero
 
 	for ii := 0; ii < len(x); ii++ {
@@ -160,7 +160,7 @@ func ecDotProd(x []*big.Int, y []ECPoint) ECPoint {
 // COM(vec1, vec2, u) -> <vec1, G> + <vec2, H> + uB', where B' is the ped commit blinder, G and H are chain vecots
 func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) (ECPoint, *big.Int) {
 	if len(a) != len(G) || len(a) != len(H) {
-		return Zero, big.NewInt(0)
+		return Zero, nil
 	}
 
 	randomness, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
@@ -176,7 +176,7 @@ func vecPedComm(a []*big.Int, G []ECPoint, H []ECPoint) (ECPoint, *big.Int) {
 func vecMult(x, y []*big.Int) []*big.Int {
 
 	if len(x) != len(y) {
-		return []*big.Int{}
+		return nil
 	}
 
 	res := make([]*big.Int, len(x))
@@ -189,7 +189,7 @@ func vecMult(x, y []*big.Int) []*big.Int {
 
 func vecAdd(x, y []*big.Int) []*big.Int {
 	if len(x) != len(y) {
-		return []*big.Int{}
+		return nil
 	}
 
 	res := make([]*big.Int, len(x))
@@ -202,13 +202,13 @@ func vecAdd(x, y []*big.Int) []*big.Int {
 
 func vecAddEC(G []ECPoint, H []ECPoint) []ECPoint {
 	if len(G) != len(H) {
-		return []ECPoint{}
+		return nil
 	}
 
 	res := make([]ECPoint, len(G))
 
 	for ii := 0; ii < len(G); ii++ {
-		res[ii].X, res[ii].Y = ZKCurve.C.Add(G[ii].X, G[ii].Y, H[ii].X, H[ii].Y) // res is not declared yet so we need assignment statement
+		res[ii] = G[ii].Add(H[ii])
 	}
 	return res
 
@@ -216,7 +216,7 @@ func vecAddEC(G []ECPoint, H []ECPoint) []ECPoint {
 
 func vecSub(x, y []*big.Int) []*big.Int {
 	if len(x) != len(y) {
-		return []*big.Int{}
+		return nil
 	}
 
 	res := make([]*big.Int, len(x))
@@ -235,10 +235,15 @@ func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 
 	if len(x)%2 != 0 {
 		logStuff("splitVec:\n - input arrays are not multiple of 2\n")
-		return []*big.Int{}, []*big.Int{}
+		return nil, nil
 	}
 
-	return x[0 : len(x)/2], x[len(x)/2 : len(x)]
+	xL := make([]*big.Int, len(x)/2)
+	xR := make([]*big.Int, len(x)/2)
+	copy(xL, x[0:len(x)/2])
+	copy(xR, x[len(x)/2:len(x)])
+
+	return xL, xR
 }
 
 func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
@@ -250,10 +255,15 @@ func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
 
 	if len(x)%2 != 0 {
 		logStuff("splitVecEC:\n - input arrays are not multiple of 2\n")
-		return []ECPoint{}, []ECPoint{}
+		return nil, nil
 	}
 
-	return x[0 : len(x)/2], x[len(x)/2 : len(x)]
+	xL := make([]ECPoint, len(x)/2)
+	xR := make([]ECPoint, len(x)/2)
+	copy(xL, x[0:len(x)/2])
+	copy(xR, x[len(x)/2:len(x)])
+
+	return xL, xR
 }
 
 func genVec(x *big.Int) []*big.Int {
@@ -267,7 +277,7 @@ func genVec(x *big.Int) []*big.Int {
 
 func scalar(x *big.Int, y []*big.Int) []*big.Int {
 	if len(y) != 0 {
-		return []*big.Int{}
+		return nil
 	}
 
 	res := make([]*big.Int, len(y))
@@ -280,12 +290,12 @@ func scalar(x *big.Int, y []*big.Int) []*big.Int {
 
 func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
 	if len(G) != 0 {
-		return []ECPoint{}
+		return nil
 	}
 
 	res := make([]ECPoint, len(G))
 	for ii := 0; ii < len(G); ii++ {
-		res[ii].X, res[ii].Y = ZKCurve.C.ScalarMult(G[ii].X, G[ii].Y, x.Bytes())
+		res[ii] = G[ii].Mult(x)
 	}
 	return res
 
