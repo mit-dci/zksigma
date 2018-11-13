@@ -51,8 +51,8 @@ func NewGen(n, m uint64) Generator {
 
 	u1, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	u2, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	VecG := genChain(n, m, u1.Bytes())
-	VecH := genChain(n, m, u2.Bytes())
+	VecG := genChain(n, m, u1.Bytes(), 0)
+	VecH := genChain(n, m, u2.Bytes(), 1)
 
 	BPGen.VecG = VecG
 	BPGen.VecH = VecH
@@ -60,20 +60,30 @@ func NewGen(n, m uint64) Generator {
 	return BPGen
 }
 
-func genChain(n, m uint64, initBytes []byte) []ECPoint {
+func genChain(n, m uint64, initBytes []byte, option int) []ECPoint {
 	vec := make([]ECPoint, n*m)
 
 	hasher := sha256.New()
 	hasher.Write(initBytes)
 	temp := new(big.Int).SetBytes(hasher.Sum(nil))
 	temp.Mod(temp, ZKCurve.C.Params().N)
-	vec[0].X, vec[0].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
+
+	if option == 0 {
+		vec[0].X, vec[0].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
+	} else {
+		vec[0] = ZKCurve.H.Mult(temp)
+	}
 
 	for ii := uint64(1); ii < n*m; ii++ {
 		hasher.Write(vec[ii-1].Bytes())
 		temp = new(big.Int).SetBytes(hasher.Sum(nil))
 		temp.Mod(temp, ZKCurve.C.Params().N)
-		vec[ii].X, vec[ii].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
+
+		if option == 0 {
+			vec[ii].X, vec[ii].Y = ZKCurve.C.ScalarBaseMult(temp.Bytes())
+		} else {
+			vec[ii] = ZKCurve.H.Mult(temp)
+		}
 
 		if !ZKCurve.C.IsOnCurve(vec[ii].X, vec[ii].Y) {
 			logStuff("Some is really wrong... \n")
@@ -265,6 +275,12 @@ func splitVecEC(x []ECPoint) ([]ECPoint, []ECPoint) {
 	xR := make([]ECPoint, len(x)/2)
 	copy(xL, x[0:len(x)/2])
 	copy(xR, x[len(x)/2:len(x)])
+
+	// The Follow creates a deep copy, although I do not think this is needed
+	// for ii, _ := range xL {
+	// 	xL[ii] = ECCopy(x[ii])
+	// 	xR[ii] = ECCopy(x[ii+len(x)/2])
+	// }
 
 	return xL, xR
 }
@@ -536,7 +552,7 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 	if len(a)%2 != 0 && (len(a) != len(b) || len(a) != len(G) || len(a) != len(H)) {
 		return nil, &errorProof{"InProdProveRecursive:", "lengths of arrays do not agree/not multiple of 2"}
 	}
-	if n%2 != 0 && n != 1 {
+	if !((n & (n - 1)) == 0) {
 		return nil, &errorProof{"InProdProveRecursive", "length of vectors not power of 2"}
 	}
 	if n == 1 {
@@ -639,6 +655,8 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 
 		// if this is true then n = 1, should only happen once
 		if n%2 == 1 {
+			// TODO: why is there a G and H added here? No notes from referance
+			// 		 on this question
 			FinalG = NewG[0].Add(G[n-1])
 			FinalH = NewH[0].Add(H[n-1])
 			checkC = L.Mult(U2).Add(R.Mult(U2Inv).Add(checkC))
@@ -653,7 +671,7 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 		checkC = L.Mult(U2).Add(R.Mult(U2Inv).Add(checkC))
 	}
 
-	if len(G) != 1 {
+	if len(G) != 2 {
 		return false, &errorProof{"InProdVerify1", "final length of proof vectors are not length 1, compression failed"}
 	}
 
@@ -661,7 +679,7 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 	abGBase := ZKCurve.H.Mult(prodAB)
 	aGVec := FinalG.Mult(proof.A)
 	bHVec := FinalH.Mult(proof.B)
-	proofC := aGVec.Add(bHVec.Add(abGBase)) // maybe a Sub instead of Add for second Add?
+	proofC := aGVec.Add(bHVec.Add(abGBase))
 
 	if proofC.Equal(checkC) {
 		return true, nil

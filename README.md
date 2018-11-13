@@ -52,7 +52,9 @@ Notation:
 
 Coming Soon<sup>TM</sup>:
 - Rangeproofs (rp.Aggragate currently broken, need to investigate)
-- Bulletproofs (inner product proof currently broken, need to investigate)
+- Bulletproofs (inner product proof currently broken, need to investigate, something about golang deep copy maybe, fairly confident the logic of the implemnatiaon is correct)
+    - Referance for recursive implementation [here](https://github.com/bbuenz/BulletProofLib/tree/master/src/main/java/edu/stanford/cs/crypto/efficientct/innerproduct)
+    - Referance for iterative implementation [here](https://github.com/dalek-cryptography/bulletproofs/blob/main/src/inner_product_proof.rs)
 
 **Dependancies**:
 - github.com/narula/btcd/btcec (can be swapped out for any curve that satisfies Golang's elliptic.Curve interface)

@@ -176,8 +176,10 @@ func TestInProdProveRecusive(t *testing.T) {
 
 	inputG := make([]ECPoint, len(ZKGen.VecG))
 	inputH := make([]ECPoint, len(ZKGen.VecH))
-	copy(inputG, ZKGen.VecG)
-	copy(inputH, ZKGen.VecH)
+	for ii, _ := range ZKGen.VecG {
+		inputG[ii] = ECCopy(ZKGen.VecG[ii])
+		inputH[ii] = ECCopy(ZKGen.VecH[ii])
+	}
 
 	proof, err := InProdProveRecursive(a, b, big.NewInt(0), inputG, inputH, make([]ECPoint, 0), make([]ECPoint, 0))
 
@@ -187,11 +189,15 @@ func TestInProdProveRecusive(t *testing.T) {
 
 	inputG = make([]ECPoint, len(ZKGen.VecG))
 	inputH = make([]ECPoint, len(ZKGen.VecH))
-	copy(inputG, ZKGen.VecG)
-	copy(inputH, ZKGen.VecH)
+	for ii, _ := range ZKGen.VecG {
+		inputG[ii] = ECCopy(ZKGen.VecG[ii])
+		inputH[ii] = ECCopy(ZKGen.VecH[ii])
+	}
 
 	status, err := InProdVerify1(inputG, inputH, proof)
+
 	if !status || err != nil {
+		fmt.Printf("%v", err.Error())
 		t.Fatalf("InProdProof did not verify!\n")
 	}
 

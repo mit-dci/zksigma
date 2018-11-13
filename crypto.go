@@ -33,7 +33,7 @@ type errorProof struct {
 }
 
 func (e *errorProof) Error() string {
-	return fmt.Sprintf("%v - %v", e.t, e.s)
+	return fmt.Sprintf("%v - %v\n", e.t, e.s)
 }
 
 func proofStatus(e *errorProof) int {
@@ -137,6 +137,12 @@ func (p ECPoint) Neg() ECPoint {
 
 func (p ECPoint) Bytes() []byte {
 	return append(p.X.Bytes(), p.Y.Bytes()...)
+}
+
+func ECCopy(p ECPoint) ECPoint {
+	newX := new(big.Int).Set(p.X)
+	newY := new(big.Int).Set(p.Y)
+	return ECPoint{newX, newY}
 }
 
 // CommitR uses the Public Key (pk) and a random number (r) to
