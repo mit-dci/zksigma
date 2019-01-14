@@ -56,9 +56,6 @@ Coming Soon<sup>TM</sup>:
     - Referance for recursive implementation [here](https://github.com/bbuenz/BulletProofLib/tree/master/src/main/java/edu/stanford/cs/crypto/efficientct/innerproduct)
     - Referance for iterative implementation [here](https://github.com/dalek-cryptography/bulletproofs/blob/main/src/inner_product_proof.rs)
 
-**Dependancies**:
-- github.com/narula/btcd/btcec (can be swapped out for any curve that satisfies Golang's elliptic.Curve interface)
-
 
 ### Some fun reading
 

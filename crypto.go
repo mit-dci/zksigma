@@ -9,7 +9,7 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/narula/btcd/btcec"
+	"github.com/mit-dci/zksigma/btcec"
 )
 
 var DEBUG = flag.Bool("debug1", false, "Debug output")
