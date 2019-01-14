@@ -9,11 +9,6 @@ import (
 
 func TestDisjunctive(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestDisjunctive")
-		t.Skip("Skipped TestDisjunctive")
-	}
-
 	x := big.NewInt(100)
 	y := big.NewInt(101)
 

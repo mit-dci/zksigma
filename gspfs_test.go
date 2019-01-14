@@ -8,11 +8,6 @@ import (
 
 func TestGSPFS(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestGSPFS")
-		t.Skip("Skipped TestGSPFS")
-	}
-
 	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	if err != nil {
 		t.Fatalf("%v\n", err)

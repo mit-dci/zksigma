@@ -9,11 +9,6 @@ import (
 
 func TestEquivilance(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestEquivilance")
-		t.Skip("Skipped TestEquivilance")
-	}
-
 	x, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
 	Result1 := Base1.Mult(x)

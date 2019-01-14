@@ -9,11 +9,6 @@ import (
 
 func TestInequalityProve(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestInequalityProve")
-		t.Skip("Skipped TestABCProof")
-	}
-
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"

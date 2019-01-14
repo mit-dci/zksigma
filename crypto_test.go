@@ -8,12 +8,6 @@ import (
 )
 
 func TestECPointMethods(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestECPointMethods")
-		t.Skip("Skipped TestECPointMethods")
-	}
-
 	v := big.NewInt(3)
 	p := ZKCurve.G.Mult(v)
 	negp := p.Neg()
@@ -40,11 +34,6 @@ func TestECPointMethods(t *testing.T) {
 }
 
 func TestZkpCryptoStuff(t *testing.T) {
-	if *NOBASIC {
-		fmt.Println("Skipped TestZkpCryptoStuff")
-		t.Skip("Skipped TestZkpCryptoStuff")
-	}
-
 	value := big.NewInt(-100)
 
 	testCommit, randomValue, err := PedCommit(value) // xG + rH
@@ -87,11 +76,6 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 func TestZkpCryptoCommitR(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestZkpCryptoCommitR")
-		t.Skip("Skipped TestZkpCryptoCommitR")
-	}
-
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	if err != nil {
 		t.Fatalf("%v\n", err)
@@ -110,11 +94,6 @@ func TestZkpCryptoCommitR(t *testing.T) {
 }
 
 func TestPedersenCommit(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestPedersenCommit")
-		t.Skip("Skipped TestPedersenCommit")
-	}
 
 	x := big.NewInt(1000)
 	badx := big.NewInt(1234)
@@ -161,11 +140,6 @@ type etx struct {
 
 //TODO: make a sk-pk that is consistant accross all test cases
 func TestAverages_Basic(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestAverages_Basic")
-		t.Skip("Skipped TestAverages_Basic")
-	}
 
 	// remeber to change both number here...
 	numTx := 100

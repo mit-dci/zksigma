@@ -15,8 +15,6 @@ import (
 // DEBUG Indicates whether we output debug information while running the tests. Default off.
 var DEBUG = flag.Bool("debug1", false, "Debug output")
 
-// NOBASIC configures whether we skip the basic crypto tests
-var NOBASIC = flag.Bool("nobasic", false, "Skips basic tests")
 var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof and make it pass verification")
 
 // ZKCurve is a global cache for the curve and two generator points used in the various proof

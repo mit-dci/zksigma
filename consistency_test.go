@@ -7,12 +7,6 @@ import (
 )
 
 func TestConsistency(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestConsistency")
-		t.Skip("Skipped TestConsistency")
-	}
-
 	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	if err != nil {
 		t.Fatalf("%v\n", err)

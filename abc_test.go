@@ -8,12 +8,6 @@ import (
 )
 
 func TestABCProof(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestABCProof")
-		t.Skip("Skipped TestABCProof")
-	}
-
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
