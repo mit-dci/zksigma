@@ -108,11 +108,10 @@ var ZeroVec []*big.Int
 
 // OnesVec is a cached vector of big.Ints with value 1
 var OnesVec []*big.Int
-var RandVec []*big.Int
 
 func fillVecs() {
-	ZeroVec, OnesVec, PowsOf2, RandVec = make([]*big.Int, numBits), make([]*big.Int, numBits),
-		make([]*big.Int, numBits), make([]*big.Int, numBits)
+	ZeroVec, OnesVec, PowsOf2 = make([]*big.Int, numBits), make([]*big.Int, numBits),
+		make([]*big.Int, numBits)
 	for ii := int64(0); ii < int64(numBits); ii++ {
 
 		// Probably can save space here
