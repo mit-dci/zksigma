@@ -9,7 +9,7 @@ import (
 	"math/big"
 )
 
-// FLAGS
+// Flag indicating if the BulletProof testcases should be run (default: false)
 var BULLET = flag.Bool("bullet", false, "Run bulletproof test cases")
 
 type Generator struct {
@@ -34,6 +34,7 @@ const (
 var ZKGen Generator
 var ZKView GeneratorView
 
+// BPInit initializes the Bulletproof Generator and vectors
 func BPInit() {
 	ZKGen = NewGen(numBits, numVals)
 	fillVecs()
@@ -93,14 +94,19 @@ func genChain(n, m uint64, initBytes []byte, option int) []ECPoint {
 	return vec
 }
 
+// Returns the public view on the generator
 func (g Generator) Share(j uint64) GeneratorView {
 	return GeneratorView{&g.VecG[j], &g.VecH[j]}
 }
 
-//======== Perliminary stuff
-
+// PowsOf2 is a cached vector of big.Ints with value (2^i) mod c where i is the
+// index in the vector and c is the order of the base point of the curve
 var PowsOf2 []*big.Int
+
+// ZeroVec is a cached vector of big.Ints with value 0
 var ZeroVec []*big.Int
+
+// OnesVec is a cached vector of big.Ints with value 1
 var OnesVec []*big.Int
 var RandVec []*big.Int
 
