@@ -12,6 +12,8 @@ import (
 // Flag indicating if the BulletProof testcases should be run (default: false)
 var BULLET = flag.Bool("bullet", false, "Run bulletproof test cases")
 
+// Generator is a chain of ECPoints that are linked by consecutive hashes
+// and is used to generate bulletproofs
 type Generator struct {
 	N      uint64
 	M      uint64
@@ -20,6 +22,7 @@ type Generator struct {
 	VecH   []ECPoint
 }
 
+// GeneratorView is the publicly shareable view on a Generator
 type GeneratorView struct {
 	G *ECPoint
 	H *ECPoint
@@ -31,7 +34,10 @@ const (
 	rootNumBits uint64 = 7
 )
 
+// ZKGen contains the cached generator used to generate bulletproofs
 var ZKGen Generator
+
+// ZKView contains the cache GeneratorView for ZKGen
 var ZKView GeneratorView
 
 // BPInit initializes the Bulletproof Generator and vectors
