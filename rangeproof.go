@@ -35,9 +35,9 @@ type ProverInternalData struct {
 	vScalars []*big.Int
 }
 
-// ProofGenA takes in a waitgroup, index and bit
+// proofGenA takes in a waitgroup, index and bit
 // returns an Rpoint and Cpoint, and the k value bigint
-func ProofGenA(
+func proofGenA(
 	wg *sync.WaitGroup, idx int, bit bool, s *ProverInternalData) error {
 
 	defer wg.Done()
@@ -90,8 +90,8 @@ func ProofGenA(
 	return nil
 }
 
-// ProofGenB takes waitgroup, index, bit, along with the data to operate on
-func ProofGenB(
+// proofGenB takes waitgroup, index, bit, along with the data to operate on
+func proofGenB(
 	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *ProverInternalData) error {
 
 	defer wg.Done()
@@ -150,7 +150,7 @@ func ProofGenB(
 // Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
 // to do commitments on the bitwise decomposition of our value.
 //
-func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
+func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	proof := RangeProof{}
 
 	// extend or truncate our value to 64 bits, which is the range we are proving
@@ -185,7 +185,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
 		// TODO: Check errors
-		go ProofGenA(&wg, i, value.Bit(i) == 1, stuff)
+		go proofGenA(&wg, i, value.Bit(i) == 1, stuff)
 	}
 	wg.Wait()
 
@@ -208,7 +208,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
 		// TODO: Check errors
-		go ProofGenB(
+		go proofGenB(
 			&wg, i, value.Bit(i) == 1, e0, stuff)
 	}
 	wg.Wait()
@@ -260,7 +260,7 @@ func VerifyGen(
 	retbox <- result
 }
 
-func RangeProverVerify(comm ECPoint, proof *RangeProof) bool {
+func (proof *RangeProof) Verify(comm ECPoint) bool {
 	proofs := proof.ProofTuples
 
 	proofLength := len(proofs)
