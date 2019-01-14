@@ -94,7 +94,7 @@ func genChain(n, m uint64, initBytes []byte, option int) []ECPoint {
 	return vec
 }
 
-// Returns the public view on the generator
+// Share returns the public view on the generator
 func (g Generator) Share(j uint64) GeneratorView {
 	return GeneratorView{&g.VecG[j], &g.VecH[j]}
 }
@@ -377,13 +377,13 @@ type InProdProof struct {
 
 */
 
-// InProdProve will generate a proof that shows the final commitment provided
-// is generated from two scalar vectors reduced into one commtiment
-func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
+// NewInProdProof will generate a proof that shows the final commitment provided
+// is generated from two scalar vectors reduced into one commitment
+func NewInProdProof(a, b []*big.Int, G, H []ECPoint) (*InProdProof, bool) {
 
 	if len(a)%2 != 0 && (len(a) != len(b) || len(a) != len(G) || len(a) != len(H)) {
 		logStuff("InProdProof:\n - lengths of arrays do not agree/not multiple of 2\n")
-		return InProdProof{}, false
+		return nil, false
 	}
 
 	k := rootNumBits
@@ -461,7 +461,7 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		logStuff("InProdProof:\n - len(a) is not 1 and/or len(a) != len(b) OR for G and H the same\n")
 		logStuff(" - Proof failed to generate\n")
 		logStuff(" - a: %v\n - b: %v\n", a, b)
-		return InProdProof{}, false
+		return nil, false
 	}
 
 	// Internal verficiation, this is where the proof is failing
@@ -489,14 +489,14 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 	if !proof.P.Equal(total) {
 		logStuff("Internal check did not pass!\n")
-		return InProdProof{}, false
+		return nil, false
 	}
 
-	return proof, true
+	return &proof, true
 }
 
-// InProdVerify will check if an InProdProof is correct
-func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
+// Verify will check if an InProdProof is correct
+func (proof *InProdProof) Verify(G, H []ECPoint) bool {
 
 	// generate vector s
 	s := make([]*big.Int, numBits)
@@ -538,14 +538,17 @@ func InProdVerify(G, H []ECPoint, proof InProdProof) bool {
 	return true
 }
 
-type newInProdProof struct {
+type RecursiveInProdProof struct {
 	A        *big.Int
 	B        *big.Int
 	LeftVec  []ECPoint
 	RightVec []ECPoint
 }
 
-func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec, RightVec []ECPoint) (*newInProdProof, error) {
+// NewRecursiveInProdProof will generate a proof that shows the final commitment provided
+// is generated from two scalar vectors reduced into one commitment. This proves the same
+// thing as NewInProdProof, only uses a recursive logic in stead of a for loop
+func NewRecursiveInProdProof(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec, RightVec []ECPoint) (*RecursiveInProdProof, error) {
 	n := len(a)
 
 	// fmt.Printf("LENGTH OF A: %v\n", len(a))
@@ -561,7 +564,7 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 		return nil, &errorProof{"InProdProveRecursive", "length of vectors not power of 2"}
 	}
 	if n == 1 {
-		return &newInProdProof{a[0], b[0], LeftVec, RightVec}, nil
+		return &RecursiveInProdProof{a[0], b[0], LeftVec, RightVec}, nil
 	}
 	if n == 0 {
 		log.Println("======= How did we get here!!!!??? ========")
@@ -618,11 +621,12 @@ func InProdProveRecursive(a, b []*big.Int, prevChallenge *big.Int, G, H, LeftVec
 
 	// fmt.Println("Recursing...")
 
-	return InProdProveRecursive(NewA, NewB, prevChallenge, NewG, NewH, LeftVec, RightVec)
+	return NewRecursiveInProdProof(NewA, NewB, prevChallenge, NewG, NewH, LeftVec, RightVec)
 
 }
 
-func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
+// Verify verifies if a RecursiveInProdProof is valid
+func (proof *RecursiveInProdProof) Verify(G, H []ECPoint) (bool, error) {
 	n := len(G)
 
 	if n != int(numBits) || n != len(H) {

@@ -136,7 +136,7 @@ func TestInProdProveOriginal(t *testing.T) {
 	copy(inputG, ZKGen.VecG)
 	copy(inputH, ZKGen.VecH)
 
-	proof, status := InProdProve(a, b, inputG, inputH)
+	proof, status := NewInProdProof(a, b, inputG, inputH)
 
 	if !status {
 		t.Fatalf("InProdProof did not generate properly!\n")
@@ -147,7 +147,7 @@ func TestInProdProveOriginal(t *testing.T) {
 	copy(inputG, ZKGen.VecG)
 	copy(inputH, ZKGen.VecH)
 
-	status = InProdVerify(inputG, inputH, proof)
+	status = proof.Verify(inputG, inputH)
 	if !status {
 		t.Fatalf("InProdProof did not verify!\n")
 	}
@@ -181,7 +181,7 @@ func TestInProdProveRecusive(t *testing.T) {
 		inputH[ii] = ECCopy(ZKGen.VecH[ii])
 	}
 
-	proof, err := InProdProveRecursive(a, b, big.NewInt(0), inputG, inputH, make([]ECPoint, 0), make([]ECPoint, 0))
+	proof, err := NewRecursiveInProdProof(a, b, big.NewInt(0), inputG, inputH, make([]ECPoint, 0), make([]ECPoint, 0))
 
 	if err != nil {
 		t.Fatalf("InProdProof did not generate properly!\n")
@@ -194,7 +194,7 @@ func TestInProdProveRecusive(t *testing.T) {
 		inputH[ii] = ECCopy(ZKGen.VecH[ii])
 	}
 
-	status, err := InProdVerify1(inputG, inputH, proof)
+	status, err := proof.Verify(inputG, inputH)
 
 	if !status || err != nil {
 		fmt.Printf("%v", err.Error())
