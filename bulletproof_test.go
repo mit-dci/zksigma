@@ -176,7 +176,7 @@ func TestInProdProveRecusive(t *testing.T) {
 
 	inputG := make([]ECPoint, len(ZKGen.VecG))
 	inputH := make([]ECPoint, len(ZKGen.VecH))
-	for ii, _ := range ZKGen.VecG {
+	for ii := range ZKGen.VecG {
 		inputG[ii] = ECCopy(ZKGen.VecG[ii])
 		inputH[ii] = ECCopy(ZKGen.VecH[ii])
 	}
@@ -189,7 +189,7 @@ func TestInProdProveRecusive(t *testing.T) {
 
 	inputG = make([]ECPoint, len(ZKGen.VecG))
 	inputH = make([]ECPoint, len(ZKGen.VecH))
-	for ii, _ := range ZKGen.VecG {
+	for ii := range ZKGen.VecG {
 		inputG[ii] = ECCopy(ZKGen.VecG[ii])
 		inputH[ii] = ECCopy(ZKGen.VecH[ii])
 	}

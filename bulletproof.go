@@ -227,6 +227,9 @@ func vecAddEC(G []ECPoint, H []ECPoint) []ECPoint {
 
 }
 
+/* Since vecSub is not yet used anywhere, commenting it out. Maybe useful in the
+   future
+
 func vecSub(x, y []*big.Int) []*big.Int {
 	if len(x) != len(y) {
 		return nil
@@ -238,6 +241,7 @@ func vecSub(x, y []*big.Int) []*big.Int {
 	}
 	return res
 }
+*/
 
 func splitVec(x []*big.Int) ([]*big.Int, []*big.Int) {
 
@@ -320,6 +324,8 @@ func scalarEC(x *big.Int, G []ECPoint) []ECPoint {
 
 }
 
+/* This function is not used anywhere. Keeping it in comments for future use
+
 func ecVecBytes(x []ECPoint) []byte {
 	var byteArr []byte
 	for _, vv := range x {
@@ -327,6 +333,7 @@ func ecVecBytes(x []ECPoint) []byte {
 	}
 	return byteArr
 }
+*/
 
 //========== INNER PRODUCT PROOF =========
 
@@ -417,14 +424,8 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 
 		// Prover calcualtes L and R
 		// The two statements below work just fine, don't mess with the brackets...
-		// Something fucky going on here...
-		thing1 := ecDotProd(aL, GR)
-		thing2 := ecDotProd(bR, HL)
-		thing3 := Q.Mult(dotProd(aL, bR))
-
-		proof.LeftVec[ii] = thing1.Add(thing2.Add(thing3))
+		proof.LeftVec[ii] = ecDotProd(aL, GR).Add(ecDotProd(bR, HL).Add(Q.Mult(dotProd(aL, bR))))
 		proof.RightVec[ii] = ecDotProd(aR, GL).Add(ecDotProd(bL, HR).Add(Q.Mult(dotProd(aR, bL))))
-		// logStuff(" LeftV[%v]: %v \nRightV[%v]: %v\n", ii, proof.LeftVec[ii], ii, proof.RightVec[ii])
 
 		// FS-Transform to make this non interactive is to write in each L and R into the buffer
 		// stringing these consecutive hashes locks in each value of L and R to the previous ones
@@ -449,7 +450,6 @@ func InProdProve(a, b []*big.Int, G, H []ECPoint) (InProdProof, bool) {
 		if ii == 0 {
 			break
 		}
-
 	}
 
 	if (len(a) != 1 || len(a) != len(b)) && (len(G) != 1 || len(G) != len(H)) {
@@ -630,7 +630,7 @@ func InProdVerify1(G, H []ECPoint, proof *newInProdProof) (bool, error) {
 	var FinalG, FinalH ECPoint
 	checkC := Zero
 
-	for ii, _ := range proof.LeftVec {
+	for ii := range proof.LeftVec {
 		n = n / 2
 		L := proof.LeftVec[ii]
 		R := proof.RightVec[ii]

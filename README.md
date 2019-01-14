@@ -15,7 +15,7 @@ Statements that can be proved:
 - I know the discrete log of a commitment A(=aG) (GSPFS Proof)
 - I know the discrete log of commitments A(=xG) and B(=xH) and they are equal (Equivilance Proof)
 - I know either the discrete log of commitments A or B (Disjunctive Proof)
-- I know that the blinding factor of commitments A and B are equal (Consistancy Proof)
+- I know that the blinding factor of commitments A and B are equal (Consistency Proof)
 - I know a, b, and c in commitments A, B and C and a * b = c (ABC Proof)
 - I know commitments a and b in commitments A and B and  a != b  (InequalityProve -> ABCProof)
 

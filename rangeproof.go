@@ -258,8 +258,6 @@ func VerifyGen(
 	result.Rpoint = rpt.C.Mult(e1)
 
 	retbox <- result
-
-	return
 }
 
 func RangeProverVerify(comm ECPoint, proof *RangeProof) bool {
@@ -319,9 +317,5 @@ func RangeProverVerify(comm ECPoint, proof *RangeProof) bool {
 	// TODO
 	// This checks that comm and proof Aggregate are equal.  seems "pointless".
 
-	if !comm.Equal(totalPoint) {
-		return false
-	}
-
-	return true
+	return comm.Equal(totalPoint)
 }

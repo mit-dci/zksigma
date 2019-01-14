@@ -12,13 +12,19 @@ import (
 	"github.com/mit-dci/zksigma/btcec"
 )
 
+// DEBUG Indicates whether we output debug information while running the tests. Default off.
 var DEBUG = flag.Bool("debug1", false, "Debug output")
+
+// NOBASIC configures whether we skip the basic crypto tests
 var NOBASIC = flag.Bool("nobasic", false, "Skips basic tests")
 var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof and make it pass verification")
 
-// Global variables used to maintain all the crypto constants
-var ZKCurve zkpCrypto // initialized in init()
-var HPoints []ECPoint // initialized in init()
+// ZKCurve is a global cache for the curve and two generator points used in the various proof
+// generation and verification functions.
+var ZKCurve zkpCrypto
+
+// HPoints is initialized with a pre-populated array of the ZKCurve's generator point H multiplied by 2^x where x = [0...63]
+var HPoints []ECPoint
 
 // zkpCrypto is zero knowledge proof curve and params struct, only one instance should be used
 type zkpCrypto struct {
@@ -57,6 +63,7 @@ type ECPoint struct {
 	X, Y *big.Int
 }
 
+// Zero is a cached variable containing ECPoint{big.NewInt(0), big.NewInt(0)}
 var Zero ECPoint // initialized in init()
 
 // Equal returns true if points p (self) and p2 (arg) are the same.
@@ -157,10 +164,7 @@ func CommitR(pk ECPoint, r *big.Int) ECPoint {
 // by generating a new point and comparing the two
 func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 	p := CommitR(pk, r) // Generate test point (P) using pk and r
-	if p.Equal(rt) {
-		return true
-	}
-	return false
+	return p.Equal(rt)
 }
 
 // =============== PEDERSEN COMMITMENTS ================
@@ -211,7 +215,7 @@ func GenerateChallenge(arr ...[]byte) *big.Int {
 
 // ====== init =========
 
-func GenerateH2tothe() []ECPoint {
+func generateH2tothe() []ECPoint {
 	Hslice := make([]ECPoint, 64)
 	for i := range Hslice {
 		m := big.NewInt(1 << uint(i))
@@ -229,6 +233,6 @@ func init() {
 		ECPoint{btcec.S256().Gx, btcec.S256().Gy},
 		ECPoint{HX, HY},
 	}
-	HPoints = GenerateH2tothe()
+	HPoints = generateH2tothe()
 	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
 }
