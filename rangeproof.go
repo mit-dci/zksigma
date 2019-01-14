@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// RANGE indicates if we are running the rangeproof test cases (default: false)
 var RANGE = flag.Bool("range", false, "Run rangeproof test cases")
 
 // The following was copy-pasted from zkLedger's original implementation by Willy (github.com/wrv)
@@ -237,7 +238,7 @@ type VerifyTuple struct {
 }
 
 // give it a proof tuple, proofE.  Get back an Rpoint, and a Cpoint
-func VerifyGen(
+func verifyGen(
 	idx int, proofE *big.Int, rpt RangeProofTuple, retbox chan VerifyTuple) {
 
 	lhs := ZKCurve.H.Mult(rpt.S)
@@ -284,7 +285,7 @@ func (proof *RangeProof) Verify(comm ECPoint) bool {
 		}
 
 		// give proof to the verify gorouting
-		go VerifyGen(i, proof.ProofE, proof.ProofTuples[i], resultBox)
+		go verifyGen(i, proof.ProofE, proof.ProofTuples[i], resultBox)
 	}
 
 	for i := 0; i < proofLength; i++ {
