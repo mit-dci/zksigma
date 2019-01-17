@@ -1,6 +1,9 @@
 package zksigma
 
-import "math/big"
+import (
+	"fmt"
+	"math/big"
+)
 
 type InequalityProof ABCProof
 
@@ -32,5 +35,9 @@ func NewInequalityProof(A, B, CMTokA, CMTokB ECPoint, a, b, sk *big.Int) (*Inequ
 
 // Verify checks if InequalityProof ieProof with appropriate commits CM and CMTok is correct
 func (ieProof *InequalityProof) Verify(CM, CMTok ECPoint) (bool, error) {
+	if ieProof == nil {
+		return false, &errorProof{"InequalityProof.Verify", fmt.Sprintf("passed proof is nil")}
+	}
+
 	return ((*ABCProof)(ieProof)).Verify(CM, CMTok)
 }

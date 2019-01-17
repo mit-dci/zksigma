@@ -2,6 +2,7 @@ package zksigma
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 )
 
@@ -65,6 +66,11 @@ func NewGSPFSProofBase(base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
 
 // GSPFSVerify checks if GSPFSProof proof is a valid proof for commitment A
 func (proof *GSPFSProof) Verify(A ECPoint) (bool, error) {
+
+	if proof == nil {
+		return false, &errorProof{"GSPFSProof.Verify", fmt.Sprintf("passed proof is nil")}
+	}
+
 	// A = xG and RandCommit = uG
 	testC := GenerateChallenge(A.Bytes(), proof.RandCommit.Bytes())
 

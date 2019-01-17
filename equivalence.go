@@ -37,6 +37,7 @@ func NewEquivalenceProof(
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
 
+
 	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 	check1 := Base1.Mult(modValue)
 
@@ -82,6 +83,11 @@ func NewEquivalenceProof(
 // Base2. Both using the same x as discrete log.
 func (eqProof *EquivalenceProof) Verify(
 	Base1, Result1, Base2, Result2 ECPoint) (bool, error) {
+
+	if eqProof == nil {
+		return false, &errorProof{"EquivalenceVerify", fmt.Sprintf("passed proof is nil")}
+	}
+
 	// Regenerate challenge string
 	c := GenerateChallenge(Base1.Bytes(), Result1.Bytes(),
 		Base2.Bytes(), Result2.Bytes(),

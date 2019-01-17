@@ -88,6 +88,10 @@ func NewConsistencyProof(
 func (conProof *ConsistencyProof) Verify(
 	CM, CMTok, PubKey ECPoint) (bool, error) {
 
+	if conProof == nil {
+		return false, &errorProof{"ConsistencyProof.Verify", fmt.Sprintf("passed proof is nil")}
+	}
+
 	// CM should be point1, Y should be point2
 
 	// Regenerate challenge string

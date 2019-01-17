@@ -68,6 +68,8 @@ func KeyGen() (ECPoint, *big.Int) {
 	return ECPoint{pkX, pkY}, sk
 }
 
+var BigZero *big.Int
+
 // ============ ECPoint OPERATIONS ==================
 
 type ECPoint struct {
@@ -87,6 +89,11 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 
 // Mult multiplies point p by scalar s and returns the resulting point
 func (p ECPoint) Mult(s *big.Int) ECPoint {
+
+	if p.X == nil && p.Y == nil { // Multiplying a nil point is "pointless". ha.
+		return ECPoint{nil, nil}
+	}
+
 	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
 
 	// if p.Equal(Zero) {
@@ -96,13 +103,10 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 	if p.Equal(ZKCurve.G) {
 		X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
 		return ECPoint{X, Y}
-	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
-		X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
-		return ECPoint{X, Y}
 	}
-	logStuff("ECPoint.Mult():\n - p is not on the curve\n")
-	logStuff(" -  POINT: %v\n - SCALAR: %v\n", p, s)
-	return ECPoint{nil, nil}
+
+	X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
+	return ECPoint{X, Y}
 }
 
 // Add adds points p and p2 and returns the resulting point
@@ -114,11 +118,6 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 		return p2
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
-
-	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
-		return ECPoint{nil, nil}
 	}
 
 	X, Y := ZKCurve.C.Add(p.X, p.Y, p2.X, p2.Y)
@@ -134,10 +133,6 @@ func (p ECPoint) Sub(p2 ECPoint) ECPoint {
 		return p2.Neg()
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
-	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
-		return ECPoint{nil, nil}
 	}
 
 	temp := p2.Neg()
@@ -245,5 +240,7 @@ func init() {
 		ECPoint{HX, HY},
 	}
 	HPoints = generateH2tothe()
-	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
+	BigZero = big.NewInt(0)
+	Zero = ECPoint{BigZero, BigZero}
+
 }

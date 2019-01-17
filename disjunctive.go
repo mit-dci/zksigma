@@ -2,6 +2,7 @@ package zksigma
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 )
 
@@ -149,6 +150,10 @@ func NewDisjunctiveProof(
 // Verify checks if DisjunctiveProof djProof is valid for the given bases and results
 func (djProof *DisjunctiveProof) Verify(
 	Base1, Result1, Base2, Result2 ECPoint) (bool, error) {
+
+	if djProof == nil {
+		return false, &errorProof{"DisjunctiveProof.Verify", fmt.Sprintf("passed proof is nil")}
+	}
 
 	T1 := djProof.T1
 	T2 := djProof.T2

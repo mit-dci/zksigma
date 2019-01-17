@@ -261,7 +261,11 @@ func verifyGen(
 	retbox <- result
 }
 
-func (proof *RangeProof) Verify(comm ECPoint) bool {
+func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
+	if proof == nil {
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("passed proof is nil")}
+	}
+
 	proofs := proof.ProofTuples
 
 	proofLength := len(proofs)
@@ -275,12 +279,10 @@ func (proof *RangeProof) Verify(comm ECPoint) bool {
 	for i := 0; i < proofLength; i++ {
 		// check that proofs are non-nil
 		if proof.ProofTuples[i].C.X == nil {
-			fmt.Println(proofs)
-			panic(fmt.Sprintf("entry %d has nil point", i))
+			return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("entry %d has nil point", i)}
 		}
 		if proof.ProofTuples[i].S == nil {
-			fmt.Println(proofs)
-			panic(fmt.Sprintf("entry %d has nil scalar", i))
+			return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("entry %d has nil scalar", i)}
 
 		}
 
@@ -307,16 +309,16 @@ func (proof *RangeProof) Verify(comm ECPoint) bool {
 	calculatedE0 := rHash.Sum(nil)
 
 	if proof.ProofE.Cmp(new(big.Int).SetBytes(calculatedE0[:])) != 0 {
-		//fmt.Println("check 1")
-		return false
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("calculatedE0 does not match")}
 	}
 
 	if !totalPoint.Equal(proof.ProofAggregate) {
-		return false
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("ProofAggregate does not match totalPoint")}
 	}
 
-	// TODO
-	// This checks that comm and proof Aggregate are equal.  seems "pointless".
+	if !comm.Equal(totalPoint) {
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("ProofAggregate does not match commitment")}
+	}
 
-	return comm.Equal(totalPoint)
+	return true, nil
 }
