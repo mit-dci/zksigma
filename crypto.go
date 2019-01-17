@@ -230,7 +230,7 @@ func generateH2tothe() []ECPoint {
 	Hslice := make([]ECPoint, 64)
 	for i := range Hslice {
 		m := big.NewInt(1 << uint(i))
-		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
+		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
 	}
 	return Hslice
 }
