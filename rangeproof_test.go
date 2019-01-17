@@ -20,10 +20,13 @@ func TestRangeProver_Verify(t *testing.T) {
 	comm := PedCommitR(value, rp)
 	if !comm.Equal(proof.ProofAggregate) {
 		t.Error("Error computing the randomnesses used -- commitments did not check out when supposed to")
-	} else if !proof.Verify(comm) {
-		t.Error("** Range proof failed")
 	} else {
-		fmt.Println("Passed TestRangeProver_Verify")
+		ok, err := proof.Verify(comm)
+		if !ok {
+			t.Errorf("** Range proof failed: %s", err)
+		} else {
+			fmt.Println("Passed TestRangeProver_Verify")
+		}
 	}
 }
 
