@@ -55,6 +55,19 @@ func logStuff(format string, args ...interface{}) {
 	}
 }
 
+// == Keygen ==
+
+func KeyGen() (ECPoint, *big.Int) {
+
+	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		panic(err)
+	}
+	pkX, pkY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, sk.Bytes())
+
+	return ECPoint{pkX, pkY}, sk
+}
+
 // ============ ECPoint OPERATIONS ==================
 
 type ECPoint struct {
