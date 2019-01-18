@@ -1,13 +1,12 @@
 package zksigma
 
 import (
+	"bytes"
 	"crypto/rand"
 	"math/big"
-)
 
-// =================== a * b = c MULTIPLICATIVE RELATIONSHIP ===================
-// The following is to generate a proof if the transaction we are checking
-// involves the bank being audited
+	"github.com/mit-dci/zksigma/wire"
+)
 
 // ABCProof is a proof that generates a proof that the relationship between three
 // scalars a,b and c is ab = c
@@ -168,14 +167,6 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 
 }
 
-/*
-	proofA ?= true
-	proofC ?= true
-	c ?= HASH(G,H,CM,CMTok,B,C,T1,T2)
-	cCM + T1 ?= jG + kCMTok
-	cC + T2 ?= jB + lH
-*/
-
 // Verify checks if ABCProof aProof with appropriate commits CM and CMTok is correct
 func (aProof *ABCProof) Verify(CM, CMTok ECPoint) (bool, error) {
 
@@ -225,4 +216,72 @@ func (aProof *ABCProof) Verify(CM, CMTok ECPoint) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (proof *ABCProof) Bytes() []byte {
+	var buf bytes.Buffer
+
+	WriteECPoint(&buf, proof.B)
+	WriteECPoint(&buf, proof.C)
+	WriteECPoint(&buf, proof.T1)
+	WriteECPoint(&buf, proof.T2)
+	WriteBigInt(&buf, proof.Challenge)
+	WriteBigInt(&buf, proof.j)
+	WriteBigInt(&buf, proof.k)
+	WriteBigInt(&buf, proof.l)
+	WriteECPoint(&buf, proof.CToken)
+	wire.WriteVarBytes(&buf, proof.disjuncAC.Bytes())
+
+	return buf.Bytes()
+}
+
+func NewABCProofFromBytes(b []byte) (*ABCProof, error) {
+	proof := new(ABCProof)
+	buf := bytes.NewBuffer(b)
+	var err error
+	proof.B, err = ReadECPoint(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.C, err = ReadECPoint(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.T1, err = ReadECPoint(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.T2, err = ReadECPoint(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.Challenge, err = ReadBigInt(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.j, err = ReadBigInt(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.k, err = ReadBigInt(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.l, err = ReadBigInt(buf)
+	if err != nil {
+		return nil, err
+	}
+	proof.CToken, err = ReadECPoint(buf)
+	if err != nil {
+		return nil, err
+	}
+	disjuncBytes, err := wire.ReadVarBytes(buf, 100000, "disjunctProof")
+	if err != nil {
+		return nil, err
+	}
+	proof.disjuncAC, err = NewDisjunctiveProofFromBytes(disjuncBytes)
+	if err != nil {
+		return nil, err
+	}
+	return proof, nil
 }

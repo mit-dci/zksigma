@@ -1,6 +1,7 @@
 package zksigma
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -197,4 +198,31 @@ func (djProof *DisjunctiveProof) Verify(
 	}
 
 	return true, nil
+}
+
+func (proof *DisjunctiveProof) Bytes() []byte {
+	var buf bytes.Buffer
+
+	WriteECPoint(&buf, proof.T1)
+	WriteECPoint(&buf, proof.T2)
+	WriteBigInt(&buf, proof.C)
+	WriteBigInt(&buf, proof.C1)
+	WriteBigInt(&buf, proof.C2)
+	WriteBigInt(&buf, proof.S1)
+	WriteBigInt(&buf, proof.S2)
+
+	return buf.Bytes()
+}
+
+func NewDisjunctiveProofFromBytes(b []byte) (*DisjunctiveProof, error) {
+	proof := new(DisjunctiveProof)
+	buf := bytes.NewBuffer(b)
+	proof.T1, _ = ReadECPoint(buf)
+	proof.T2, _ = ReadECPoint(buf)
+	proof.C, _ = ReadBigInt(buf)
+	proof.C1, _ = ReadBigInt(buf)
+	proof.C2, _ = ReadBigInt(buf)
+	proof.S1, _ = ReadBigInt(buf)
+	proof.S2, _ = ReadBigInt(buf)
+	return proof, nil
 }

@@ -1,6 +1,7 @@
 package zksigma
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -36,7 +37,6 @@ func NewEquivalenceProof(
 	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (*EquivalenceProof, error) {
 	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
 	// x trying to be proved that both G and H are raised with x
-
 
 	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 	check1 := Base1.Mult(modValue)
@@ -119,4 +119,25 @@ func (eqProof *EquivalenceProof) Verify(
 	// All three checks passed, proof must be correct
 	return true, nil
 
+}
+
+func (proof *EquivalenceProof) Bytes() []byte {
+	var buf bytes.Buffer
+
+	WriteECPoint(&buf, proof.UG)
+	WriteECPoint(&buf, proof.UH)
+	WriteBigInt(&buf, proof.Challenge)
+	WriteBigInt(&buf, proof.HiddenValue)
+
+	return buf.Bytes()
+}
+
+func NewEquivalenceProofFromBytes(b []byte) (*EquivalenceProof, error) {
+	proof := new(EquivalenceProof)
+	buf := bytes.NewBuffer(b)
+	proof.UG, _ = ReadECPoint(buf)
+	proof.UH, _ = ReadECPoint(buf)
+	proof.Challenge, _ = ReadBigInt(buf)
+	proof.HiddenValue, _ = ReadBigInt(buf)
+	return proof, nil
 }

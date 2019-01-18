@@ -30,6 +30,32 @@ func TestRangeProver_Verify(t *testing.T) {
 	}
 }
 
+func TestRangeProverSerialization(t *testing.T) {
+
+	if !*RANGE {
+		fmt.Println("Skipped TestRangeProverSerialization - use -range flag to run")
+		t.Skip("Skipped TestRangeProverSerialization")
+	}
+
+	value, _ := rand.Int(rand.Reader, big.NewInt(1099511627775))
+	proof, rp := NewRangeProof(value)
+	proof, err := NewRangeProofFromBytes(proof.Bytes())
+	if err != nil {
+		t.Fatalf("TestRangeProverSerialization failed to deserialize\n")
+	}
+	comm := PedCommitR(value, rp)
+	if !comm.Equal(proof.ProofAggregate) {
+		t.Error("Error computing the randomnesses used -- commitments did not check out when supposed to")
+	} else {
+		ok, err := proof.Verify(comm)
+		if !ok {
+			t.Errorf("** Range proof failed: %s", err)
+		} else {
+			fmt.Println("Passed TestRangeProverSerialization")
+		}
+	}
+}
+
 func TestOutOfRangeRangeProver_Verify(t *testing.T) {
 
 	if !*RANGE {

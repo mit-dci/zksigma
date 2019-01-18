@@ -55,6 +55,25 @@ func TestDisjunctive(t *testing.T) {
 
 }
 
+func TestDisjuncSerialization(t *testing.T) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(randVal)
+	proof, _ := NewDisjunctiveProof(Base1, Result1, Base2, Result2, value, Left)
+	proof, err := NewDisjunctiveProofFromBytes(proof.Bytes())
+	if err != nil {
+		t.Fatalf("TestDisjuncSerialization failed to deserialize\n")
+	}
+	ok, err := proof.Verify(Base1, Result1, Base2, Result2)
+	if !ok || err != nil {
+		t.Fatalf("TestDisjuncSerialization failed to verify\n")
+	}
+	fmt.Println("Passed TestDisjuncSerialization")
+}
+
 func BenchmarkDisjuncProve_LEFT(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
