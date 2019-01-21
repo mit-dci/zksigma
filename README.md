@@ -46,7 +46,7 @@ Notation:
 ## Articles related to NIZK Proofs
 
 [Simga Protocols](http://www.cs.au.dk/~ivan/Sigma.pdf)
-: is a three step protocol where a prover and verifier can exchange a commitment and a challenge in order to verify proof of knowledge behind the commitment. [Simple explination here.](https://en.wikipedia.org/wiki/Proof_of_knowledge#Sigma_protocols)
+: is a three step protocol where a prover and verifier can exchange a commitment and a challenge in order to verify proof of knowledge behind the commitment. [Simple explanation here.](https://en.wikipedia.org/wiki/Proof_of_knowledge#Sigma_protocols)
 
 ftp://ftp.inf.ethz.ch/pub/crypto/publications/Maurer09.pdf (ftp link won't embed)
 
