@@ -143,7 +143,7 @@ func proofGenB(
 	return nil
 }
 
-/// RangeProof
+// RangeProof
 // Implementation details from:
 // https://blockstream.com/bitcoin17-final41.pdf
 // NOTE: To be consistent with our use of Pedersen commitments, we switch the G and H values
