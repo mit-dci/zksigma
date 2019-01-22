@@ -4,16 +4,12 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	"flag"
 	"fmt"
 	"math/big"
 	"sync"
 
 	"github.com/mit-dci/zksigma/wire"
 )
-
-// RANGE indicates if we are running the rangeproof test cases (default: false)
-var RANGE = flag.Bool("range", false, "Run rangeproof test cases")
 
 // The following was copy-pasted from zkLedger's original implementation by Willy (github.com/wrv)
 // TODO: replace rangeproofs of zkLedger with bulletproofs, eventually
