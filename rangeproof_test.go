@@ -25,7 +25,7 @@ func TestRangeProver_Verify(t *testing.T) {
 		if !ok {
 			t.Errorf("** Range proof failed: %s", err)
 		} else {
-			fmt.Println("Passed TestRangeProver_Verify")
+
 		}
 	}
 }
@@ -51,7 +51,7 @@ func TestRangeProverSerialization(t *testing.T) {
 		if !ok {
 			t.Errorf("** Range proof failed: %s", err)
 		} else {
-			fmt.Println("Passed TestRangeProverSerialization")
+
 		}
 	}
 }
@@ -76,6 +76,6 @@ func TestOutOfRangeRangeProver_Verify(t *testing.T) {
 	if proof != nil || rp != nil {
 		t.Error("Error computing the range proof; shouldn't work")
 	} else {
-		fmt.Println("Passed TestOutOfRangeProver_Verify")
+
 	}
 }

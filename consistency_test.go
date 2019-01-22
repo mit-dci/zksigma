@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"testing"
 )
 
@@ -45,8 +44,6 @@ func TestConsistency(t *testing.T) {
 	if status2 == nil {
 		t.Fatalf("TestConsistency - incorrect error message for correct proof, case 2\n")
 	}
-
-	fmt.Println("Passed TestConsistency")
 }
 
 func TestConsistencySerialization(t *testing.T) {
@@ -84,7 +81,6 @@ func TestConsistencySerialization(t *testing.T) {
 	if !check || err != nil {
 		t.Fatalf("Error -- Proof should be correct\n")
 	}
-	fmt.Println("Passed TestConsistencySerialization")
 }
 
 func BenchmarkConsistencyProve(b *testing.B) {
