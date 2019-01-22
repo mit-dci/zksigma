@@ -235,14 +235,14 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	return &proof, vTotal
 }
 
-type VerifyTuple struct {
+type verifyTuple struct {
 	index  int
 	Rpoint ECPoint
 }
 
 // give it a proof tuple, proofE.  Get back an Rpoint, and a Cpoint
 func verifyGen(
-	idx int, proofE *big.Int, rpt RangeProofTuple, retbox chan VerifyTuple) {
+	idx int, proofE *big.Int, rpt RangeProofTuple, retbox chan verifyTuple) {
 
 	lhs := ZKCurve.H.Mult(rpt.S)
 
@@ -257,7 +257,7 @@ func verifyGen(
 
 	e1 := new(big.Int).SetBytes(hash[:])
 
-	var result VerifyTuple
+	var result verifyTuple
 	result.index = idx
 	result.Rpoint = rpt.C.Mult(e1)
 
@@ -277,7 +277,7 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 
 	totalPoint := ECPoint{big.NewInt(0), big.NewInt(0)}
 
-	resultBox := make(chan VerifyTuple, 10) // doubt we'll use even 1
+	resultBox := make(chan verifyTuple, 10) // doubt we'll use even 1
 
 	for i := 0; i < proofLength; i++ {
 		// check that proofs are non-nil
