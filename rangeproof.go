@@ -150,7 +150,7 @@ func proofGenB(
 // Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
 // to do commitments on the bitwise decomposition of our value.
 //
-func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
+func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	proof := RangeProof{}
 
 	// extend or truncate our value to 64 bits, which is the range we are proving
@@ -158,16 +158,14 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	// else, because of truncation, it will be deemed out of range not be equal
 
 	if value.Cmp(big.NewInt(1099511627776)) == 1 {
-		fmt.Printf("val %s too big, can only prove up to 1099511627776\n", value.String())
-		return nil, nil
+		return nil, nil, fmt.Errorf("val %s too big, can only prove up to 1099511627776\n", value.String())
 	}
 
 	proofSize := 40
 	// check to see if our value is out of range
 	if proofSize > 40 || value.Cmp(big.NewInt(0)) == -1 {
 		//if so, then we can't play
-		fmt.Printf("** Trying to get a value that is out of range! Range Proof will not work!\n")
-		return nil, nil
+		return nil, nil, fmt.Errorf("** Trying to get a value that is out of range! Range Proof will not work!\n")
 	}
 
 	stuff := new(ProverInternalData)
@@ -228,7 +226,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	proof.ProofE = e0
 	proof.ProofAggregate = AggregatePoint
 
-	return &proof, vTotal
+	return &proof, vTotal, nil
 }
 
 type VerifyTuple struct {
