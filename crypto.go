@@ -160,6 +160,7 @@ func ECCopy(p ECPoint) ECPoint {
 	return ECPoint{newX, newY}
 }
 
+// WriteECPoint write an ECPoint to io.Writer w
 func WriteECPoint(w io.Writer, p ECPoint) error {
 	err := wire.WriteVarBytes(w, p.X.Bytes())
 	if err != nil {
@@ -169,6 +170,7 @@ func WriteECPoint(w io.Writer, p ECPoint) error {
 	return err
 }
 
+// ReadECPoint reads an ECPoint from io.Reader r
 func ReadECPoint(r io.Reader) (ECPoint, error) {
 	xBytes, err := wire.ReadVarBytes(r, 32, "x")
 	if err != nil {
@@ -181,6 +183,7 @@ func ReadECPoint(r io.Reader) (ECPoint, error) {
 	return ECPoint{X: big.NewInt(0).SetBytes(xBytes), Y: big.NewInt(0).SetBytes(yBytes)}, nil
 }
 
+// WriteBigInt write a big.Int to io.Writer w
 func WriteBigInt(w io.Writer, b *big.Int) error {
 	neg := []byte{0x00}
 	if b.Sign() < 0 {
@@ -190,6 +193,7 @@ func WriteBigInt(w io.Writer, b *big.Int) error {
 	return err
 }
 
+// ReadBigInt reads a big.Int from io.Reader r
 func ReadBigInt(r io.Reader) (*big.Int, error) {
 	bBytes, err := wire.ReadVarBytes(r, 32, "")
 	if err != nil {
