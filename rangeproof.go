@@ -22,6 +22,17 @@ type rangeProofTuple struct {
 	S *big.Int
 }
 
+// RangeProof
+// Implementation details from:
+// https://blockstream.com/bitcoin17-final41.pdf
+// NOTE: To be consistent with our use of Pedersen commitments, we switch the G and H values
+// from the above description
+//
+// Takes in a value and randomness used in a commitment, and produces a proof that
+// our value is in range 2^64.
+// Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
+// to do commitments on the bitwise decomposition of our value.
+//
 type RangeProof struct {
 	ProofAggregate ECPoint
 	ProofE         *big.Int
@@ -139,17 +150,7 @@ func proofGenB(
 	return nil
 }
 
-/// RangeProof
-// Implementation details from:
-// https://blockstream.com/bitcoin17-final41.pdf
-// NOTE: To be consistent with our use of Pedersen commitments, we switch the G and H values
-// from the above description
-//
-// Takes in a value and randomness used in a commitment, and produces a proof that
-// our value is in range 2^64.
-// Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
-// to do commitments on the bitwise decomposition of our value.
-//
+// NewRangeProof generates a range proof for the given value
 func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	proof := RangeProof{}
 
