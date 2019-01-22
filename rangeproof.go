@@ -17,7 +17,7 @@ import (
 ///////////////////////
 // RANGE PROOFS
 
-type RangeProofTuple struct {
+type rangeProofTuple struct {
 	C ECPoint
 	S *big.Int
 }
@@ -25,10 +25,10 @@ type RangeProofTuple struct {
 type RangeProof struct {
 	ProofAggregate ECPoint
 	ProofE         *big.Int
-	ProofTuples    []RangeProofTuple
+	ProofTuples    []rangeProofTuple
 }
 
-type ProverInternalData struct {
+type proverInternalData struct {
 	Rpoints  []ECPoint
 	Bpoints  []ECPoint
 	kScalars []*big.Int
@@ -38,7 +38,7 @@ type ProverInternalData struct {
 // proofGenA takes in a waitgroup, index and bit
 // returns an Rpoint and Cpoint, and the k value bigint
 func proofGenA(
-	wg *sync.WaitGroup, idx int, bit bool, s *ProverInternalData) error {
+	wg *sync.WaitGroup, idx int, bit bool, s *proverInternalData) error {
 
 	defer wg.Done()
 	var err error
@@ -92,7 +92,7 @@ func proofGenA(
 
 // proofGenB takes waitgroup, index, bit, along with the data to operate on
 func proofGenB(
-	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *ProverInternalData) error {
+	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *proverInternalData) error {
 
 	defer wg.Done()
 
@@ -168,7 +168,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 		return nil, nil, fmt.Errorf("** Trying to get a value that is out of range! Range Proof will not work!\n")
 	}
 
-	stuff := new(ProverInternalData)
+	stuff := new(proverInternalData)
 
 	stuff.kScalars = make([]*big.Int, proofSize)
 	stuff.Rpoints = make([]ECPoint, proofSize)
@@ -176,7 +176,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	stuff.vScalars = make([]*big.Int, proofSize)
 
 	vTotal := big.NewInt(0)
-	proof.ProofTuples = make([]RangeProofTuple, proofSize)
+	proof.ProofTuples = make([]rangeProofTuple, proofSize)
 
 	//	 do the loop bValue times
 	var wg sync.WaitGroup
@@ -236,7 +236,7 @@ type VerifyTuple struct {
 
 // give it a proof tuple, proofE.  Get back an Rpoint, and a Cpoint
 func verifyGen(
-	idx int, proofE *big.Int, rpt RangeProofTuple, retbox chan VerifyTuple) {
+	idx int, proofE *big.Int, rpt rangeProofTuple, retbox chan VerifyTuple) {
 
 	lhs := ZKCurve.H.Mult(rpt.S)
 
@@ -344,9 +344,9 @@ func NewRangeProofFromBytes(b []byte) (*RangeProof, error) {
 	proof.ProofAggregate, _ = ReadECPoint(buf)
 	proof.ProofE, _ = ReadBigInt(buf)
 	numTuples, _ := wire.ReadVarInt(buf)
-	proof.ProofTuples = make([]RangeProofTuple, numTuples)
+	proof.ProofTuples = make([]rangeProofTuple, numTuples)
 	for i := uint64(0); i < numTuples; i++ {
-		proof.ProofTuples[i] = RangeProofTuple{}
+		proof.ProofTuples[i] = rangeProofTuple{}
 		proof.ProofTuples[i].C, _ = ReadECPoint(buf)
 		proof.ProofTuples[i].S, _ = ReadBigInt(buf)
 	}
