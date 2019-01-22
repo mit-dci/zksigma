@@ -114,12 +114,6 @@ func TestABCProofSerialization(t *testing.T) {
 
 // TestBreakABCProve tests if the ABC Proof can will catch invalid proofs.
 func TestBreakABCProve(t *testing.T) {
-
-	if *EVILPROOF {
-		fmt.Println("Skipped TestBreakABCProve")
-		t.Skip("Skipped TestBreakABCProve")
-	}
-
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
