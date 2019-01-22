@@ -249,6 +249,8 @@ func Open(value, randomValue *big.Int, pcomm ECPoint) bool {
 
 // ====== Generalized Hash Function =========
 
+// GenerateChallenge hashes the passed byte arrays using SHA-256, and then returns
+// the resulting hash as a big.Int modulo the order of the curve base point
 func GenerateChallenge(arr ...[]byte) *big.Int {
 	hasher := sha256.New()
 	for _, v := range arr {
