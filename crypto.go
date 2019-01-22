@@ -154,12 +154,6 @@ func (p ECPoint) Bytes() []byte {
 	return append(p.X.Bytes(), p.Y.Bytes()...)
 }
 
-func ECCopy(p ECPoint) ECPoint {
-	newX := new(big.Int).Set(p.X)
-	newY := new(big.Int).Set(p.Y)
-	return ECPoint{newX, newY}
-}
-
 // WriteECPoint write an ECPoint to io.Writer w
 func WriteECPoint(w io.Writer, p ECPoint) error {
 	err := wire.WriteVarBytes(w, p.X.Bytes())
