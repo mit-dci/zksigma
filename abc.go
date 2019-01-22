@@ -218,6 +218,7 @@ func (aProof *ABCProof) Verify(CM, CMTok ECPoint) (bool, error) {
 	return true, nil
 }
 
+// Bytes returns a byte slice with a serialized representation of ABCProof proof
 func (proof *ABCProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -235,6 +236,8 @@ func (proof *ABCProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewABCProofFromBytes returns an ABCProof generated from the deserialization of
+// byte slice b
 func NewABCProofFromBytes(b []byte) (*ABCProof, error) {
 	proof := new(ABCProof)
 	buf := bytes.NewBuffer(b)

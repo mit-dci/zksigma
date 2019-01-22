@@ -320,6 +320,7 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 	return true, nil
 }
 
+// Bytes returns a byte slice with a serialized representation of RangeProof proof
 func (proof *RangeProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -334,6 +335,8 @@ func (proof *RangeProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewRangeProofFromBytes returns a RangeProof generated from the
+// deserialization of byte slice b
 func NewRangeProofFromBytes(b []byte) (*RangeProof, error) {
 	proof := new(RangeProof)
 	buf := bytes.NewBuffer(b)

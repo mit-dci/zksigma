@@ -68,6 +68,7 @@ func KeyGen() (ECPoint, *big.Int) {
 	return ECPoint{pkX, pkY}, sk
 }
 
+// BigZero contains a cached instance of big.Int with value 0
 var BigZero *big.Int
 
 // ============ ECPoint OPERATIONS ==================

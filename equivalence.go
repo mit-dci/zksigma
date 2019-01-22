@@ -121,6 +121,7 @@ func (eqProof *EquivalenceProof) Verify(
 
 }
 
+// Bytes returns a byte slice with a serialized representation of EquivalenceProof proof
 func (proof *EquivalenceProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -132,6 +133,8 @@ func (proof *EquivalenceProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewEquivalenceProofFromBytes returns a EquivalenceProof generated from the
+// deserialization of byte slice b
 func NewEquivalenceProofFromBytes(b []byte) (*EquivalenceProof, error) {
 	proof := new(EquivalenceProof)
 	buf := bytes.NewBuffer(b)
