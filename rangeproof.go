@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// RANGE indicates if we are running the rangeproof test cases (default: false)
 var RANGE = flag.Bool("range", false, "Run rangeproof test cases")
 
 // The following was copy-pasted from zkLedger's original implementation by Willy (github.com/wrv)
@@ -35,9 +36,9 @@ type ProverInternalData struct {
 	vScalars []*big.Int
 }
 
-// ProofGenA takes in a waitgroup, index and bit
+// proofGenA takes in a waitgroup, index and bit
 // returns an Rpoint and Cpoint, and the k value bigint
-func ProofGenA(
+func proofGenA(
 	wg *sync.WaitGroup, idx int, bit bool, s *ProverInternalData) error {
 
 	defer wg.Done()
@@ -90,8 +91,8 @@ func ProofGenA(
 	return nil
 }
 
-// ProofGenB takes waitgroup, index, bit, along with the data to operate on
-func ProofGenB(
+// proofGenB takes waitgroup, index, bit, along with the data to operate on
+func proofGenB(
 	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *ProverInternalData) error {
 
 	defer wg.Done()
@@ -150,7 +151,7 @@ func ProofGenB(
 // Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
 // to do commitments on the bitwise decomposition of our value.
 //
-func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
+func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	proof := RangeProof{}
 
 	// extend or truncate our value to 64 bits, which is the range we are proving
@@ -185,7 +186,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
 		// TODO: Check errors
-		go ProofGenA(&wg, i, value.Bit(i) == 1, stuff)
+		go proofGenA(&wg, i, value.Bit(i) == 1, stuff)
 	}
 	wg.Wait()
 
@@ -208,7 +209,7 @@ func RangeProverProve(value *big.Int) (*RangeProof, *big.Int) {
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
 		// TODO: Check errors
-		go ProofGenB(
+		go proofGenB(
 			&wg, i, value.Bit(i) == 1, e0, stuff)
 	}
 	wg.Wait()
@@ -237,7 +238,7 @@ type VerifyTuple struct {
 }
 
 // give it a proof tuple, proofE.  Get back an Rpoint, and a Cpoint
-func VerifyGen(
+func verifyGen(
 	idx int, proofE *big.Int, rpt RangeProofTuple, retbox chan VerifyTuple) {
 
 	lhs := ZKCurve.H.Mult(rpt.S)
@@ -258,11 +259,13 @@ func VerifyGen(
 	result.Rpoint = rpt.C.Mult(e1)
 
 	retbox <- result
-
-	return
 }
 
-func RangeProverVerify(comm ECPoint, proof *RangeProof) bool {
+func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
+	if proof == nil {
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("passed proof is nil")}
+	}
+
 	proofs := proof.ProofTuples
 
 	proofLength := len(proofs)
@@ -276,17 +279,15 @@ func RangeProverVerify(comm ECPoint, proof *RangeProof) bool {
 	for i := 0; i < proofLength; i++ {
 		// check that proofs are non-nil
 		if proof.ProofTuples[i].C.X == nil {
-			fmt.Println(proofs)
-			panic(fmt.Sprintf("entry %d has nil point", i))
+			return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("entry %d has nil point", i)}
 		}
 		if proof.ProofTuples[i].S == nil {
-			fmt.Println(proofs)
-			panic(fmt.Sprintf("entry %d has nil scalar", i))
+			return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("entry %d has nil scalar", i)}
 
 		}
 
 		// give proof to the verify gorouting
-		go VerifyGen(i, proof.ProofE, proof.ProofTuples[i], resultBox)
+		go verifyGen(i, proof.ProofE, proof.ProofTuples[i], resultBox)
 	}
 
 	for i := 0; i < proofLength; i++ {
@@ -308,20 +309,16 @@ func RangeProverVerify(comm ECPoint, proof *RangeProof) bool {
 	calculatedE0 := rHash.Sum(nil)
 
 	if proof.ProofE.Cmp(new(big.Int).SetBytes(calculatedE0[:])) != 0 {
-		//fmt.Println("check 1")
-		return false
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("calculatedE0 does not match")}
 	}
 
 	if !totalPoint.Equal(proof.ProofAggregate) {
-		return false
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("ProofAggregate does not match totalPoint")}
 	}
-
-	// TODO
-	// This checks that comm and proof Aggregate are equal.  seems "pointless".
 
 	if !comm.Equal(totalPoint) {
-		return false
+		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("ProofAggregate does not match commitment")}
 	}
 
-	return true
+	return true, nil
 }

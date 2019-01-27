@@ -8,12 +8,6 @@ import (
 )
 
 func TestECPointMethods(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestECPointMethods")
-		t.Skip("Skipped TestECPointMethods")
-	}
-
 	v := big.NewInt(3)
 	p := ZKCurve.G.Mult(v)
 	negp := p.Neg()
@@ -40,11 +34,6 @@ func TestECPointMethods(t *testing.T) {
 }
 
 func TestZkpCryptoStuff(t *testing.T) {
-	if *NOBASIC {
-		fmt.Println("Skipped TestZkpCryptoStuff")
-		t.Skip("Skipped TestZkpCryptoStuff")
-	}
-
 	value := big.NewInt(-100)
 
 	testCommit, randomValue, err := PedCommit(value) // xG + rH
@@ -87,11 +76,6 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 func TestZkpCryptoCommitR(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestZkpCryptoCommitR")
-		t.Skip("Skipped TestZkpCryptoCommitR")
-	}
-
 	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	if err != nil {
 		t.Fatalf("%v\n", err)
@@ -110,11 +94,6 @@ func TestZkpCryptoCommitR(t *testing.T) {
 }
 
 func TestPedersenCommit(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestPedersenCommit")
-		t.Skip("Skipped TestPedersenCommit")
-	}
 
 	x := big.NewInt(1000)
 	badx := big.NewInt(1234)
@@ -151,470 +130,7 @@ func TestPedersenCommit(t *testing.T) {
 
 }
 
-func TestGSPFS(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestGSPFS")
-		t.Skip("Skipped TestGSPFS")
-	}
-
-	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	// MUST use G here becuase of GSPFSProve implementation
-	result := ZKCurve.G.Mult(x)
-
-	testProof, err := GSPFSProve(result, x)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	status, err := GSPFSVerify(result, testProof)
-	if !status && err == nil {
-		t.Logf("x : %v\n", x)
-		t.Logf("randPoint : %v\n", result)
-		t.Logf("testProof : %v\n", testProof)
-		t.Fatalf("GSPFS Proof didnt generate properly - 1\n")
-	}
-
-	// Using H here should break the proof
-	result = ZKCurve.H.Mult(x)
-
-	t.Logf("Next GSPFSVerify should fail\n")
-	status, err = GSPFSVerify(result, testProof)
-	if status && err != nil {
-		t.Logf("x : %v\n", x)
-		t.Logf("randPoint : %v\n", result)
-		t.Logf("testProof : %v\n", testProof)
-		t.Fatalf("GSPFS Proof should not have worked - 2\n")
-	}
-
-	fmt.Println("Passed TestGSPFS")
-
-}
-
-func TestEquivilance(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestEquivilance")
-		t.Skip("Skipped TestEquivilance")
-	}
-
-	x, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(x)
-
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(x)
-
-	eqProof, status1 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
-
-	if status1 != nil {
-		proofStatus(status1.(*errorProof))
-		t.Fatalf("error code should have indicated successful proof")
-	}
-
-	check, err := EquivilanceVerify(Base1, Result1, Base2, Result2, eqProof)
-	if !check || err != nil {
-		t.Logf("Base1 : %v\n", Base1)
-		t.Logf("Result1 : %v\n", Result1)
-		t.Logf("Base2 : %v\n", Base2)
-		t.Logf("Result2 : %v\n", Result2)
-		t.Logf("Proof : %v \n", eqProof)
-		t.Fatalf("Equivilance Proof verification failed")
-	}
-
-	t.Logf("Next comparison should fail\n")
-	// Bases swapped shouldnt work
-	check, err = EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof)
-	if check || err == nil {
-		t.Logf("Base1 : %v\n", Base1)
-		t.Logf("Result1 : %v\n", Result1)
-		t.Logf("Base2 : %v\n", Base2)
-		t.Logf("Result2 : %v\n", Result2)
-		t.Logf("Proof : %v \n", eqProof)
-		t.Fatalf("Equivilance Proof verification doesnt work")
-	}
-
-	t.Logf("Next comparison should fail\n")
-	// Bad proof
-	eqProof.HiddenValue = big.NewInt(-1)
-	check, err = EquivilanceVerify(Base2, Result1, Base1, Result2, eqProof)
-	if check || err == nil {
-		t.Logf("Base1 : %v\n", Base1)
-		t.Logf("Result1 : %v\n", Result1)
-		t.Logf("Base2 : %v\n", Base2)
-		t.Logf("Result2 : %v\n", Result2)
-		t.Logf("Proof : %v \n", eqProof)
-		t.Fatalf("Equivilance Proof verification doesnt work")
-	}
-
-	x, _ = rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	_, status2 := EquivilanceProve(Base1, Result1, Base2, Result2, x)
-
-	// here I check proofStatus in the else statement becuase I want to make sure
-	// the failed case will raise an error
-	if status2 == nil {
-		t.Fatalf("error code should have indicated failed proof")
-	} else {
-		proofStatus(status2.(*errorProof))
-	}
-
-	fmt.Println("Passed TestEquivilance")
-
-}
-
-func TestDisjunctive(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestDisjunctive")
-		t.Skip("Skipped TestDisjunctive")
-	}
-
-	x := big.NewInt(100)
-	y := big.NewInt(101)
-
-	Base1 := ZKCurve.G
-	Result1 := ZKCurve.G.Mult(x)
-	Base2 := ZKCurve.H
-	Result2 := ZKCurve.H.Mult(y)
-
-	djProofLEFT, status1 := DisjunctiveProve(Base1, Result1, Base2, Result2, x, Left)
-
-	if status1 != nil {
-		proofStatus(status1.(*errorProof))
-		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 1\n")
-	}
-
-	djProofRIGHT, status2 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, Right)
-
-	if status2 != nil {
-		proofStatus(status2.(*errorProof))
-		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 2\n")
-	}
-
-	t.Logf("Testing DisjunctiveProof:\n")
-	t.Logf("First djProof : ")
-	check, err := DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofLEFT)
-	if !check || err != nil {
-		t.Fatalf("djProof failed to generate properly for left side\n")
-	}
-
-	t.Logf("Passed \n [testing] Second djProof : ")
-	check, err = DisjunctiveVerify(Base1, Result1, Base2, Result2, djProofRIGHT)
-	if !check || err != nil {
-		t.Fatalf("djProof failed to generate properly for right side\n")
-	}
-
-	t.Logf("Passed \n [testing] Next djProof attemp should result in an error message\n")
-	_, status3 := DisjunctiveProve(Base1, Result1, Base2, Result2, y, Left) // This should fail
-
-	if status3 == nil {
-		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
-	}
-
-	fmt.Println("Passed TestDisjunctiveg")
-
-}
-
-func TestConsistency(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestConsistency")
-		t.Skip("Skipped TestConsistency")
-	}
-
-	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	pk := ZKCurve.H.Mult(sk)
-
-	comm, u, err := PedCommit(x)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	y := pk.Mult(u)
-
-	conProof, status1 := ConsistencyProve(comm, y, pk, x, u)
-
-	if status1 != nil {
-		t.Fatalf("TestConsistancy - incorrect error message for correct proof, case 1\n")
-	}
-
-	t.Logf(" [testing] Testing correct consistency proof\n")
-	check, err := ConsistencyVerify(comm, y, pk, conProof)
-	if !check || err != nil {
-		t.Fatalf("Error -- Proof should be correct\n")
-	}
-
-	t.Logf(" [testing] Next proof should fail\n")
-
-	conProof, status2 := ConsistencyProve(y, comm, pk, x, u)
-
-	if status2 == nil {
-		t.Fatalf("TestConsistancy - incorrect error message for correct proof, case 2\n")
-	}
-
-	fmt.Println("Passed TestConsistency")
-}
-
 // TODO: make a toooooon more test cases
-func TestABCProof(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestABCProof")
-		t.Skip("Skipped TestABCProof")
-	}
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	PK := ZKCurve.H.Mult(sk)
-	A := ZKCurve.H.Mult(ua)       // uaH
-	temp := ZKCurve.G.Mult(value) // value(G)
-
-	// A = vG + uaH
-	A = A.Add(temp)
-	AToken := PK.Mult(ua)
-
-	aProof, status := ABCProve(A, AToken, value, sk, Right)
-
-	if status != nil {
-		proofStatus(status.(*errorProof))
-		t.Logf("ABCProof RIGHT failed to generate!\n")
-		t.Fatalf("ABCProof RIGHT failed\n")
-	}
-
-	check, err := ABCVerify(A, AToken, aProof)
-	if !check || err != nil {
-		t.Logf("ABCProof RIGHT Failed to verify!\n")
-		t.Fatalf("ABCVerify RIGHT failed\n")
-	}
-
-	A = ZKCurve.H.Mult(ua)
-	aProof, status = ABCProve(A, AToken, big.NewInt(0), sk, Left)
-
-	if status != nil {
-		proofStatus(status.(*errorProof))
-		t.Logf("ABCProof LEFT failed to generate!\n")
-		t.Fatalf("ABCProof LEFT failed\n")
-	}
-
-	check, err = ABCVerify(A, AToken, aProof)
-	if !check || err != nil {
-		t.Logf("ABCProof LEFT Failed to verify!\n")
-		t.Fatalf("ABCVerify LEFT failed\n")
-	}
-
-	A, ua, err = PedCommit(big.NewInt(1000))
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	AToken = PK.Mult(ua)
-
-	aProof, status = ABCProve(A, AToken, big.NewInt(1001), sk, Right)
-
-	if status != nil {
-		t.Logf("False proof genereation succeeded! (bad)\n")
-		t.Fatalf("ABCProve generated for false proof\n")
-	}
-
-	t.Logf("Next ABCVerify should catch false proof\n")
-
-	check, err = ABCVerify(A, AToken, aProof)
-	if check || err == nil {
-		t.Logf("ABCVerify: should have failed on false proof check!\n")
-		t.Fatalf("ABCVerify: not working...\n")
-	}
-
-	fmt.Println("Passed TestABCProof")
-
-}
-
-func TestInequalityProve(t *testing.T) {
-
-	if *NOBASIC {
-		fmt.Println("Skipped TestInequalityProve")
-		t.Skip("Skipped TestABCProof")
-	}
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	A, ua, err := PedCommit(a)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	B, ub, err := PedCommit(b)
-	if err != nil {
-		t.Fatalf("%v\n", err)
-	}
-
-	PK := ZKCurve.H.Mult(sk)
-
-	// Even though we generated the values for ua and ub in this test case, we do not
-	// need to know ua or ub, only the commitment tokens are needed, which is already
-	// used in many other proofs
-	CMTokA := PK.Mult(ua)
-	CMTokB := PK.Mult(ub)
-
-	aProof, status := InequalityProve(A, B, CMTokA, CMTokB, a, b, sk)
-
-	if status != nil {
-		proofStatus(status.(*errorProof))
-		t.Logf("ABCProof for InequalityProve failed to generate!\n")
-		t.Fatalf("ABCProof for InequalityProve failed\n")
-	}
-
-	check, err := ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof)
-	if !check || err != nil {
-		t.Logf("ABCProof for InequalityProve failed to verify!\n")
-		t.Fatalf("ABCVerify for InequalityProve failed\n")
-	}
-
-	// Swapped positions of commitments, tokens and values, will work just fine
-	aProof, status = InequalityProve(B, A, CMTokB, CMTokA, b, a, sk)
-
-	if status != nil {
-		proofStatus(status.(*errorProof))
-		t.Logf("ABCProof for InequalityProve failed to generate!\n")
-		t.Fatalf("ABCProof for InequalityProve failed\n")
-	}
-
-	check, err = ABCVerify(B.Sub(A), CMTokB.Sub(CMTokA), aProof)
-	if !check || err != nil {
-		t.Logf("ABCProof for InequalityProve failed to verify!\n")
-		t.Fatalf("ABCVerify for InequalityProve failed\n")
-	}
-
-	// Mismatched commitments and values, a proof does generate but the
-	// verification step will catch the false proof.
-	// Use the -debug1 flag to see this in action
-	aProof, status = InequalityProve(A, B, CMTokA, CMTokB, b, a, sk)
-
-	if status != nil {
-		proofStatus(status.(*errorProof))
-		t.Logf("ABCProof for InequalityProve failed to generate!\n")
-		t.Fatalf("ABCProof for InequalityProve failed\n")
-	}
-
-	check, err = ABCVerify(A.Sub(B), CMTokA.Sub(CMTokB), aProof)
-	if check || err == nil {
-		t.Logf("ABCProof for InequalityProve failed to verify!\n")
-		t.Fatalf("ABCVerify for InequalityProve failed\n")
-	}
-
-	fmt.Println("Passed TestInequalityProve")
-
-}
-
-func TestBreakABCProve(t *testing.T) {
-
-	if *EVILPROOF {
-		fmt.Println("Skipped TestBreakABCProve")
-		t.Skip("Skipped TestBreakABCProve")
-	}
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	PK := ZKCurve.H.Mult(sk)
-	CM := ZKCurve.H.Mult(ua)      // uaH
-	temp := ZKCurve.G.Mult(value) // value(G)
-
-	// A = vG + uaH
-	CM = CM.Add(temp)
-	CMTok := PK.Mult(ua)
-
-	u1, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	u2, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	u3, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	ub, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	uc, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	B := ECPoint{}
-	C := ECPoint{}
-	CToken := ZKCurve.H.Mult(uc)
-
-	// B = 2/v
-	B = PedCommitR(new(big.Int).ModInverse(new(big.Int).Quo(big.NewInt(2), value), ZKCurve.C.Params().N), ub)
-
-	// C = 2G + ucH, the 2 here is the big deal
-	C = PedCommitR(big.NewInt(2), uc)
-
-	disjuncAC, _ := DisjunctiveProve(CMTok, CM, ZKCurve.H, C.Sub(ZKCurve.G.Mult(big.NewInt(2))), uc, Right)
-
-	// CMTok is Ta for the rest of the proof
-	// T1 = u1G + u2Ta
-	// u1G
-	u1G := ZKCurve.G.Mult(u1)
-	// u2Ta
-	u2Ta := CMTok.Mult(u2)
-	// Sum the above two
-	T1X, T1Y := ZKCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
-
-	// T2 = u1B + u3H
-	// u1B
-	u1B := B.Mult(u1)
-	// u3H
-	u3H := ZKCurve.H.Mult(u3)
-	// Sum of the above two
-	T2X, T2Y := ZKCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
-
-	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
-	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
-		CM.Bytes(), CMTok.Bytes(),
-		B.Bytes(), C.Bytes(),
-		T1X.Bytes(), T1Y.Bytes(),
-		T2X.Bytes(), T2Y.Bytes())
-
-	// j = u1 + v * c , can be though of as s1
-	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
-	j = new(big.Int).Mod(j, ZKCurve.C.Params().N)
-
-	// k = u2 + inv(sk) * c
-	// inv(sk)
-	isk := new(big.Int).ModInverse(sk, ZKCurve.C.Params().N)
-	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-	k = new(big.Int).Mod(k, ZKCurve.C.Params().N)
-
-	// l = u3 + (uc - v * ub) * c
-	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
-	l := new(big.Int).Add(u3, new(big.Int).Mul(temp1, Challenge))
-
-	evilProof := &ABCProof{
-		B,
-		C,
-		ECPoint{T1X, T1Y},
-		ECPoint{T2X, T2Y},
-		Challenge,
-		j, k, l, CToken,
-		disjuncAC}
-
-	t.Logf("Attemping to pass malicious true proof into verification function\n")
-	t.Logf("This test should throw a couple error messages in debug\n")
-
-	check, err := ABCVerify(CM, CMTok, evilProof)
-	if check || err == nil {
-		t.Logf("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
-		t.Fatalf("ABCVerify - EVIL: failed to catch attack!\n")
-	}
-
-}
 
 type etx struct {
 	CM    ECPoint
@@ -625,11 +141,6 @@ type etx struct {
 //TODO: make a sk-pk that is consistant accross all test cases
 func TestAverages_Basic(t *testing.T) {
 
-	if *NOBASIC {
-		fmt.Println("Skipped TestAverages_Basic")
-		t.Skip("Skipped TestAverages_Basic")
-	}
-
 	// remeber to change both number here...
 	numTx := 100
 	numTranx := big.NewInt(100)
@@ -639,8 +150,8 @@ func TestAverages_Basic(t *testing.T) {
 	txn := make([]etx, numTx)
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
-	value := big.NewInt(0)
-	commRand := big.NewInt(0)
+	var value *big.Int
+	var commRand *big.Int
 	var err error
 
 	// Generate
@@ -653,7 +164,7 @@ func TestAverages_Basic(t *testing.T) {
 		}
 		totalRand.Add(totalRand, commRand)
 		txn[ii].CMTok = PK.Mult(commRand)
-		txn[ii].ABCP, _ = ABCProve(txn[ii].CM, txn[ii].CMTok, value, sk, Right)
+		txn[ii].ABCP, _ = NewABCProof(txn[ii].CM, txn[ii].CMTok, value, sk, Right)
 	}
 
 	// Purely for testing purposes, usually this is computed at the end by auditor
@@ -686,7 +197,7 @@ func TestAverages_Basic(t *testing.T) {
 	B2 := ZKCurve.H
 	R2 := PK
 
-	eProofNumTx, status := EquivilanceProve(B1, R1, B2, R2, sk)
+	eProofNumTx, status := NewEquivalenceProof(B1, R1, B2, R2, sk)
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
@@ -697,7 +208,7 @@ func TestAverages_Basic(t *testing.T) {
 	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
 	R1 = totalCMTok
 
-	eProofValue, status1 := EquivilanceProve(B1, R1, B2, R2, sk)
+	eProofValue, status1 := NewEquivalenceProof(B1, R1, B2, R2, sk)
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
@@ -718,7 +229,11 @@ func TestAverages_Basic(t *testing.T) {
 	B2 = ZKCurve.H
 	R2 = PK
 
-	checkTx, err := EquivilanceVerify(B1, R1, B2, R2, eProofNumTx)
+	checkTx, err := eProofNumTx.Verify(B1, R1, B2, R2)
+
+	if err != nil {
+		t.Fatalf("Error while calling equivalence proof verify: %s", err.Error())
+	}
 
 	if !checkTx {
 		t.Logf("Average Test: NUMTX equivilance proof did not verify\n")
@@ -728,7 +243,11 @@ func TestAverages_Basic(t *testing.T) {
 	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
 	R1 = totalCMTok
 
-	checkVal, err := EquivilanceVerify(B1, R1, B2, R2, eProofValue)
+	checkVal, err := eProofValue.Verify(B1, R1, B2, R2)
+
+	if err != nil {
+		t.Fatalf("Error while calling equivalence proof verify: %s", err.Error())
+	}
 
 	if !checkVal {
 		t.Logf("Average Test: SUM equivilance proof did not verify\n")
@@ -764,250 +283,5 @@ func BenchmarkOpen(b *testing.B) {
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		Open(value, randVal, CM)
-	}
-}
-
-func BenchmarkGSPFS_AnyBase(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base := ZKCurve.G
-	CM := ZKCurve.G.Mult(value)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		GSPFSAnyBaseProve(Base, CM, value)
-	}
-}
-
-func BenchmarkGSPFS_Verify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base := ZKCurve.G
-	CM := ZKCurve.G.Mult(value)
-	proof, err := GSPFSAnyBaseProve(Base, CM, value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	for ii := 0; ii < b.N; ii++ {
-		GSPFSVerify(CM, proof)
-	}
-}
-
-func BenchmarkEquivProve(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(value)
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(value)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		EquivilanceProve(Base1, Result1, Base2, Result2, value)
-	}
-}
-
-func BenchmarkEquivVerify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(value)
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(value)
-	proof, _ := EquivilanceProve(Base1, Result1, Base2, Result2, value)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		EquivilanceVerify(Base1, Result1, Base2, Result2, proof)
-	}
-}
-
-func BenchmarkDisjuncProve_LEFT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(value)
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(randVal)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		DisjunctiveProve(Base1, Result1, Base2, Result2, value, Left)
-	}
-}
-
-func BenchmarkDisjuncProve_RIGHT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(value)
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(randVal)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, Right)
-	}
-}
-
-func BenchmarkDisjuncVerify_LEFT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(value)
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(randVal)
-	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, value, Left)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		DisjunctiveVerify(Base1, Result1, Base2, Result2, proof)
-	}
-}
-
-func BenchmarkDisjuncVerify_RIGHT(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base1 := ZKCurve.G
-	Result1 := Base1.Mult(value)
-	Base2 := ZKCurve.H
-	Result2 := Base2.Mult(randVal)
-	proof, _ := DisjunctiveProve(Base1, Result1, Base2, Result2, randVal, Right)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		DisjunctiveVerify(Base1, Result1, Base2, Result2, proof)
-	}
-}
-
-func BenchmarkConsistancyProve(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
-
-	CM, randVal, err := PedCommit(value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	CMTok := PK.Mult(randVal)
-
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		ConsistencyProve(CM, CMTok, PK, value, randVal)
-	}
-}
-
-func BenchmarkConsistancyVerify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
-
-	CM, randVal, err := PedCommit(value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	CMTok := PK.Mult(randVal)
-	proof, _ := ConsistencyProve(CM, CMTok, PK, value, randVal)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		ConsistencyVerify(CM, CMTok, PK, proof)
-	}
-}
-
-func BenchmarkABCProve_0(b *testing.B) {
-	value := big.NewInt(0)
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
-
-	CM, randVal, err := PedCommit(value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	CMTok := PK.Mult(randVal)
-
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		ABCProve(CM, CMTok, value, sk, Left)
-	}
-}
-
-func BenchmarkABCProve_1(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
-
-	CM, randVal, err := PedCommit(value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	CMTok := PK.Mult(randVal)
-
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		ABCProve(CM, CMTok, value, sk, Right)
-	}
-}
-
-func BenchmarkABCVerify_0(b *testing.B) {
-	value := big.NewInt(0)
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
-
-	CM, randVal, err := PedCommit(value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	CMTok := PK.Mult(randVal)
-	proof, _ := ABCProve(CM, CMTok, value, sk, Left)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		ABCVerify(CM, CMTok, proof)
-	}
-}
-
-func BenchmarkABCVerify_1(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
-
-	CM, randVal, err := PedCommit(value)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	CMTok := PK.Mult(randVal)
-	proof, _ := ABCProve(CM, CMTok, value, sk, Right)
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		ABCVerify(CM, CMTok, proof)
-	}
-}
-
-func BenchmarkInequalityProve(b *testing.B) {
-
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic rarnge"
-	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	A, ua, err := PedCommit(a)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	B, ub, err := PedCommit(bValue)
-	if err != nil {
-		b.Fatalf("%v\n", err)
-	}
-
-	PK := ZKCurve.H.Mult(sk)
-
-	// even though we generated the values for ua and ub in this test case, we do not
-	// need to know ua or ub, only the commitment tokens, which is already used in many other proofs
-	CMTokA := PK.Mult(ua)
-	CMTokB := PK.Mult(ub)
-
-	b.ResetTimer()
-	for ii := 0; ii < b.N; ii++ {
-		InequalityProve(A, B, CMTokA, CMTokB, a, bValue, sk)
 	}
 }

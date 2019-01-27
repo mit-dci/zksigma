@@ -15,7 +15,7 @@ Statements that can be proved:
 - I know the discrete log of a commitment A(=aG) (GSPFS Proof)
 - I know the discrete log of commitments A(=xG) and B(=xH) and they are equal (Equivilance Proof)
 - I know either the discrete log of commitments A or B (Disjunctive Proof)
-- I know that the blinding factor of commitments A and B are equal (Consistancy Proof)
+- I know that the blinding factor of commitments A and B are equal (Consistency Proof)
 - I know a, b, and c in commitments A, B and C and a * b = c (ABC Proof)
 - I know commitments a and b in commitments A and B and  a != b  (InequalityProve -> ABCProof)
 
@@ -55,9 +55,6 @@ Coming Soon<sup>TM</sup>:
 - Bulletproofs (inner product proof currently broken, need to investigate, something about golang deep copy maybe, fairly confident the logic of the implemnatiaon is correct)
     - Referance for recursive implementation [here](https://github.com/bbuenz/BulletProofLib/tree/master/src/main/java/edu/stanford/cs/crypto/efficientct/innerproduct)
     - Referance for iterative implementation [here](https://github.com/dalek-cryptography/bulletproofs/blob/main/src/inner_product_proof.rs)
-
-**Dependancies**:
-- github.com/narula/btcd/btcec (can be swapped out for any curve that satisfies Golang's elliptic.Curve interface)
 
 
 ### Some fun reading

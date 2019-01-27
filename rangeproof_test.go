@@ -16,14 +16,17 @@ func TestRangeProver_Verify(t *testing.T) {
 	}
 
 	value, _ := rand.Int(rand.Reader, big.NewInt(1099511627775))
-	proof, rp := RangeProverProve(value)
+	proof, rp := NewRangeProof(value)
 	comm := PedCommitR(value, rp)
 	if !comm.Equal(proof.ProofAggregate) {
 		t.Error("Error computing the randomnesses used -- commitments did not check out when supposed to")
-	} else if !RangeProverVerify(comm, proof) {
-		t.Error("** Range proof failed")
 	} else {
-		fmt.Println("Passed TestRangeProver_Verify")
+		ok, err := proof.Verify(comm)
+		if !ok {
+			t.Errorf("** Range proof failed: %s", err)
+		} else {
+			fmt.Println("Passed TestRangeProver_Verify")
+		}
 	}
 }
 
@@ -43,7 +46,7 @@ func TestOutOfRangeRangeProver_Verify(t *testing.T) {
 		t.Error(err)
 	}
 
-	proof, rp := RangeProverProve(value)
+	proof, rp := NewRangeProof(value)
 	if proof != nil || rp != nil {
 		t.Error("Error computing the range proof; shouldn't work")
 	} else {

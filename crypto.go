@@ -9,16 +9,20 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/narula/btcd/btcec"
+	"github.com/mit-dci/zksigma/btcec"
 )
 
+// DEBUG Indicates whether we output debug information while running the tests. Default off.
 var DEBUG = flag.Bool("debug1", false, "Debug output")
-var NOBASIC = flag.Bool("nobasic", false, "Skips basic tests")
+
 var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof and make it pass verification")
 
-// Global variables used to maintain all the crypto constants
-var ZKCurve zkpCrypto // initialized in init()
-var HPoints []ECPoint // initialized in init()
+// ZKCurve is a global cache for the curve and two generator points used in the various proof
+// generation and verification functions.
+var ZKCurve zkpCrypto
+
+// HPoints is initialized with a pre-populated array of the ZKCurve's generator point H multiplied by 2^x where x = [0...63]
+var HPoints []ECPoint
 
 // zkpCrypto is zero knowledge proof curve and params struct, only one instance should be used
 type zkpCrypto struct {
@@ -51,12 +55,28 @@ func logStuff(format string, args ...interface{}) {
 	}
 }
 
+// == Keygen ==
+
+func KeyGen() (ECPoint, *big.Int) {
+
+	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		panic(err)
+	}
+	pkX, pkY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, sk.Bytes())
+
+	return ECPoint{pkX, pkY}, sk
+}
+
+var BigZero *big.Int
+
 // ============ ECPoint OPERATIONS ==================
 
 type ECPoint struct {
 	X, Y *big.Int
 }
 
+// Zero is a cached variable containing ECPoint{big.NewInt(0), big.NewInt(0)}
 var Zero ECPoint // initialized in init()
 
 // Equal returns true if points p (self) and p2 (arg) are the same.
@@ -69,6 +89,11 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 
 // Mult multiplies point p by scalar s and returns the resulting point
 func (p ECPoint) Mult(s *big.Int) ECPoint {
+
+	if p.X == nil && p.Y == nil { // Multiplying a nil point is "pointless". ha.
+		return ECPoint{nil, nil}
+	}
+
 	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
 
 	// if p.Equal(Zero) {
@@ -78,13 +103,10 @@ func (p ECPoint) Mult(s *big.Int) ECPoint {
 	if p.Equal(ZKCurve.G) {
 		X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
 		return ECPoint{X, Y}
-	} else if ZKCurve.C.IsOnCurve(p.X, p.Y) {
-		X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
-		return ECPoint{X, Y}
 	}
-	logStuff("ECPoint.Mult():\n - p is not on the curve\n")
-	logStuff(" -  POINT: %v\n - SCALAR: %v\n", p, s)
-	return ECPoint{nil, nil}
+
+	X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
+	return ECPoint{X, Y}
 }
 
 // Add adds points p and p2 and returns the resulting point
@@ -96,11 +118,6 @@ func (p ECPoint) Add(p2 ECPoint) ECPoint {
 		return p2
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
-
-	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
-		return ECPoint{nil, nil}
 	}
 
 	X, Y := ZKCurve.C.Add(p.X, p.Y, p2.X, p2.Y)
@@ -116,10 +133,6 @@ func (p ECPoint) Sub(p2 ECPoint) ECPoint {
 		return p2.Neg()
 	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
 		return p
-	} else if !ZKCurve.C.IsOnCurve(p.X, p.Y) || !ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		logStuff("ECPoint.Add():\n - p and p2 is not on the curve\n")
-		logStuff(" -  POINT: %v\n - POINT2: %v\n", p, p2)
-		return ECPoint{nil, nil}
 	}
 
 	temp := p2.Neg()
@@ -157,10 +170,7 @@ func CommitR(pk ECPoint, r *big.Int) ECPoint {
 // by generating a new point and comparing the two
 func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 	p := CommitR(pk, r) // Generate test point (P) using pk and r
-	if p.Equal(rt) {
-		return true
-	}
-	return false
+	return p.Equal(rt)
 }
 
 // =============== PEDERSEN COMMITMENTS ================
@@ -211,11 +221,11 @@ func GenerateChallenge(arr ...[]byte) *big.Int {
 
 // ====== init =========
 
-func GenerateH2tothe() []ECPoint {
+func generateH2tothe() []ECPoint {
 	Hslice := make([]ECPoint, 64)
 	for i := range Hslice {
 		m := big.NewInt(1 << uint(i))
-		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, m.Bytes())
+		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
 	}
 	return Hslice
 }
@@ -229,6 +239,8 @@ func init() {
 		ECPoint{btcec.S256().Gx, btcec.S256().Gy},
 		ECPoint{HX, HY},
 	}
-	HPoints = GenerateH2tothe()
-	Zero = ECPoint{big.NewInt(0), big.NewInt(0)}
+	HPoints = generateH2tothe()
+	BigZero = big.NewInt(0)
+	Zero = ECPoint{BigZero, BigZero}
+
 }
