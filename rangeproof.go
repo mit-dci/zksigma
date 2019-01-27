@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	"flag"
 	"fmt"
 	"math/big"
 	"sync"
@@ -12,27 +11,35 @@ import (
 	"github.com/mit-dci/zksigma/wire"
 )
 
-// RANGE indicates if we are running the rangeproof test cases (default: false)
-var RANGE = flag.Bool("range", false, "Run rangeproof test cases")
-
 // The following was copy-pasted from zkLedger's original implementation by Willy (github.com/wrv)
 // TODO: replace rangeproofs of zkLedger with bulletproofs, eventually
 
 ///////////////////////
 // RANGE PROOFS
 
-type RangeProofTuple struct {
+type rangeProofTuple struct {
 	C ECPoint
 	S *big.Int
 }
 
+// RangeProof
+// Implementation details from:
+// https://blockstream.com/bitcoin17-final41.pdf
+// NOTE: To be consistent with our use of Pedersen commitments, we switch the G and H values
+// from the above description
+//
+// Takes in a value and randomness used in a commitment, and produces a proof that
+// our value is in range 2^64.
+// Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
+// to do commitments on the bitwise decomposition of our value.
+//
 type RangeProof struct {
 	ProofAggregate ECPoint
 	ProofE         *big.Int
-	ProofTuples    []RangeProofTuple
+	ProofTuples    []rangeProofTuple
 }
 
-type ProverInternalData struct {
+type proverInternalData struct {
 	Rpoints  []ECPoint
 	Bpoints  []ECPoint
 	kScalars []*big.Int
@@ -42,7 +49,7 @@ type ProverInternalData struct {
 // proofGenA takes in a waitgroup, index and bit
 // returns an Rpoint and Cpoint, and the k value bigint
 func proofGenA(
-	wg *sync.WaitGroup, idx int, bit bool, s *ProverInternalData) error {
+	wg *sync.WaitGroup, idx int, bit bool, s *proverInternalData) error {
 
 	defer wg.Done()
 	var err error
@@ -96,7 +103,7 @@ func proofGenA(
 
 // proofGenB takes waitgroup, index, bit, along with the data to operate on
 func proofGenB(
-	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *ProverInternalData) error {
+	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *proverInternalData) error {
 
 	defer wg.Done()
 
@@ -143,18 +150,8 @@ func proofGenB(
 	return nil
 }
 
-/// RangeProof
-// Implementation details from:
-// https://blockstream.com/bitcoin17-final41.pdf
-// NOTE: To be consistent with our use of Pedersen commitments, we switch the G and H values
-// from the above description
-//
-// Takes in a value and randomness used in a commitment, and produces a proof that
-// our value is in range 2^64.
-// Range proofs uses ring signatures from Chameleon hashes and Pedersen Commitments
-// to do commitments on the bitwise decomposition of our value.
-//
-func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
+// NewRangeProof generates a range proof for the given value
+func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	proof := RangeProof{}
 
 	// extend or truncate our value to 64 bits, which is the range we are proving
@@ -162,19 +159,17 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	// else, because of truncation, it will be deemed out of range not be equal
 
 	if value.Cmp(big.NewInt(1099511627776)) == 1 {
-		fmt.Printf("val %s too big, can only prove up to 1099511627776\n", value.String())
-		return nil, nil
+		return nil, nil, fmt.Errorf("val %s too big, can only prove up to 1099511627776\n", value.String())
 	}
 
 	proofSize := 40
 	// check to see if our value is out of range
 	if proofSize > 40 || value.Cmp(big.NewInt(0)) == -1 {
 		//if so, then we can't play
-		fmt.Printf("** Trying to get a value that is out of range! Range Proof will not work!\n")
-		return nil, nil
+		return nil, nil, fmt.Errorf("** Trying to get a value that is out of range! Range Proof will not work!\n")
 	}
 
-	stuff := new(ProverInternalData)
+	stuff := new(proverInternalData)
 
 	stuff.kScalars = make([]*big.Int, proofSize)
 	stuff.Rpoints = make([]ECPoint, proofSize)
@@ -182,7 +177,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	stuff.vScalars = make([]*big.Int, proofSize)
 
 	vTotal := big.NewInt(0)
-	proof.ProofTuples = make([]RangeProofTuple, proofSize)
+	proof.ProofTuples = make([]rangeProofTuple, proofSize)
 
 	//	 do the loop bValue times
 	var wg sync.WaitGroup
@@ -232,17 +227,17 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int) {
 	proof.ProofE = e0
 	proof.ProofAggregate = AggregatePoint
 
-	return &proof, vTotal
+	return &proof, vTotal, nil
 }
 
-type VerifyTuple struct {
+type verifyTuple struct {
 	index  int
 	Rpoint ECPoint
 }
 
 // give it a proof tuple, proofE.  Get back an Rpoint, and a Cpoint
 func verifyGen(
-	idx int, proofE *big.Int, rpt RangeProofTuple, retbox chan VerifyTuple) {
+	idx int, proofE *big.Int, rpt rangeProofTuple, retbox chan verifyTuple) {
 
 	lhs := ZKCurve.H.Mult(rpt.S)
 
@@ -257,7 +252,7 @@ func verifyGen(
 
 	e1 := new(big.Int).SetBytes(hash[:])
 
-	var result VerifyTuple
+	var result verifyTuple
 	result.index = idx
 	result.Rpoint = rpt.C.Mult(e1)
 
@@ -277,7 +272,7 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 
 	totalPoint := ECPoint{big.NewInt(0), big.NewInt(0)}
 
-	resultBox := make(chan VerifyTuple, 10) // doubt we'll use even 1
+	resultBox := make(chan verifyTuple, 10) // doubt we'll use even 1
 
 	for i := 0; i < proofLength; i++ {
 		// check that proofs are non-nil
@@ -326,6 +321,7 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 	return true, nil
 }
 
+// Bytes returns a byte slice with a serialized representation of RangeProof proof
 func (proof *RangeProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -340,6 +336,8 @@ func (proof *RangeProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewRangeProofFromBytes returns a RangeProof generated from the
+// deserialization of byte slice b
 func NewRangeProofFromBytes(b []byte) (*RangeProof, error) {
 	proof := new(RangeProof)
 	buf := bytes.NewBuffer(b)
@@ -347,9 +345,9 @@ func NewRangeProofFromBytes(b []byte) (*RangeProof, error) {
 	proof.ProofAggregate, _ = ReadECPoint(buf)
 	proof.ProofE, _ = ReadBigInt(buf)
 	numTuples, _ := wire.ReadVarInt(buf)
-	proof.ProofTuples = make([]RangeProofTuple, numTuples)
+	proof.ProofTuples = make([]rangeProofTuple, numTuples)
 	for i := uint64(0); i < numTuples; i++ {
-		proof.ProofTuples[i] = RangeProofTuple{}
+		proof.ProofTuples[i] = rangeProofTuple{}
 		proof.ProofTuples[i].C, _ = ReadECPoint(buf)
 		proof.ProofTuples[i].S, _ = ReadBigInt(buf)
 	}

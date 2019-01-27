@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"testing"
 )
@@ -30,7 +29,6 @@ func TestECPointMethods(t *testing.T) {
 		t.Logf("sum : %v\n", sum)
 		t.Fatalf("p + 0 should be p\n")
 	}
-	fmt.Println("Passed TestZKCurveMethods")
 }
 
 func TestZkpCryptoStuff(t *testing.T) {
@@ -69,9 +67,6 @@ func TestZkpCryptoStuff(t *testing.T) {
 		t.Logf("testOpen : %v\n", testOpen)
 		t.Fatalf("RandEC should have been equal to testOpen\n")
 	}
-
-	fmt.Println("Passed TestzkpCryptoStuff")
-
 }
 
 func TestZkpCryptoCommitR(t *testing.T) {
@@ -89,8 +84,6 @@ func TestZkpCryptoCommitR(t *testing.T) {
 		t.Logf("u : %v\n", u)
 		t.Fatalf("testCommit should have passed verification\n")
 	}
-
-	fmt.Println("Passed TestzkpCryptoCommitR")
 }
 
 func TestPedersenCommit(t *testing.T) {
@@ -125,8 +118,6 @@ func TestPedersenCommit(t *testing.T) {
 		t.Logf("commitR: %v\n", commitR)
 		t.Fatalf("commit and/or commitR should not have opened properly")
 	}
-
-	fmt.Println("Passed TestPedersenCommit")
 
 }
 
@@ -253,8 +244,6 @@ func TestAverages_Basic(t *testing.T) {
 		t.Logf("Average Test: SUM equivilance proof did not verify\n")
 		t.Fatalf("Equivilance proof of SUM did not verify\n")
 	}
-
-	fmt.Println("Passed TestAverages")
 
 }
 

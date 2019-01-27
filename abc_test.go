@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"testing"
 )
@@ -71,9 +70,6 @@ func TestABCProof(t *testing.T) {
 		t.Logf("ABCVerify: should have failed on false proof check!\n")
 		t.Fatalf("ABCVerify: not working...\n")
 	}
-
-	fmt.Println("Passed TestABCProof")
-
 }
 
 // TestABCProofSerialization tests if the ABC Proof can generate, serialize, deserialize, and then verify.
@@ -108,18 +104,10 @@ func TestABCProofSerialization(t *testing.T) {
 	if !check || err != nil {
 		t.Fatalf("ABCVerify failed: %s\n", err.Error())
 	}
-	fmt.Println("Passed TestABCProofSerialization")
-
 }
 
 // TestBreakABCProve tests if the ABC Proof can will catch invalid proofs.
 func TestBreakABCProve(t *testing.T) {
-
-	if *EVILPROOF {
-		fmt.Println("Skipped TestBreakABCProve")
-		t.Skip("Skipped TestBreakABCProve")
-	}
-
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
@@ -205,7 +193,6 @@ func TestBreakABCProve(t *testing.T) {
 		t.Logf("ABCVerify - EVIL: accepted attack input! c = 2, should fail...\n")
 		t.Fatalf("ABCVerify - EVIL: failed to catch attack!\n")
 	}
-
 }
 
 func BenchmarkABCProve_0(b *testing.B) {

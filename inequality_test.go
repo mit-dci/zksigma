@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"testing"
 )
@@ -75,8 +74,6 @@ func TestInequalityProve(t *testing.T) {
 		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
-
-	fmt.Println("Passed TestInequalityProve")
 
 }
 

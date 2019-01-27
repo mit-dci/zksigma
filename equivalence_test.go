@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"testing"
 )
@@ -69,8 +68,6 @@ func TestEquivilance(t *testing.T) {
 		proofStatus(status2.(*errorProof))
 	}
 
-	fmt.Println("Passed TestEquivilance")
-
 }
 
 func TestEquivSerialization(t *testing.T) {
@@ -88,7 +85,7 @@ func TestEquivSerialization(t *testing.T) {
 	if !ok || err != nil {
 		t.Fatalf("TestEquivSerialization failed to verify\n")
 	}
-	fmt.Println("Passed TestEquivSerialization")
+
 }
 
 func BenchmarkEquivProve(b *testing.B) {

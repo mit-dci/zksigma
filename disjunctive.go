@@ -200,6 +200,7 @@ func (djProof *DisjunctiveProof) Verify(
 	return true, nil
 }
 
+// Bytes returns a byte slice with a serialized representation of DisjunctiveProof proof
 func (proof *DisjunctiveProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -214,6 +215,8 @@ func (proof *DisjunctiveProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewDisjunctiveProofFromBytes returns a DisjunctiveProof generated from the
+// deserialization of byte slice b
 func NewDisjunctiveProofFromBytes(b []byte) (*DisjunctiveProof, error) {
 	proof := new(DisjunctiveProof)
 	buf := bytes.NewBuffer(b)

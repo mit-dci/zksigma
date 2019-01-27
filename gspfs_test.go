@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"testing"
 )
 
@@ -41,8 +40,6 @@ func TestGSPFS(t *testing.T) {
 		t.Fatalf("GSPFS Proof should not have worked - 2\n")
 	}
 
-	fmt.Println("Passed TestGSPFS")
-
 }
 
 func TestGSPFSSerialization(t *testing.T) {
@@ -58,7 +55,7 @@ func TestGSPFSSerialization(t *testing.T) {
 	if !ok || err != nil {
 		t.Fatalf("TestGSPFSSerialization failed to verify\n")
 	}
-	fmt.Println("Passed TestGSPFSSerialization")
+
 }
 
 func BenchmarkGSPFS_AnyBase(b *testing.B) {

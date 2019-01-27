@@ -17,8 +17,6 @@ import (
 // DEBUG Indicates whether we output debug information while running the tests. Default off.
 var DEBUG = flag.Bool("debug1", false, "Debug output")
 
-var EVILPROOF = flag.Bool("testevil", false, "Tries to generate a false proof and make it pass verification")
-
 // ZKCurve is a global cache for the curve and two generator points used in the various proof
 // generation and verification functions.
 var ZKCurve zkpCrypto
@@ -70,6 +68,7 @@ func KeyGen() (ECPoint, *big.Int) {
 	return ECPoint{pkX, pkY}, sk
 }
 
+// BigZero contains a cached instance of big.Int with value 0
 var BigZero *big.Int
 
 // ============ ECPoint OPERATIONS ==================
@@ -154,12 +153,7 @@ func (p ECPoint) Bytes() []byte {
 	return append(p.X.Bytes(), p.Y.Bytes()...)
 }
 
-func ECCopy(p ECPoint) ECPoint {
-	newX := new(big.Int).Set(p.X)
-	newY := new(big.Int).Set(p.Y)
-	return ECPoint{newX, newY}
-}
-
+// WriteECPoint write an ECPoint to io.Writer w
 func WriteECPoint(w io.Writer, p ECPoint) error {
 	err := wire.WriteVarBytes(w, p.X.Bytes())
 	if err != nil {
@@ -169,6 +163,7 @@ func WriteECPoint(w io.Writer, p ECPoint) error {
 	return err
 }
 
+// ReadECPoint reads an ECPoint from io.Reader r
 func ReadECPoint(r io.Reader) (ECPoint, error) {
 	xBytes, err := wire.ReadVarBytes(r, 32, "x")
 	if err != nil {
@@ -181,6 +176,7 @@ func ReadECPoint(r io.Reader) (ECPoint, error) {
 	return ECPoint{X: big.NewInt(0).SetBytes(xBytes), Y: big.NewInt(0).SetBytes(yBytes)}, nil
 }
 
+// WriteBigInt write a big.Int to io.Writer w
 func WriteBigInt(w io.Writer, b *big.Int) error {
 	neg := []byte{0x00}
 	if b.Sign() < 0 {
@@ -190,6 +186,7 @@ func WriteBigInt(w io.Writer, b *big.Int) error {
 	return err
 }
 
+// ReadBigInt reads a big.Int from io.Reader r
 func ReadBigInt(r io.Reader) (*big.Int, error) {
 	bBytes, err := wire.ReadVarBytes(r, 32, "")
 	if err != nil {
@@ -253,6 +250,8 @@ func Open(value, randomValue *big.Int, pcomm ECPoint) bool {
 
 // ====== Generalized Hash Function =========
 
+// GenerateChallenge hashes the passed byte arrays using SHA-256, and then returns
+// the resulting hash as a big.Int modulo the order of the curve base point
 func GenerateChallenge(arr ...[]byte) *big.Int {
 	hasher := sha256.New()
 	for _, v := range arr {

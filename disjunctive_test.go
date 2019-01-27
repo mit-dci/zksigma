@@ -2,7 +2,6 @@ package zksigma
 
 import (
 	"crypto/rand"
-	"fmt"
 	"math/big"
 	"testing"
 )
@@ -51,8 +50,6 @@ func TestDisjunctive(t *testing.T) {
 		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
 	}
 
-	fmt.Println("Passed TestDisjunctiveg")
-
 }
 
 func TestDisjuncSerialization(t *testing.T) {
@@ -71,7 +68,7 @@ func TestDisjuncSerialization(t *testing.T) {
 	if !ok || err != nil {
 		t.Fatalf("TestDisjuncSerialization failed to verify\n")
 	}
-	fmt.Println("Passed TestDisjuncSerialization")
+
 }
 
 func BenchmarkDisjuncProve_LEFT(b *testing.B) {

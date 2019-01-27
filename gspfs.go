@@ -94,6 +94,7 @@ func (proof *GSPFSProof) Verify(A ECPoint) (bool, error) {
 	return true, nil
 }
 
+// Bytes returns a byte slice with a serialized representation of GSPFSProof proof
 func (proof *GSPFSProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -105,6 +106,8 @@ func (proof *GSPFSProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewGSPFSProofFromBytes returns a GSPFSProof generated from the
+// deserialization of byte slice b
 func NewGSPFSProofFromBytes(b []byte) (*GSPFSProof, error) {
 	proof := new(GSPFSProof)
 	buf := bytes.NewBuffer(b)

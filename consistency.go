@@ -132,6 +132,7 @@ func (conProof *ConsistencyProof) Verify(
 	return true, nil
 }
 
+// Bytes returns a byte slice with a serialized representation of ConsistencyProof proof
 func (proof *ConsistencyProof) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -144,6 +145,8 @@ func (proof *ConsistencyProof) Bytes() []byte {
 	return buf.Bytes()
 }
 
+// NewConsistencyProofFromBytes returns a ConsistencyProof generated from the
+// deserialization of byte slice b
 func NewConsistencyProofFromBytes(b []byte) (*ConsistencyProof, error) {
 	proof := new(ConsistencyProof)
 	buf := bytes.NewBuffer(b)
