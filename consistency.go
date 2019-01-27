@@ -1,6 +1,7 @@
 package zksigma
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -129,4 +130,27 @@ func (conProof *ConsistencyProof) Verify(
 
 	// All three checks passed, proof must be correct
 	return true, nil
+}
+
+func (proof *ConsistencyProof) Bytes() []byte {
+	var buf bytes.Buffer
+
+	WriteECPoint(&buf, proof.T1)
+	WriteECPoint(&buf, proof.T2)
+	WriteBigInt(&buf, proof.Challenge)
+	WriteBigInt(&buf, proof.s1)
+	WriteBigInt(&buf, proof.s2)
+
+	return buf.Bytes()
+}
+
+func NewConsistencyProofFromBytes(b []byte) (*ConsistencyProof, error) {
+	proof := new(ConsistencyProof)
+	buf := bytes.NewBuffer(b)
+	proof.T1, _ = ReadECPoint(buf)
+	proof.T2, _ = ReadECPoint(buf)
+	proof.Challenge, _ = ReadBigInt(buf)
+	proof.s1, _ = ReadBigInt(buf)
+	proof.s2, _ = ReadBigInt(buf)
+	return proof, nil
 }

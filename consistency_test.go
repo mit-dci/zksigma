@@ -49,6 +49,44 @@ func TestConsistency(t *testing.T) {
 	fmt.Println("Passed TestConsistency")
 }
 
+func TestConsistencySerialization(t *testing.T) {
+	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
+	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
+	pk := ZKCurve.H.Mult(sk)
+
+	comm, u, err := PedCommit(x)
+	if err != nil {
+		t.Fatalf("%v\n", err)
+	}
+
+	y := pk.Mult(u)
+
+	conProof, status1 := NewConsistencyProof(comm, y, pk, x, u)
+
+	if status1 != nil {
+		t.Fatalf("TestConsistency - incorrect error message for correct proof, case 1\n")
+	}
+
+	conProof, status1 = NewConsistencyProofFromBytes(conProof.Bytes())
+	if status1 != nil {
+		t.Fatalf("TestConsistency - failed to deserialize \n")
+	}
+	t.Logf(" [testing] Testing correct consistency proof\n")
+	check, err := conProof.Verify(comm, y, pk)
+	if !check || err != nil {
+		t.Fatalf("Error -- Proof should be correct\n")
+	}
+	fmt.Println("Passed TestConsistencySerialization")
+}
+
 func BenchmarkConsistencyProve(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 

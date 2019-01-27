@@ -45,6 +45,22 @@ func TestGSPFS(t *testing.T) {
 
 }
 
+func TestGSPFSSerialization(t *testing.T) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	Base := ZKCurve.G
+	CM := ZKCurve.G.Mult(value)
+	proof, err := NewGSPFSProofBase(Base, CM, value)
+	proof, err = NewGSPFSProofFromBytes(proof.Bytes())
+	if err != nil {
+		t.Fatalf("TestGSPFSSerialization failed to deserialize\n")
+	}
+	ok, err := proof.Verify(CM)
+	if !ok || err != nil {
+		t.Fatalf("TestGSPFSSerialization failed to verify\n")
+	}
+	fmt.Println("Passed TestGSPFSSerialization")
+}
+
 func BenchmarkGSPFS_AnyBase(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base := ZKCurve.G

@@ -1,6 +1,7 @@
 package zksigma
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -91,4 +92,25 @@ func (proof *GSPFSProof) Verify(A ECPoint) (bool, error) {
 		return false, &errorProof{"GSPFSProof.Verify", "proof's final value and verification final value do not agree!"}
 	}
 	return true, nil
+}
+
+func (proof *GSPFSProof) Bytes() []byte {
+	var buf bytes.Buffer
+
+	WriteECPoint(&buf, proof.Base)
+	WriteECPoint(&buf, proof.RandCommit)
+	WriteBigInt(&buf, proof.HiddenValue)
+	WriteBigInt(&buf, proof.Challenge)
+
+	return buf.Bytes()
+}
+
+func NewGSPFSProofFromBytes(b []byte) (*GSPFSProof, error) {
+	proof := new(GSPFSProof)
+	buf := bytes.NewBuffer(b)
+	proof.Base, _ = ReadECPoint(buf)
+	proof.RandCommit, _ = ReadECPoint(buf)
+	proof.HiddenValue, _ = ReadBigInt(buf)
+	proof.Challenge, _ = ReadBigInt(buf)
+	return proof, nil
 }

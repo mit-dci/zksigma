@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestABCProof tests if the ABC Proof can generate and verify.
 func TestABCProof(t *testing.T) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
@@ -75,6 +76,43 @@ func TestABCProof(t *testing.T) {
 
 }
 
+// TestABCProofSerialization tests if the ABC Proof can generate, serialize, deserialize, and then verify.
+func TestABCProofSerialization(t *testing.T) {
+	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+
+	PK := ZKCurve.H.Mult(sk)
+	A := ZKCurve.H.Mult(ua)       // uaH
+	temp := ZKCurve.G.Mult(value) // value(G)
+
+	// A = vG + uaH
+	A = A.Add(temp)
+	AToken := PK.Mult(ua)
+
+	aProof, status := NewABCProof(A, AToken, value, sk, Right)
+
+	if status != nil {
+		proofStatus(status.(*errorProof))
+		t.Logf("ABCProof RIGHT failed to generate!\n")
+		t.Fatalf("ABCProof RIGHT failed\n")
+	}
+	aProof, status = NewABCProofFromBytes(aProof.Bytes())
+
+	if status != nil {
+		proofStatus(status.(*errorProof))
+		t.Fatalf("ABCProof failed to deserialize!\n")
+	}
+
+	check, err := aProof.Verify(A, AToken)
+	if !check || err != nil {
+		t.Fatalf("ABCVerify failed: %s\n", err.Error())
+	}
+	fmt.Println("Passed TestABCProofSerialization")
+
+}
+
+// TestBreakABCProve tests if the ABC Proof can will catch invalid proofs.
 func TestBreakABCProve(t *testing.T) {
 
 	if *EVILPROOF {

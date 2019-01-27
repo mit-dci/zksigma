@@ -73,6 +73,24 @@ func TestEquivilance(t *testing.T) {
 
 }
 
+func TestEquivSerialization(t *testing.T) {
+	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	Base1 := ZKCurve.G
+	Result1 := Base1.Mult(value)
+	Base2 := ZKCurve.H
+	Result2 := Base2.Mult(value)
+	proof, _ := NewEquivalenceProof(Base1, Result1, Base2, Result2, value)
+	proof, err := NewEquivalenceProofFromBytes(proof.Bytes())
+	if err != nil {
+		t.Fatalf("TestEquivSerialization failed to deserialize\n")
+	}
+	ok, err := proof.Verify(Base1, Result1, Base2, Result2)
+	if !ok || err != nil {
+		t.Fatalf("TestEquivSerialization failed to verify\n")
+	}
+	fmt.Println("Passed TestEquivSerialization")
+}
+
 func BenchmarkEquivProve(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G

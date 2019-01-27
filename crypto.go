@@ -6,10 +6,12 @@ import (
 	"crypto/sha256"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 
 	"github.com/mit-dci/zksigma/btcec"
+	"github.com/mit-dci/zksigma/wire"
 )
 
 // DEBUG Indicates whether we output debug information while running the tests. Default off.
@@ -156,6 +158,48 @@ func ECCopy(p ECPoint) ECPoint {
 	newX := new(big.Int).Set(p.X)
 	newY := new(big.Int).Set(p.Y)
 	return ECPoint{newX, newY}
+}
+
+func WriteECPoint(w io.Writer, p ECPoint) error {
+	err := wire.WriteVarBytes(w, p.X.Bytes())
+	if err != nil {
+		return err
+	}
+	err = wire.WriteVarBytes(w, p.Y.Bytes())
+	return err
+}
+
+func ReadECPoint(r io.Reader) (ECPoint, error) {
+	xBytes, err := wire.ReadVarBytes(r, 32, "x")
+	if err != nil {
+		return Zero, err
+	}
+	yBytes, err := wire.ReadVarBytes(r, 32, "y")
+	if err != nil {
+		return Zero, err
+	}
+	return ECPoint{X: big.NewInt(0).SetBytes(xBytes), Y: big.NewInt(0).SetBytes(yBytes)}, nil
+}
+
+func WriteBigInt(w io.Writer, b *big.Int) error {
+	neg := []byte{0x00}
+	if b.Sign() < 0 {
+		neg = []byte{0x01}
+	}
+	err := wire.WriteVarBytes(w, append(neg, b.Bytes()...))
+	return err
+}
+
+func ReadBigInt(r io.Reader) (*big.Int, error) {
+	bBytes, err := wire.ReadVarBytes(r, 32, "")
+	if err != nil {
+		return nil, err
+	}
+	newInt := big.NewInt(0).SetBytes(bBytes[1:])
+	if bBytes[0] == 0x01 {
+		newInt.Neg(newInt)
+	}
+	return newInt, nil
 }
 
 // CommitR uses the Public Key (pk) and a random number (r) to

@@ -1,12 +1,15 @@
 package zksigma
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"flag"
 	"fmt"
 	"math/big"
 	"sync"
+
+	"github.com/mit-dci/zksigma/wire"
 )
 
 // RANGE indicates if we are running the rangeproof test cases (default: false)
@@ -321,4 +324,35 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (proof *RangeProof) Bytes() []byte {
+	var buf bytes.Buffer
+
+	WriteECPoint(&buf, proof.ProofAggregate)
+	WriteBigInt(&buf, proof.ProofE)
+	wire.WriteVarInt(&buf, uint64(len(proof.ProofTuples)))
+	for _, t := range proof.ProofTuples {
+		WriteECPoint(&buf, t.C)
+		WriteBigInt(&buf, t.S)
+	}
+
+	return buf.Bytes()
+}
+
+func NewRangeProofFromBytes(b []byte) (*RangeProof, error) {
+	proof := new(RangeProof)
+	buf := bytes.NewBuffer(b)
+
+	proof.ProofAggregate, _ = ReadECPoint(buf)
+	proof.ProofE, _ = ReadBigInt(buf)
+	numTuples, _ := wire.ReadVarInt(buf)
+	proof.ProofTuples = make([]RangeProofTuple, numTuples)
+	for i := uint64(0); i < numTuples; i++ {
+		proof.ProofTuples[i] = RangeProofTuple{}
+		proof.ProofTuples[i].C, _ = ReadECPoint(buf)
+		proof.ProofTuples[i].S, _ = ReadBigInt(buf)
+	}
+
+	return proof, nil
 }
