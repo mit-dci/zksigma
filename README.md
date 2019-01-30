@@ -15,7 +15,7 @@ Features:
 Statements that can be proved:
 - I can open a Pedersen Commitment `A`(=`aG+uH`) (Open)
 - I know the discrete log of a commitment `A`(=`aG`) (GSPFS Proof)
-- I know the discrete log of commitments `A`(=`xG`) and `B`(=`xH`) and they are equal (Equivilence Proof)
+- I know the discrete log of commitments `A`(=`xG`) and `B`(=`xH`) and they are equal (Equivalence Proof)
 - I know either the discrete log of commitments `A` or `B` (Disjunctive Proof)
 - I know that the blinding factor of commitments `A` and `B` is equal (Consistency Proof)
 - I know `a`, `b`, and `c` in commitments `A`, `B` and `C` and `a * b = c` (ABC Proof)
@@ -40,12 +40,12 @@ Notation:
   - `H` = Secondary Base Point whose relation to `G` should not be known
   - `A`, `B`, `CM`, `CMTok`, etc, are usually of the form `vG+uH` unless otherwise stated
 - `sk` and `PK` are always secret key and public key. `sk` is a randomly chosen scalar.  `PK = sk * H`
-- `CM` = Commitment of the form `aG + uaH`
+- `CM` = Commitment of the form `aG + uH`
 - `CMTok` = Commitment Token of the form `ua * PK`
 
 ## Articles related to NIZK Proofs
 
-[Simga Protocols](http://www.cs.au.dk/~ivan/Sigma.pdf)
+[Sigma Protocols](http://www.cs.au.dk/~ivan/Sigma.pdf)
 : is a three step protocol where a prover and verifier can exchange a commitment and a challenge in order to verify proof of knowledge behind the commitment. [Simple explanation here.](https://en.wikipedia.org/wiki/Proof_of_knowledge#Sigma_protocols)
 
 ftp://ftp.inf.ethz.ch/pub/crypto/publications/Maurer09.pdf (ftp link won't embed)
@@ -55,7 +55,7 @@ Unifying Zero-Knowledge Proofs of Knowledge: this paper explains zero-knowledge 
 [zkLedger](https://www.usenix.org/conference/nsdi18/presentation/narula)
 : a privacy preserving distributed ledger that allows for verifiable auditing. (Neat application of NIZKs)
 
-[bulletproofs](https://doc-internal.dalek.rs/bulletproofs/inner_product_proof/index.html): a faster form of rangeproofs that only requres log(n) steps to verify that a commitment is within a given range. This might be integrated into this library in the future.
+[bulletproofs](https://doc-internal.dalek.rs/bulletproofs/inner_product_proof/index.html): a faster form of rangeproofs that only requires log(n) steps to verify that a commitment is within a given range. This might be integrated into this library in the future.
 
 ## Comparison to zkSNARKS
 
