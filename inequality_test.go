@@ -9,8 +9,8 @@ import (
 func TestInequalityProve(t *testing.T) {
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
+	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	A, ua, err := PedCommit(a)
 	if err != nil {
 		t.Fatalf("%v\n", err)
@@ -80,8 +80,8 @@ func TestInequalityProve(t *testing.T) {
 func BenchmarkInequalityProve(b *testing.B) {
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic rarnge"
-	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic range"
+	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	A, ua, err := PedCommit(a)
 	if err != nil {
 		b.Fatalf("%v\n", err)

@@ -59,7 +59,7 @@ func TestABCProof(t *testing.T) {
 	aProof, status = NewABCProof(A, AToken, big.NewInt(1001), sk, Right)
 
 	if status != nil {
-		t.Logf("False proof genereation succeeded! (bad)\n")
+		t.Logf("False proof generation succeeded! (bad)\n")
 		t.Fatalf("ABCProve generated for false proof\n")
 	}
 
@@ -185,7 +185,7 @@ func TestBreakABCProve(t *testing.T) {
 		j, k, l, CToken,
 		disjuncAC}
 
-	t.Logf("Attemping to pass malicious true proof into verification function\n")
+	t.Logf("Attempting to pass malicious true proof into verification function\n")
 	t.Logf("This test should throw a couple error messages in debug\n")
 
 	check, err := evilProof.Verify(CM, CMTok)

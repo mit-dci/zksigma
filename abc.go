@@ -92,14 +92,14 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 	// Disjunctive Proof of a = 0 or c = 1
 	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
 		// MUST:a = 0! ; side = left
-		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
+		// B = 0 + ubH, here since we want to prove v = 0, we later accommodate for the lack of inverses
 		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.C.Params().N), ub)
 
 		// C = 0 + ucH
 		C = PedCommitR(big.NewInt(0), uc)
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
-		// C - G is done regardless of the c = 0 or 1 becuase in the case c = 0 it does matter what that random number is
+		// C - G is done regardless of the c = 0 or 1 because in the case c = 0 it does matter what that random number is
 		disjuncAC, e = NewDisjunctiveProof(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, Left)
 	} else if option == Right && value.Cmp(big.NewInt(0)) != 0 {
 		// MUST:c = 1! ; side = right
@@ -116,7 +116,7 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 	}
 
 	if e != nil {
-		return &ABCProof{}, &errorProof{"ABCProof", "DisjuntiveProve within ABCProve failed to generate"}
+		return &ABCProof{}, &errorProof{"ABCProof", "disjunctiveProve within ABCProve failed to generate"}
 	}
 
 	// CMTok is Ta for the rest of the proof
@@ -170,8 +170,8 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 // Verify checks if ABCProof aProof with appropriate commits CM and CMTok is correct
 func (aProof *ABCProof) Verify(CM, CMTok ECPoint) (bool, error) {
 
-	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
-	// Here it is important that you subtract exactly 1 G from the aProof.C becuase that only allows for you to prove c = 1!
+	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuitive
+	// Here it is important that you subtract exactly 1 G from the aProof.C because that only allows for you to prove c = 1!
 	_, status := aProof.disjuncAC.Verify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G))
 	if status != nil {
 		return false, &errorProof{"ABCVerify", "ABCProof for disjuncAC is false or not generated properly"}

@@ -1,6 +1,6 @@
 Stuff to do:
  - generelize proofs that use zkCurve G and H to use whatever is passed into them?
- - make the audtiing functionality abstract, currently it is hardcoded just for sum audits
+ - make the auditing functionality abstract, currently it is hard-coded just for sum audits
  - REALLY LONG TERM: 
     - for the auditRep, replace sum and eProof with []*bigInt for multiple returns
     - same for the eProof, replace it with []*Proofs

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestEquivilance(t *testing.T) {
+func TestEquivalence(t *testing.T) {
 
 	x, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	Base1 := ZKCurve.G
@@ -29,7 +29,7 @@ func TestEquivilance(t *testing.T) {
 		t.Logf("Base2 : %v\n", Base2)
 		t.Logf("Result2 : %v\n", Result2)
 		t.Logf("Proof : %v \n", eqProof)
-		t.Fatalf("Equivilance Proof verification failed")
+		t.Fatalf("Equivalence Proof verification failed")
 	}
 
 	t.Logf("Next comparison should fail\n")
@@ -41,7 +41,7 @@ func TestEquivilance(t *testing.T) {
 		t.Logf("Base2 : %v\n", Base2)
 		t.Logf("Result2 : %v\n", Result2)
 		t.Logf("Proof : %v \n", eqProof)
-		t.Fatalf("Equivilance Proof verification doesnt work")
+		t.Fatalf("Equivalence Proof verification doesn't work")
 	}
 
 	t.Logf("Next comparison should fail\n")
@@ -54,13 +54,13 @@ func TestEquivilance(t *testing.T) {
 		t.Logf("Base2 : %v\n", Base2)
 		t.Logf("Result2 : %v\n", Result2)
 		t.Logf("Proof : %v \n", eqProof)
-		t.Fatalf("Equivilance Proof verification doesnt work")
+		t.Fatalf("Equivalence Proof verification doesn't work")
 	}
 
 	x, _ = rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	_, status2 := NewEquivalenceProof(Base1, Result1, Base2, Result2, x)
 
-	// here I check proofStatus in the else statement becuase I want to make sure
+	// here I check proofStatus in the else statement because I want to make sure
 	// the failed case will raise an error
 	if status2 == nil {
 		t.Fatalf("error code should have indicated failed proof")

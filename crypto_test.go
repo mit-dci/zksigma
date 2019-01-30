@@ -44,7 +44,7 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 	// vG
 	ValEC := ZKCurve.G.Mult(value)
-	InvValEC := ValEC.Neg() // 1/vG (acutally mod operation but whatever you get it)
+	InvValEC := ValEC.Neg() // 1/vG (actually mod operation but whatever you get it)
 
 	t.Logf("         vG : %v --- value : %v \n", ValEC, value)
 	t.Logf("       1/vG : %v\n", InvValEC)
@@ -121,7 +121,7 @@ func TestPedersenCommit(t *testing.T) {
 
 }
 
-// TODO: make a toooooon more test cases
+// TODO: make a ton more test cases
 
 type etx struct {
 	CM    ECPoint
@@ -129,10 +129,10 @@ type etx struct {
 	ABCP  *ABCProof
 }
 
-//TODO: make a sk-pk that is consistant accross all test cases
+//TODO: make a sk-pk that is consistant across all test cases
 func TestAverages_Basic(t *testing.T) {
 
-	// remeber to change both number here...
+	// remember to change both number here...
 	numTx := 100
 	numTranx := big.NewInt(100)
 
@@ -166,10 +166,10 @@ func TestAverages_Basic(t *testing.T) {
 	// To calculate average we need to first show proof of knowledge
 	// of the sums of both the total value of transactions and the
 	// sum of the C-bit commitments
-	// This process is extactly the same process described in zkLedger
+	// This process is exactly the same process described in zkLedger
 	// (Neha Nerula) paper in section 4.2
 
-	//Need to aggregate a bunch of stuff to do equivilance proofs and what not
+	//Need to aggregate a bunch of stuff to do equivalence proofs and what not
 	totalCM := Zero
 	totalCMTok := Zero
 	totalC := Zero
@@ -192,8 +192,8 @@ func TestAverages_Basic(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		t.Logf("Average Test: equivilance proof failed to generate for numTx\n")
-		t.Fatalf("Averages did not gerneate correct NUMTX equivilance proof\n")
+		t.Logf("Average Test: equivalence proof failed to generate for numTx\n")
+		t.Fatalf("Averages did not generate correct NUMTX equivalence proof\n")
 	}
 
 	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
@@ -203,8 +203,8 @@ func TestAverages_Basic(t *testing.T) {
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
-		t.Logf("Average Test: equivilance proof failed to generate for value sum\n")
-		t.Fatalf("Averages did not gerneate correct VALUE equivilance proof\n")
+		t.Logf("Average Test: equivalence proof failed to generate for value sum\n")
+		t.Fatalf("Averages did not generate correct VALUE equivalence proof\n")
 	}
 
 	// ASSUME:
@@ -227,8 +227,8 @@ func TestAverages_Basic(t *testing.T) {
 	}
 
 	if !checkTx {
-		t.Logf("Average Test: NUMTX equivilance proof did not verify\n")
-		t.Fatalf("Equivilance proof of NUMTX did not verify\n")
+		t.Logf("Average Test: NUMTX equivalence proof did not verify\n")
+		t.Fatalf("equivalence proof of NUMTX did not verify\n")
 	}
 
 	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
@@ -241,8 +241,8 @@ func TestAverages_Basic(t *testing.T) {
 	}
 
 	if !checkVal {
-		t.Logf("Average Test: SUM equivilance proof did not verify\n")
-		t.Fatalf("Equivilance proof of SUM did not verify\n")
+		t.Logf("Average Test: SUM equivalence proof did not verify\n")
+		t.Fatalf("Equivalence proof of SUM did not verify\n")
 	}
 
 }

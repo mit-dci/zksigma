@@ -14,7 +14,7 @@ import (
 //
 //  Prover                              Verifier
 //  ======                              ========
-//  know x                              knows A = xG //doesnt know x and G just A
+//  know x                              knows A = xG //doesn't know x and G just A
 //  selects random u
 //  T1 = uG
 //  c = HASH(G, xG, uG)
@@ -65,7 +65,7 @@ func NewGSPFSProofBase(base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
 	return &GSPFSProof{base, uG, v, c}, nil
 }
 
-// GSPFSVerify checks if GSPFSProof proof is a valid proof for commitment A
+// Verify (GSPFSVerify) checks if GSPFSProof proof is a valid proof for commitment A
 func (proof *GSPFSProof) Verify(A ECPoint) (bool, error) {
 
 	if proof == nil {

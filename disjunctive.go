@@ -35,7 +35,7 @@ import (
 //										Same checks as above
 //
 // Note:
-// It should be indistingushiable for V with T1, T2, c, c1, c2, s1, s2
+// It should be indistinguishable for V with T1, T2, c, c1, c2, s1, s2
 // to tell if we are proving x or y. The above arrows show how the variables
 // used in the proof translate to T1, T2, etc.
 //
@@ -194,23 +194,23 @@ func (djProof *DisjunctiveProof) Verify(
 	s2G := Base2.Mult(S2)
 
 	if !checks2G.Equal(s2G) {
-		return false, &errorProof{"DisjuntiveVerify", "s2G not equal to T2 + c2B"}
+		return false, &errorProof{"DisjunctiveVerify", "s2G not equal to T2 + c2B"}
 	}
 
 	return true, nil
 }
 
 // Bytes returns a byte slice with a serialized representation of DisjunctiveProof proof
-func (proof *DisjunctiveProof) Bytes() []byte {
+func (djProof *DisjunctiveProof) Bytes() []byte {
 	var buf bytes.Buffer
 
-	WriteECPoint(&buf, proof.T1)
-	WriteECPoint(&buf, proof.T2)
-	WriteBigInt(&buf, proof.C)
-	WriteBigInt(&buf, proof.C1)
-	WriteBigInt(&buf, proof.C2)
-	WriteBigInt(&buf, proof.S1)
-	WriteBigInt(&buf, proof.S2)
+	WriteECPoint(&buf, djProof.T1)
+	WriteECPoint(&buf, djProof.T2)
+	WriteBigInt(&buf, djProof.C)
+	WriteBigInt(&buf, djProof.C1)
+	WriteBigInt(&buf, djProof.C2)
+	WriteBigInt(&buf, djProof.S1)
+	WriteBigInt(&buf, djProof.S2)
 
 	return buf.Bytes()
 }
