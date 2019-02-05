@@ -34,20 +34,19 @@ func TestECPointMethods(t *testing.T) {
 func TestZkpCryptoStuff(t *testing.T) {
 	value := big.NewInt(-100)
 
-	testCommit, randomValue, err := PedCommit(value) // xG + rH
+	testCommit, randomValue, err := PedCommit(value) // CM = xG + rH
 
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	value = new(big.Int).Mod(value, ZKCurve.C.Params().N)
+	value = new(big.Int).Mod(value, ZKCurve.C.Params().N) // v % p
 
-	// vG
-	ValEC := ZKCurve.G.Mult(value)
-	InvValEC := ValEC.Neg() // 1/vG (actually mod operation but whatever you get it)
+	ValEC := ZKCurve.G.Mult(value) // vG
+	InvValEC := ValEC.Neg()        // 1/vG (actually mod operation but whatever you get it)
 
-	t.Logf("         vG : %v --- value : %v \n", ValEC, value)
-	t.Logf("       1/vG : %v\n", InvValEC)
+	t.Logf("  vG : %v --- value : %v \n", ValEC, value)
+	t.Logf("1/vG : %v\n", InvValEC)
 
 	temp := ValEC.Add(InvValEC)
 	t.Logf("TestZkpCrypto:")
@@ -211,8 +210,8 @@ func TestAverages_Basic(t *testing.T) {
 	// eProofs passed to auditor
 	// clear text answers of total value and total number tx passed to auditor
 	// auditor WILL recalculate all the totals (totalCM, totalCMTok, etc) before doing the following
-	// auditor WILL recualculate the B1's as shown above
-	// auditor WILL verify eProofs and then perform the final average calcualtion, shown below
+	// auditor WILL recalculate the B1's as shown above
+	// auditor WILL verify eProofs and then perform the final average calculation, shown below
 	// ======== AUDITOR PROCESS ===========
 
 	B1 = totalC.Add(ZKCurve.G.Mult(numTranx).Neg())

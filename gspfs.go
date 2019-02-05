@@ -14,7 +14,8 @@ import (
 //
 //  Prover                              Verifier
 //  ======                              ========
-//  know x                              knows A = xG //doesn't know x and G just A
+//  know x
+// 	A = xG								learns A
 //  selects random u
 //  T1 = uG
 //  c = HASH(G, xG, uG)

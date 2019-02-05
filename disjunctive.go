@@ -15,14 +15,15 @@ import (
 //  Prover                              Verifier
 //  ======                              ========
 //  (proving x)
-//  knows x AND/OR y					knows A = xG ; B = yH // can be yG
+//  knows x AND/OR y
+// 	A = xG; B = yH or yG				learns A, B
 //  selects random u1, u2, u3
 //  T1 = u1G
 //  T2 = u2H + (-u3)yH
 //  c = HASH(T1, T2, G, A, B)
 //  deltaC = c - u3
 //  s = u1 + deltaC * x
-//  T1, T2, c, deltaC, u3, s, u2 -----> T1, T2, c, c1, c2, s1, s2
+//  T1, T2, c, deltaC, u3, s, u2 -MAP-> T1, T2, c, c1, c2, s1, s2
 //                                      c ?= HASH(T1, T2, G, A, B)
 //                                      c ?= c1 + c2 // mod ZKCurve.C.Params().N
 //                                      s1G ?= T1 + c1A
@@ -31,11 +32,11 @@ import (
 //
 //  Prover		 						Verifier
 //  ======                              ========
-//  T2, T1, c, u3, deltaC, u2, s -----> T1, T2, c, c1, c2, s1, s2
+//  T2, T1, c, u3, deltaC, u2, s -MAP-> T1, T2, c, c1, c2, s1, s2
 //										Same checks as above
 //
 // Note:
-// It should be indistinguishable for V with T1, T2, c, c1, c2, s1, s2
+// It should be indistinguishable for Verifier with T1, T2, c, c1, c2, s1, s2
 // to tell if we are proving x or y. The above arrows show how the variables
 // used in the proof translate to T1, T2, etc.
 //
@@ -52,9 +53,9 @@ type DisjunctiveProof struct {
 }
 
 // NewDisjunctiveProof generates a disjunctive proof. Base1 and Base2 are our chosen base points.
-// Result1 is Base1 multiplied by x/y, and Result2 is Base2 multiplied by x/y. x is the value to
-// prove, if option is Left, we use Base1/Result1 - if option is Right we use Base2/Result2. The
-// verifier will not need to provide a side.
+// Result1 is Base1 multiplied by x or y, and Result2 is Base2 multiplied by x or y. x is the value to
+// prove, if option is Left, we use Base1 and Result1 - if option is Right we use Base2 and Result2. The
+// verifier will not learn what side is being proved and should not be able to tell.
 func NewDisjunctiveProof(
 	Base1, Result1, Base2, Result2 ECPoint, x *big.Int, option Side) (*DisjunctiveProof, error) {
 
@@ -115,7 +116,8 @@ func NewDisjunctiveProof(
 			Base2.Bytes(), Result2.Bytes(),
 			T1.Bytes(), T2.Bytes())
 	} else {
-		// If we are proving Base2 and Result2 then we must switch T1 and T2 in string
+		// If we are proving Base2 and Result2 then we must switch T1 and
+		// T2 in this string, look at mapping in proof for clarification
 		Challenge = GenerateChallenge(Base1.Bytes(), Result1.Bytes(),
 			Base2.Bytes(), Result2.Bytes(),
 			T2.Bytes(), T1.Bytes()) //T2 and T1 SWAPPED!

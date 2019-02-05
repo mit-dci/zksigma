@@ -9,7 +9,7 @@ import (
 // TestABCProof tests if the ABC Proof can generate and verify.
 func TestABCProof(t *testing.T) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	PK := ZKCurve.H.Mult(sk)
@@ -75,7 +75,7 @@ func TestABCProof(t *testing.T) {
 // TestABCProofSerialization tests if the ABC Proof can generate, serialize, deserialize, and then verify.
 func TestABCProofSerialization(t *testing.T) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	PK := ZKCurve.H.Mult(sk)
@@ -109,7 +109,7 @@ func TestABCProofSerialization(t *testing.T) {
 // TestBreakABCProve tests if the ABC Proof can will catch invalid proofs.
 func TestBreakABCProve(t *testing.T) {
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	ua, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 
 	PK := ZKCurve.H.Mult(sk)

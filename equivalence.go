@@ -7,13 +7,15 @@ import (
 	"math/big"
 )
 
-// EquivalenceProof is an Equivalence Proof. A proof that both A and B both use the same x as a discrete log
+// EquivalenceProof is an Equivalence Proof. A proof that both A and B both use the
+// same scalar, x.
 //
 //  Public: generator points G and H
 //
 //  Prover                              Verifier
 //  ======                              ========
-//  know x                              knows A = xG ; B = xH
+//  know x
+//	A = xG ; B = xH						learns A, B
 //  selects random u
 //  T1 = uG
 //  T2 = uH
@@ -32,11 +34,9 @@ type EquivalenceProof struct {
 }
 
 // NewEquivalenceProof generates an equivalence proof that Result1 is the scalar multiple of base Base1,
-// and Result2 is the scalar multiple of base Base2. Both using the same x as discrete log.
+// and Result2 is the scalar multiple of base Base2 and that both results are using the same x as discrete log.
 func NewEquivalenceProof(
 	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (*EquivalenceProof, error) {
-	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
-	// x trying to be proved that both G and H are raised with x
 
 	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
 	check1 := Base1.Mult(modValue)
