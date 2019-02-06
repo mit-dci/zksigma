@@ -216,7 +216,7 @@ func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
 
 // =============== PEDERSEN COMMITMENTS ================
 
-// PedCommit generates a pedersen commitment of value using the
+// PedCommit generates a Pedersen commitment of value using the
 // generators of ZKCurve.  It returns the randomness generated for the
 // commitment.
 func PedCommit(value *big.Int) (ECPoint, *big.Int, error) {
@@ -228,7 +228,7 @@ func PedCommit(value *big.Int) (ECPoint, *big.Int, error) {
 	return PedCommitR(value, randomValue), randomValue, nil
 }
 
-// CommitWithR generates a pedersen commitment with a given random value
+// PedCommitR generates a Pedersen commitment with a given random value
 func PedCommitR(value, randomValue *big.Int) ECPoint {
 
 	// modValue = value mod N
@@ -243,7 +243,7 @@ func PedCommitR(value, randomValue *big.Int) ECPoint {
 	return lhs.Add(rhs)
 }
 
-// Open checks if the values given result in the given pedersen commitment
+// Open checks if the values given result in the given Pedersen commitment
 func Open(value, randomValue *big.Int, pcomm ECPoint) bool {
 	return PedCommitR(value, randomValue).Equal(pcomm)
 }

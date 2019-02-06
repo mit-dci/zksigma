@@ -24,8 +24,7 @@ func TestInequalityProve(t *testing.T) {
 	PK := ZKCurve.H.Mult(sk)
 
 	// Even though we generated the values for ua and ub in this test case, we do not
-	// need to know ua or ub, only the commitment tokens are needed, which is already
-	// used in many other proofs
+	// need to know ua or ub, only the commitment tokens are needed
 	CMTokA := PK.Mult(ua)
 	CMTokB := PK.Mult(ub)
 
@@ -43,7 +42,7 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
 
-	// Swapped positions of commitments, tokens and values, will work just fine
+	// Swapped positions of commitments, tokens and values, should work just fine
 	aProof, status = NewInequalityProof(B, A, CMTokB, CMTokA, b, a, sk)
 
 	if status != nil {

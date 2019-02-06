@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Copy-pasted from original  apl implementation by Willy (github.com/wrv)
+// Copy-pasted from original apl implementation by Willy (github.com/wrv)
 func TestRangeProver_Verify(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, big.NewInt(1099511627775))
 	proof, rp, err := NewRangeProof(value)

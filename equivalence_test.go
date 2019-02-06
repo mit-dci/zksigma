@@ -33,7 +33,7 @@ func TestEquivalence(t *testing.T) {
 	}
 
 	t.Logf("Next comparison should fail\n")
-	// Bases swapped shouldnt work
+	// Bases swapped shouldn't work
 	check, err = eqProof.Verify(Base2, Result1, Base1, Result2)
 	if check || err == nil {
 		t.Logf("Base1 : %v\n", Base1)
