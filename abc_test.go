@@ -35,7 +35,7 @@ func TestABCProof(t *testing.T) {
 	}
 
 	A = ZKCurve.H.Mult(ua)
-	aProof, status = NewABCProof(A, AToken, big.NewInt(0), sk, Left)
+	aProof, status = NewABCProof(A, AToken, BigZero, sk, Left)
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
@@ -197,7 +197,7 @@ func TestBreakABCProve(t *testing.T) {
 }
 
 func BenchmarkABCProve_0(b *testing.B) {
-	value := big.NewInt(0)
+	value := BigZero
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)
@@ -235,7 +235,7 @@ func BenchmarkABCProve_1(b *testing.B) {
 }
 
 func BenchmarkABCVerify_0(b *testing.B) {
-	value := big.NewInt(0)
+	value := BigZero
 
 	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
 	PK := ZKCurve.H.Mult(sk)

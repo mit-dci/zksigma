@@ -92,18 +92,18 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 	var disjuncAC *DisjunctiveProof
 	var e error
 	// Disjunctive Proof of a = 0 or c = 1
-	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
+	if option == Left && value.Cmp(BigZero) == 0 {
 		// MUST: a = 0! ; side = left
 		// No inverse if value=0; set B to 0.  Do we confirm somewhere else that a=0?
-		B = PedCommitR(big.NewInt(0), ub)
+		B = PedCommitR(BigZero, ub)
 
 		// C = 0 + ucH
-		C = PedCommitR(big.NewInt(0), uc)
+		C = PedCommitR(BigZero, uc)
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
 		// C - G is done regardless of the c = 0 or 1 because in the case c = 0 it does matter what that random number is
 		disjuncAC, e = NewDisjunctiveProof(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, Left)
-	} else if option == Right && value.Cmp(big.NewInt(0)) != 0 {
+	} else if option == Right && value.Cmp(BigZero) != 0 {
 		// MUST: c = 1! ; side = right
 
 		B = PedCommitR(new(big.Int).ModInverse(value, ZKCurve.C.Params().N), ub)
