@@ -17,7 +17,7 @@ import (
 //  - CM = vG + uaH // we do not know ua, only v
 //  - B = inv(v)G + ubH //inv is multiplicative inverse, in the case of v = 0, inv(v) = 0
 //  - C = (v * inv(v))G + ucH // c = v * inv(v)
-//  - CMTok = uaPK + ua(skH) // same r from CM
+//  - CMTok = uaPK = ua(skH) // ua is r from CM
 //
 //  Prover									Verifier
 //  ======                                  ======
@@ -39,8 +39,8 @@ import (
 //  disjuncAC, B, C, T1, T2, c, j, k, l ------->
 //         									disjuncAC ?= true
 //         									chal ?= HASH(G,H,CM,CMTok,B,C,T1,T2)
-//         									cCM + T1 ?= jG + kCMTok
-//         									cC + T2 ?= jB + lH
+//         									chal*CM + T1 ?= jG + kCMTok
+//         									chal*C + T2 ?= jB + lH
 type ABCProof struct {
 	B         ECPoint  // commitment for b = 0 OR inv(v)
 	C         ECPoint  // commitment for c = 0 OR 1 ONLY
