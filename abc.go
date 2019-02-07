@@ -94,8 +94,8 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 	// Disjunctive Proof of a = 0 or c = 1
 	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
 		// MUST: a = 0! ; side = left
-		// B = 0 + ubH, here since we want to prove v = 0, we later accommodate for the lack of inverses
-		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.C.Params().N), ub)
+		// No inverse if value=0; set B to 0.  Do we confirm somewhere else that a=0?
+		B = PedCommitR(big.NewInt(0), ub)
 
 		// C = 0 + ucH
 		C = PedCommitR(big.NewInt(0), uc)
