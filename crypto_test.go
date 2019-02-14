@@ -246,6 +246,34 @@ func TestAverages_Basic(t *testing.T) {
 
 }
 
+// func TestBigZeroAssignment(t *testing.T) {
+// 	TestBigZero := big.NewInt(0)
+
+// 	assign1 := TestBigZero              // assign will be using TestBigZero pointer from here on
+// 	assign1.Add(assign1, big.NewInt(1)) // TestBigZero looks like it does not change but actually does
+
+// 	assign2 := TestBigZero // assign2 = TestBigZero = 1
+
+// 	if assign1.Cmp(assign2) == 0 {
+// 		t.Fatalf("THIS TEST WILL FAIL FOR DEMO PURPOSES: should not be equal %v", TestBigZero)
+// 	}
+
+// }
+
+// func TestZeroAssignment(t *testing.T) {
+// 	TestBigZero := Zero
+// 	One := ZKCurve.G
+
+// 	cool := TestBigZero.Add(One) // TestBigZero does not actually change
+
+// 	assign2 := TestBigZero // assign2 = TestBigZero = 1
+
+// 	if cool.Equal(assign2) {
+// 		t.Fatalf("THIS TEST WILL FAIL FOR DEMO PURPOSES: should not be equal %v", TestBigZero)
+// 	}
+
+// }
+
 // ============== BENCHMARKS =================
 func BenchmarkPedCommit(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)

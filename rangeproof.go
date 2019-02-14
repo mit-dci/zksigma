@@ -164,7 +164,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 
 	proofSize := 40
 	// check to see if our value is out of range
-	if proofSize > 40 || value.Cmp(big.NewInt(0)) == -1 {
+	if proofSize > 40 || value.Cmp(BigZero) == -1 {
 		//if so, then we can't play
 		return nil, nil, fmt.Errorf("** Trying to get a value that is out of range! Range Proof will not work!\n")
 	}
