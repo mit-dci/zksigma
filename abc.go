@@ -9,45 +9,47 @@ import (
 )
 
 // ABCProof is a proof that generates a proof that the relationship between three
-// scalars a,b and c is ab = c
+//  scalars a, b and c is ab = c
+//
+//  MAPPING[a, b, c] :: [v, inv(v), c]
 //
 //  Public: G, H, CM, B, C, CMTok where
 //  - CM = vG + uaH // we do not know ua, only v
 //  - B = inv(v)G + ubH //inv is multiplicative inverse, in the case of v = 0, inv(v) = 0
-//  - C = (v * inv(v))G + ucH
-//  - CMTok = rPK = r(skH) // same r from A
+//  - C = (v * inv(v))G + ucH // c = v * inv(v)
+//  - CMTok = uaPK = ua(skH) // ua is r from CM
 //
 //  Prover									Verifier
 //  ======                                  ======
 //  generate in order:
 //  - commitment of inv(v), B
 //  - commitment of v * inv(v), C // either 0 or 1 ONLY
-//  - Disjunctive proof of a = 0 or c = 1
+//  - Disjunctive proof of v = 0 or c = 1
 //  select u1, u2, u3 at random
-//  select ub, uc at random
+//  select ub, uc at random // ua was before proof
 //  Compute:
 //  - T1 = u1G + u2CMTok
 //  - T2 = u1B + u3H
-//  - c = HASH(G,H,CM,CMTok,B,C,T1,T2)
+//  - chal = HASH(G,H,CM,CMTok,B,C,T1,T2)
 //  Compute:
-//  - j = u1 + v * c
-//  - k = u2 + inv(sk) * c
-//  - l = u3 + (uc - v * ub) * c
+//  - j = u1 + v * chal
+//  - k = u2 + inv(sk) * chal
+//  - l = u3 + (uc - v * ub) * chal
 //
 //  disjuncAC, B, C, T1, T2, c, j, k, l ------->
 //         									disjuncAC ?= true
-//         									c ?= HASH(G,H,CM,CMTok,B,C,T1,T2)
-//         									cCM + T1 ?= jG + kCMTok
-//         									cC + T2 ?= jB + lH
+//         									chal ?= HASH(G,H,CM,CMTok,B,C,T1,T2)
+//         									chal*CM + T1 ?= jG + kCMTok
+//         									chal*C + T2 ?= jB + lH˜
 type ABCProof struct {
 	B         ECPoint  // commitment for b = 0 OR inv(v)
 	C         ECPoint  // commitment for c = 0 OR 1 ONLY
 	T1        ECPoint  // T1 = u1G + u2MTok
 	T2        ECPoint  // T2 = u1B + u3H
-	Challenge *big.Int //c = HASH(G,H,CM,CMTok,B,C,T1,T2)
-	j         *big.Int // j = u1 + v * c
-	k         *big.Int // k = u2 + inv(sk) * c
-	l         *big.Int // l = u3 + (uc - v * ub) * c
+	Challenge *big.Int // chal = HASH(G,H,CM,CMTok,B,C,T1,T2)
+	j         *big.Int // j = u1 + v * chal
+	k         *big.Int // k = u2 + inv(sk) * chal
+	l         *big.Int // l = u3 + (uc - v * ub) * chal
 	CToken    ECPoint
 	disjuncAC *DisjunctiveProof
 }
@@ -55,10 +57,10 @@ type ABCProof struct {
 // NewABCProof generates a proof that the relationship between three scalars a,b and c is ab = c,
 // in commitments A, B and C respectively.
 // Option Left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively.
-// Option Right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0.
+// Option Right is proving that A, B and C commit to v, inv(v) and 1 respectively and simulating that A and C commit to 0.
 func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, error) {
 
-	// We cannot check that CM log is acutally the value, but the verification should catch that
+	// We cannot check that CM log is actually the value, but the verification should catch that
 
 	u1, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
@@ -90,19 +92,19 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 	var disjuncAC *DisjunctiveProof
 	var e error
 	// Disjunctive Proof of a = 0 or c = 1
-	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
-		// MUST:a = 0! ; side = left
-		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
-		B = PedCommitR(zkpcp, new(big.Int).ModInverse(big.NewInt(0), zkpcp.C.Params().N), ub)
+	if option == Left && value.Cmp(BigZero) == 0 {
+		// MUST: a = 0! ; side = left
+		// No inverse if value=0; set B to 0.  Do we confirm somewhere else that a=0?
+		B = PedCommitR(zkpcp, big.NewInt(0), ub)
 
 		// C = 0 + ucH
 		C = PedCommitR(zkpcp, big.NewInt(0), uc)
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
-		// C - G is done regardless of the c = 0 or 1 becuase in the case c = 0 it does matter what that random number is
-		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, C.Sub(zkpcp.G, zkpcp), sk, Left)
-	} else if option == Right && value.Cmp(big.NewInt(0)) != 0 {
-		// MUST:c = 1! ; side = right
+		// C - G is done regardless of the c = 0 or 1 because in the case c = 0 it does matter what that random number is
+		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, Left)
+	} else if option == Right && value.Cmp(BigZero) != 0 {
+		// MUST: c = 1! ; side = right
 
 		B = PedCommitR(zkpcp, new(big.Int).ModInverse(value, zkpcp.C.Params().N), ub)
 
@@ -116,7 +118,7 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 	}
 
 	if e != nil {
-		return &ABCProof{}, &errorProof{"ABCProof", "DisjuntiveProve within ABCProve failed to generate"}
+		return &ABCProof{}, &errorProof{"ABCProof", "disjunctiveProve within ABCProve failed to generate"}
 	}
 
 	// CMTok is Ta for the rest of the proof
@@ -136,23 +138,23 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 	// Sum of the above two
 	T2 := u1B.Add(u3H, zkpcp)
 
-	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
-	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
+	// chal = HASH(G,H,CM,CMTok,B,C,T1,T2)
+	Challenge := GenerateChallenge(zkpcp, ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
 		B.Bytes(), C.Bytes(),
 		T1.Bytes(), T2.Bytes())
 
-	// j = u1 + v * c , can be though of as s1
+	// j = u1 + v * chal
 	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
 	j = new(big.Int).Mod(j, zkpcp.C.Params().N)
 
-	// k = u2 + inv(sk) * c
+	// k = u2 + inv(sk) * chal
 	// inv(sk)
 	isk := new(big.Int).ModInverse(sk, zkpcp.C.Params().N)
 	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
 	k = new(big.Int).Mod(k, zkpcp.C.Params().N)
 
-	// l = u3 + (uc - v * ub) * c
+	// l = u3 + (uc - v * ub) * chal
 	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
 	l := new(big.Int).Add(u3, new(big.Int).Mul(temp1, Challenge))
 
@@ -170,9 +172,10 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 // Verify checks if ABCProof aProof with appropriate commits CM and CMTok is correct
 func (aProof *ABCProof) Verify(zkpcp ZKPCurveParams, CM, CMTok ECPoint) (bool, error) {
 
-	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
-	// Here it is important that you subtract exactly 1 G from the aProof.C becuase that only allows for you to prove c = 1!
-	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, zkpcp.H, aProof.C.Sub(zkpcp.G, zkpcp))
+	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuitive
+	// Here it is important that you subtract exactly 1 G from the aProof.C because that only allows for you to prove c = 1!
+	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G))
+
 	if status != nil {
 		return false, &errorProof{"ABCVerify", "ABCProof for disjuncAC is false or not generated properly"}
 	}
@@ -182,13 +185,13 @@ func (aProof *ABCProof) Verify(zkpcp ZKPCurveParams, CM, CMTok ECPoint) (bool, e
 		aProof.B.Bytes(), aProof.C.Bytes(),
 		aProof.T1.Bytes(), aProof.T2.Bytes())
 
-	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
+	// chal = HASH(G,H,CM,CMTok,B,C,T1,T2)
 	if Challenge.Cmp(aProof.Challenge) != 0 {
 		return false, &errorProof{"ABCVerify", "proof contains incorrect challenge"}
 	}
 
-	// cCM + T1 ?= jG + kCMTok
-	// cCM
+	// chalCM + T1 ?= jG + kCMTok
+	// chalCM
 	chalA := CM.Mult(Challenge, zkpcp)
 	// + T1
 	lhs1 := chalA.Add(aProof.T1, zkpcp)

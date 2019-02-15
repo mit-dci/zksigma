@@ -208,7 +208,6 @@ func VerifyR(zkpcp ZKPCurveParams, rt ECPoint, pk ECPoint, r *big.Int) bool {
 }
 
 // =============== PEDERSEN COMMITMENTS ================
-
 // PedCommit generates a pedersen commitment of value using the
 // generators of zkpcp.  It returns the randomness generated for the
 // commitment.
@@ -221,7 +220,7 @@ func PedCommit(zkpcp ZKPCurveParams, value *big.Int) (ECPoint, *big.Int, error) 
 	return PedCommitR(zkpcp, value, randomValue), randomValue, nil
 }
 
-// CommitWithR generates a pedersen commitment with a given random value
+// PedCommitR generates a Pedersen commitment with a given random value
 func PedCommitR(zkpcp ZKPCurveParams, value, randomValue *big.Int) ECPoint {
 
 	// modValue = value mod N
@@ -236,9 +235,10 @@ func PedCommitR(zkpcp ZKPCurveParams, value, randomValue *big.Int) ECPoint {
 	return lhs.Add(rhs, zkpcp)
 }
 
-// Open checks if the values given result in the given pedersen commitment
+// Open checks if the values given result in the given Pedersen commitment
 func Open(zkpcp ZKPCurveParams, value, randomValue *big.Int, pcomm ECPoint) bool {
 	return PedCommitR(zkpcp, value, randomValue).Equal(pcomm)
+
 }
 
 // ====== Generalized Hash Function =========

@@ -9,9 +9,10 @@ import (
 func TestInequalityProve(t *testing.T) {
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
-	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
+	b, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	A, ua, err := PedCommit(TestCurve, a)
+
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
@@ -24,8 +25,7 @@ func TestInequalityProve(t *testing.T) {
 	PK := TestCurve.H.Mult(sk, TestCurve)
 
 	// Even though we generated the values for ua and ub in this test case, we do not
-	// need to know ua or ub, only the commitment tokens are needed, which is already
-	// used in many other proofs
+	// need to know ua or ub, only the commitment tokens are needed
 	CMTokA := PK.Mult(ua, TestCurve)
 	CMTokB := PK.Mult(ub, TestCurve)
 
@@ -43,7 +43,7 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
 	}
 
-	// Swapped positions of commitments, tokens and values, will work just fine
+	// Swapped positions of commitments, tokens and values, should work just fine
 	aProof, status = NewInequalityProof(TestCurve, B, A, CMTokB, CMTokA, b, a, sk)
 
 	if status != nil {
@@ -80,9 +80,10 @@ func TestInequalityProve(t *testing.T) {
 func BenchmarkInequalityProve(b *testing.B) {
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic rarnge"
-	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
+	a, _ := rand.Int(rand.Reader, big.NewInt(10000000000))      // "realistic range"
+	bValue, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic range"
 	A, ua, err := PedCommit(TestCurve, a)
+
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}

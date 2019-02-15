@@ -59,7 +59,7 @@ func TestABCProof(t *testing.T) {
 	aProof, status = NewABCProof(TestCurve, A, AToken, big.NewInt(1001), sk, Right)
 
 	if status != nil {
-		t.Logf("False proof genereation succeeded! (bad)\n")
+		t.Logf("False proof generation succeeded! (bad)\n")
 		t.Fatalf("ABCProve generated for false proof\n")
 	}
 
@@ -74,6 +74,7 @@ func TestABCProof(t *testing.T) {
 
 // TestABCProofSerialization tests if the ABC Proof can generate, serialize, deserialize, and then verify.
 func TestABCProofSerialization(t *testing.T) {
+
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
@@ -131,7 +132,8 @@ func TestBreakABCProve(t *testing.T) {
 	CToken := TestCurve.H.Mult(uc, TestCurve)
 
 	// B = 2/v
-	B = PedCommitR(TestCurve, new(big.Int).ModInverse(new(big.Int).Quo(big.NewInt(2), value), TestCurve.C.Params().N), ub)
+	x := new(big.Int).ModInverse(value, ZKCurve.C.Params().N)
+	B = PedCommitR(TestCurve, new(big.Int).Mul(big.NewInt(2), x), ub)
 
 	// C = 2G + ucH, the 2 here is the big deal
 	C = PedCommitR(TestCurve, big.NewInt(2), uc)
@@ -185,7 +187,7 @@ func TestBreakABCProve(t *testing.T) {
 		j, k, l, CToken,
 		disjuncAC}
 
-	t.Logf("Attemping to pass malicious true proof into verification function\n")
+	t.Logf("Attempting to pass malicious true proof into verification function\n")
 	t.Logf("This test should throw a couple error messages in debug\n")
 
 	check, err := evilProof.Verify(TestCurve, CM, CMTok)

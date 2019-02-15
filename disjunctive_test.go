@@ -20,14 +20,14 @@ func TestDisjunctive(t *testing.T) {
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
-		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 1\n")
+		t.Fatalf("TestDisjunctive - incorrect error message for correct proof, case 1\n")
 	}
 
 	djProofRIGHT, status2 := NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, y, Right)
 
 	if status2 != nil {
 		proofStatus(status2.(*errorProof))
-		t.Fatalf("TestDisjuntive - incorrect error message for correct proof, case 2\n")
+		t.Fatalf("TestDisjunctive - incorrect error message for correct proof, case 2\n")
 	}
 
 	t.Logf("Testing DisjunctiveProof:\n")
@@ -43,11 +43,11 @@ func TestDisjunctive(t *testing.T) {
 		t.Fatalf("djProof failed to generate properly for right side\n")
 	}
 
-	t.Logf("Passed \n [testing] Next djProof attemp should result in an error message\n")
+	t.Logf("Passed \n [testing] Next djProof attempt should result in an error message\n")
 	_, status3 := NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, y, Left) // This should fail
 
 	if status3 == nil {
-		t.Fatalf("TestDisjuntive - incorrect error message for incorrect proof, case 3\n")
+		t.Fatalf("TestDisjunctive - incorrect error message for incorrect proof, case 3\n")
 	}
 
 }

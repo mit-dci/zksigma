@@ -5,7 +5,7 @@ zkSigma is a library for generating non-interactive zero-knowledge proofs, also 
 
 Features:
 
-* Generating non-interative zero-knowledge proofs for various logical statements
+* Generating non-interactive zero-knowledge proofs for various logical statements
 
 * Simplified elliptic curve operations
 

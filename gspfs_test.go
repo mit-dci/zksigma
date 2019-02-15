@@ -12,7 +12,7 @@ func TestGSPFS(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	// MUST use G here becuase of GSPFSProve implementation
+	// MUST use G here because of GSPFSProve implementation
 	result := TestCurve.G.Mult(x, TestCurve)
 
 	testProof, err := NewGSPFSProof(TestCurve, result, x)
@@ -25,7 +25,7 @@ func TestGSPFS(t *testing.T) {
 		t.Logf("x : %v\n", x)
 		t.Logf("randPoint : %v\n", result)
 		t.Logf("testProof : %v\n", testProof)
-		t.Fatalf("GSPFS Proof didnt generate properly - 1\n")
+		t.Fatalf("GSPFS Proof didn't generate properly - 1\n")
 	}
 
 	// Using H here should break the proof

@@ -34,20 +34,19 @@ func TestECPointMethods(t *testing.T) {
 func TestZkpCryptoStuff(t *testing.T) {
 	value := big.NewInt(-100)
 
-	testCommit, randomValue, err := PedCommit(TestCurve, value) // xG + rH
+	testCommit, randomValue, err := PedCommit(TestCurve, value) // CM = xG + rH
 
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	value = new(big.Int).Mod(value, TestCurve.C.Params().N)
+	value = new(big.Int).Mod(value, ZKCurve.C.Params().N) // v % p
 
-	// vG
-	ValEC := TestCurve.G.Mult(value, TestCurve)
-	InvValEC := ValEC.Neg(TestCurve) // 1/vG (acutally mod operation but whatever you get it)
+	ValEC := ZKCurve.G.Mult(value, TestCurve) // vG
+	InvValEC := ValEC.Neg(TestCurve)          // 1/vG (actually mod operation but whatever you get it)
 
-	t.Logf("         vG : %v --- value : %v \n", ValEC, value)
-	t.Logf("       1/vG : %v\n", InvValEC)
+	t.Logf("  vG : %v --- value : %v \n", ValEC, value)
+	t.Logf("1/vG : %v\n", InvValEC)
 
 	temp := ValEC.Add(InvValEC, TestCurve)
 	t.Logf("TestZkpCrypto:")
@@ -121,7 +120,7 @@ func TestPedersenCommit(t *testing.T) {
 
 }
 
-// TODO: make a toooooon more test cases
+// TODO: make a ton more test cases
 
 type etx struct {
 	CM    ECPoint
@@ -129,10 +128,10 @@ type etx struct {
 	ABCP  *ABCProof
 }
 
-//TODO: make a sk-pk that is consistant accross all test cases
+//TODO: make a sk-pk that is consistant across all test cases
 func TestAverages_Basic(t *testing.T) {
 
-	// remeber to change both number here...
+	// remember to change both number here...
 	numTx := 100
 	numTranx := big.NewInt(100)
 
@@ -166,10 +165,10 @@ func TestAverages_Basic(t *testing.T) {
 	// To calculate average we need to first show proof of knowledge
 	// of the sums of both the total value of transactions and the
 	// sum of the C-bit commitments
-	// This process is extactly the same process described in zkLedger
+	// This process is exactly the same process described in zkLedger
 	// (Neha Nerula) paper in section 4.2
 
-	//Need to aggregate a bunch of stuff to do equivilance proofs and what not
+	//Need to aggregate a bunch of stuff to do equivalence proofs and what not
 	totalCM := Zero
 	totalCMTok := Zero
 	totalC := Zero
@@ -192,8 +191,8 @@ func TestAverages_Basic(t *testing.T) {
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
-		t.Logf("Average Test: equivilance proof failed to generate for numTx\n")
-		t.Fatalf("Averages did not gerneate correct NUMTX equivilance proof\n")
+		t.Logf("Average Test: equivalence proof failed to generate for numTx\n")
+		t.Fatalf("Averages did not generate correct NUMTX equivalence proof\n")
 	}
 
 	B1 = totalCM.Add(TestCurve.G.Mult(totalValue, TestCurve).Neg(TestCurve), TestCurve)
@@ -203,16 +202,16 @@ func TestAverages_Basic(t *testing.T) {
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
-		t.Logf("Average Test: equivilance proof failed to generate for value sum\n")
-		t.Fatalf("Averages did not gerneate correct VALUE equivilance proof\n")
+		t.Logf("Average Test: equivalence proof failed to generate for value sum\n")
+		t.Fatalf("Averages did not generate correct VALUE equivalence proof\n")
 	}
 
 	// ASSUME:
 	// eProofs passed to auditor
 	// clear text answers of total value and total number tx passed to auditor
 	// auditor WILL recalculate all the totals (totalCM, totalCMTok, etc) before doing the following
-	// auditor WILL recualculate the B1's as shown above
-	// auditor WILL verify eProofs and then perform the final average calcualtion, shown below
+	// auditor WILL recalculate the B1's as shown above
+	// auditor WILL verify eProofs and then perform the final average calculation, shown below
 	// ======== AUDITOR PROCESS ===========
 
 	B1 = totalC.Add(TestCurve.G.Mult(numTranx, TestCurve).Neg(TestCurve), TestCurve)
@@ -227,8 +226,8 @@ func TestAverages_Basic(t *testing.T) {
 	}
 
 	if !checkTx {
-		t.Logf("Average Test: NUMTX equivilance proof did not verify\n")
-		t.Fatalf("Equivilance proof of NUMTX did not verify\n")
+		t.Logf("Average Test: NUMTX equivalence proof did not verify\n")
+		t.Fatalf("equivalence proof of NUMTX did not verify\n")
 	}
 
 	B1 = totalCM.Add(TestCurve.G.Mult(totalValue, TestCurve).Neg(TestCurve), TestCurve)
@@ -241,11 +240,39 @@ func TestAverages_Basic(t *testing.T) {
 	}
 
 	if !checkVal {
-		t.Logf("Average Test: SUM equivilance proof did not verify\n")
-		t.Fatalf("Equivilance proof of SUM did not verify\n")
+		t.Logf("Average Test: SUM equivalence proof did not verify\n")
+		t.Fatalf("Equivalence proof of SUM did not verify\n")
 	}
 
 }
+
+// func TestBigZeroAssignment(t *testing.T) {
+// 	TestBigZero := big.NewInt(0)
+
+// 	assign1 := TestBigZero              // assign will be using TestBigZero pointer from here on
+// 	assign1.Add(assign1, big.NewInt(1)) // TestBigZero looks like it does not change but actually does
+
+// 	assign2 := TestBigZero // assign2 = TestBigZero = 1
+
+// 	if assign1.Cmp(assign2) == 0 {
+// 		t.Fatalf("THIS TEST WILL FAIL FOR DEMO PURPOSES: should not be equal %v", TestBigZero)
+// 	}
+
+// }
+
+// func TestZeroAssignment(t *testing.T) {
+// 	TestBigZero := Zero
+// 	One := ZKCurve.G
+
+// 	cool := TestBigZero.Add(One) // TestBigZero does not actually change
+
+// 	assign2 := TestBigZero // assign2 = TestBigZero = 1
+
+// 	if cool.Equal(assign2) {
+// 		t.Fatalf("THIS TEST WILL FAIL FOR DEMO PURPOSES: should not be equal %v", TestBigZero)
+// 	}
+
+// }
 
 // ============== BENCHMARKS =================
 func BenchmarkPedCommit(b *testing.B) {

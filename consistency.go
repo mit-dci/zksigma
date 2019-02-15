@@ -13,13 +13,14 @@ import (
 //
 //	Public:
 //  - generator points G and H,
-//  - PK (pubkey) = skH, // sk is secret key
+//  - PK (pubkey) = skH // sk = secret key
 //  - CM (commitment) = vG + rH
 //  - CMTok = rPK
 //
 //  Prover									Verifier
 //  ======                                  ========
-//  selects v and r for commitment          knows CM = vG + rH; CMTok = rPK
+//  selects v and r for commitments
+//  CM = vG + rH; CMTok = rPK				learns CM, CMTok
 //  selects random u1, u2
 //  T1 = u1G + u2H
 //  T2 = u2PK
@@ -43,8 +44,6 @@ type ConsistencyProof struct {
 // and CMTok(=r(sk*H)) are the same.
 func NewConsistencyProof(zkpcp ZKPCurveParams,
 	CM, CMTok, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, error) {
-	// Base1and Base2 will most likely be G and H, Result1 and Result2 will be xG and xH
-	// x trying to be proved that both G and H are raised with x
 
 	modValue := new(big.Int).Mod(value, zkpcp.C.Params().N)
 	//modRandom := new(big.Int).Mod(randomness, zkpcp.C.Params().N)
@@ -78,8 +77,9 @@ func NewConsistencyProof(zkpcp ZKPCurveParams,
 
 	s1 := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
 	s2 := new(big.Int).Add(u2, new(big.Int).Mul(randomness, Challenge))
+
 	s1.Mod(s1, zkpcp.C.Params().N)
-	s2.Mod(s2, zkpcp.C.Params().N) // this was s1 instead of s2, took me an hour to find...
+	s2.Mod(s2, zkpcp.C.Params().N)
 
 	conProof := &ConsistencyProof{T1, T2, Challenge, s1, s2}
 
@@ -95,8 +95,6 @@ func (conProof *ConsistencyProof) Verify(
 		return false, &errorProof{"ConsistencyProof.Verify", fmt.Sprintf("passed proof is nil")}
 	}
 
-	// CM should be point1, Y should be point2
-
 	// Regenerate challenge string
 	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
@@ -108,7 +106,7 @@ func (conProof *ConsistencyProof) Verify(
 		return false, &errorProof{"ConsistencyVerify", fmt.Sprintf("c comparison failed. proof: %v calculated: %v",
 			conProof.Challenge, Challenge)}
 	}
-	// lhs = left hand side, rhs = right hand side
+	// lhs :: left hand side, rhs :: right hand side
 	// s1G + s2H ?= T1 + cCM, CM should be point1
 	// s1G + s2H from how PedCommitR works
 	lhs := PedCommitR(zkpcp, conProof.S1, conProof.S2)
