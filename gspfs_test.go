@@ -7,20 +7,20 @@ import (
 
 func TestGSPFS(t *testing.T) {
 
-	x, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	x, err := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
 	// MUST use G here becuase of GSPFSProve implementation
-	result := ZKCurve.G.Mult(x)
+	result := TestCurve.G.Mult(x, TestCurve)
 
-	testProof, err := NewGSPFSProof(result, x)
+	testProof, err := NewGSPFSProof(TestCurve, result, x)
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	status, err := testProof.Verify(result)
+	status, err := testProof.Verify(TestCurve, result)
 	if !status && err == nil {
 		t.Logf("x : %v\n", x)
 		t.Logf("randPoint : %v\n", result)
@@ -29,10 +29,10 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	// Using H here should break the proof
-	result = ZKCurve.H.Mult(x)
+	result = TestCurve.H.Mult(x, TestCurve)
 
 	t.Logf("Next GSPFSVerify should fail\n")
-	status, err = testProof.Verify(result)
+	status, err = testProof.Verify(TestCurve, result)
 	if status && err != nil {
 		t.Logf("x : %v\n", x)
 		t.Logf("randPoint : %v\n", result)
@@ -43,15 +43,15 @@ func TestGSPFS(t *testing.T) {
 }
 
 func TestGSPFSSerialization(t *testing.T) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base := ZKCurve.G
-	CM := ZKCurve.G.Mult(value)
-	proof, err := NewGSPFSProofBase(Base, CM, value)
+	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	Base := TestCurve.G
+	CM := TestCurve.G.Mult(value, TestCurve)
+	proof, err := NewGSPFSProofBase(TestCurve, Base, CM, value)
 	proof, err = NewGSPFSProofFromBytes(proof.Bytes())
 	if err != nil {
 		t.Fatalf("TestGSPFSSerialization failed to deserialize\n")
 	}
-	ok, err := proof.Verify(CM)
+	ok, err := proof.Verify(TestCurve, CM)
 	if !ok || err != nil {
 		t.Fatalf("TestGSPFSSerialization failed to verify\n")
 	}
@@ -59,25 +59,25 @@ func TestGSPFSSerialization(t *testing.T) {
 }
 
 func BenchmarkGSPFS_AnyBase(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base := ZKCurve.G
-	CM := ZKCurve.G.Mult(value)
+	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	Base := TestCurve.G
+	CM := TestCurve.G.Mult(value, TestCurve)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		NewGSPFSProofBase(Base, CM, value)
+		NewGSPFSProofBase(TestCurve, Base, CM, value)
 	}
 }
 
 func BenchmarkGSPFS_Verify(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	Base := ZKCurve.G
-	CM := ZKCurve.G.Mult(value)
-	proof, err := NewGSPFSProofBase(Base, CM, value)
+	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	Base := TestCurve.G
+	CM := TestCurve.G.Mult(value, TestCurve)
+	proof, err := NewGSPFSProofBase(TestCurve, Base, CM, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
 	for ii := 0; ii < b.N; ii++ {
-		proof.Verify(CM)
+		proof.Verify(TestCurve, CM)
 	}
 }

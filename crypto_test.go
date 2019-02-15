@@ -8,22 +8,22 @@ import (
 
 func TestECPointMethods(t *testing.T) {
 	v := big.NewInt(3)
-	p := ZKCurve.G.Mult(v)
-	negp := p.Neg()
-	sum := p.Add(negp)
+	p := TestCurve.G.Mult(v, TestCurve)
+	negp := p.Neg(TestCurve)
+	sum := p.Add(negp, TestCurve)
 	if !sum.Equal(Zero) {
 		t.Logf("p : %v\n", p)
 		t.Logf("negp : %v\n", negp)
 		t.Logf("sum : %v\n", sum)
 		t.Fatalf("p + -p should be 0\n")
 	}
-	negnegp := negp.Neg()
+	negnegp := negp.Neg(TestCurve)
 	if !negnegp.Equal(p) {
 		t.Logf("p : %v\n", p)
 		t.Logf("negnegp : %v\n", negnegp)
 		t.Fatalf("-(-p) should be p\n")
 	}
-	sum = p.Add(Zero)
+	sum = p.Add(Zero, TestCurve)
 	if !sum.Equal(p) {
 		t.Logf("p : %v\n", p)
 		t.Logf("sum : %v\n", sum)
@@ -34,22 +34,22 @@ func TestECPointMethods(t *testing.T) {
 func TestZkpCryptoStuff(t *testing.T) {
 	value := big.NewInt(-100)
 
-	testCommit, randomValue, err := PedCommit(value) // xG + rH
+	testCommit, randomValue, err := PedCommit(TestCurve, value) // xG + rH
 
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	value = new(big.Int).Mod(value, ZKCurve.C.Params().N)
+	value = new(big.Int).Mod(value, TestCurve.C.Params().N)
 
 	// vG
-	ValEC := ZKCurve.G.Mult(value)
-	InvValEC := ValEC.Neg() // 1/vG (acutally mod operation but whatever you get it)
+	ValEC := TestCurve.G.Mult(value, TestCurve)
+	InvValEC := ValEC.Neg(TestCurve) // 1/vG (acutally mod operation but whatever you get it)
 
 	t.Logf("         vG : %v --- value : %v \n", ValEC, value)
 	t.Logf("       1/vG : %v\n", InvValEC)
 
-	temp := ValEC.Add(InvValEC)
+	temp := ValEC.Add(InvValEC, TestCurve)
 	t.Logf("TestZkpCrypto:")
 	t.Logf("Added the above: %v\n", temp)
 
@@ -59,8 +59,8 @@ func TestZkpCryptoStuff(t *testing.T) {
 		t.Fatalf("Failed Addition of inverse points failed")
 	}
 
-	testOpen := InvValEC.Add(testCommit)  // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
-	RandEC := ZKCurve.H.Mult(randomValue) // rH
+	testOpen := InvValEC.Add(testCommit, TestCurve)    // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
+	RandEC := TestCurve.H.Mult(randomValue, TestCurve) // rH
 
 	if !RandEC.Equal(testOpen) {
 		t.Logf("RandEC : %v\n", RandEC)
@@ -71,16 +71,16 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 func TestZkpCryptoCommitR(t *testing.T) {
 
-	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u, err := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	testCommit := CommitR(ZKCurve.H, u)
+	testCommit := CommitR(TestCurve, TestCurve.H, u)
 
-	if !(VerifyR(testCommit, ZKCurve.H, u)) {
+	if !(VerifyR(TestCurve, testCommit, TestCurve.H, u)) {
 		t.Logf("testCommit: %v\n", testCommit)
-		t.Logf("ZKCurve.H: %v, \n", ZKCurve.H)
+		t.Logf("TestCurve.H: %v, \n", TestCurve.H)
 		t.Logf("u : %v\n", u)
 		t.Fatalf("testCommit should have passed verification\n")
 	}
@@ -91,12 +91,12 @@ func TestPedersenCommit(t *testing.T) {
 	x := big.NewInt(1000)
 	badx := big.NewInt(1234)
 
-	commit, u, err := PedCommit(x)
+	commit, u, err := PedCommit(TestCurve, x)
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	commitR := PedCommitR(x, u)
+	commitR := PedCommitR(TestCurve, x, u)
 
 	if !commit.Equal(commitR) {
 		t.Logf("x : %v --- u : %v\n", x, u)
@@ -105,14 +105,14 @@ func TestPedersenCommit(t *testing.T) {
 		t.Fatalf("commit and commitR should be equal")
 	}
 
-	if !Open(x, u, commit) || !Open(x, u, commitR) {
+	if !Open(TestCurve, x, u, commit) || !Open(TestCurve, x, u, commitR) {
 		t.Logf("x : %v --- u : %v\n", x, u)
 		t.Logf("commit: %v\n", commit)
 		t.Logf("commitR: %v\n", commitR)
 		t.Fatalf("commit and/or commitR did not successfully open")
 	}
 
-	if Open(badx, u.Neg(u), commit) || Open(badx, u.Neg(u), commitR) {
+	if Open(TestCurve, badx, u.Neg(u), commit) || Open(TestCurve, badx, u.Neg(u), commitR) {
 		t.Logf("x : %v --- u : %v\n", x, u)
 		t.Logf("commit: %v\n", commit)
 		t.Logf("commitR: %v\n", commitR)
@@ -139,23 +139,23 @@ func TestAverages_Basic(t *testing.T) {
 	totalValue := big.NewInt(0)
 	totalRand := big.NewInt(0)
 	txn := make([]etx, numTx)
-	sk, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	PK := ZKCurve.H.Mult(sk)
+	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	PK := TestCurve.H.Mult(sk, TestCurve)
 	var value *big.Int
 	var commRand *big.Int
 	var err error
 
 	// Generate
 	for ii := 0; ii < numTx; ii++ {
-		value, _ = rand.Int(rand.Reader, ZKCurve.C.Params().N)
+		value, _ = rand.Int(rand.Reader, TestCurve.C.Params().N)
 		totalValue.Add(totalValue, value)
-		txn[ii].CM, commRand, err = PedCommit(value)
+		txn[ii].CM, commRand, err = PedCommit(TestCurve, value)
 		if err != nil {
 			t.Fatalf("%v\n", err)
 		}
 		totalRand.Add(totalRand, commRand)
-		txn[ii].CMTok = PK.Mult(commRand)
-		txn[ii].ABCP, _ = NewABCProof(txn[ii].CM, txn[ii].CMTok, value, sk, Right)
+		txn[ii].CMTok = PK.Mult(commRand, TestCurve)
+		txn[ii].ABCP, _ = NewABCProof(TestCurve, txn[ii].CM, txn[ii].CMTok, value, sk, Right)
 	}
 
 	// Purely for testing purposes, usually this is computed at the end by auditor
@@ -176,19 +176,19 @@ func TestAverages_Basic(t *testing.T) {
 	totalCTok := Zero
 
 	for ii := 0; ii < numTx; ii++ {
-		totalCM = txn[ii].CM.Add(totalCM)
-		totalCMTok = txn[ii].CMTok.Add(totalCMTok)
-		totalC = txn[ii].ABCP.C.Add(totalC)
-		totalCTok = txn[ii].ABCP.CToken.Add(totalCTok)
+		totalCM = txn[ii].CM.Add(totalCM, TestCurve)
+		totalCMTok = txn[ii].CMTok.Add(totalCMTok, TestCurve)
+		totalC = txn[ii].ABCP.C.Add(totalC, TestCurve)
+		totalCTok = txn[ii].ABCP.CToken.Add(totalCTok, TestCurve)
 	}
 
 	// makes the call look cleaner
-	B1 := totalC.Add(ZKCurve.G.Mult(numTranx).Neg())
+	B1 := totalC.Add(TestCurve.G.Mult(numTranx, TestCurve).Neg(TestCurve), TestCurve)
 	R1 := totalCTok
-	B2 := ZKCurve.H
+	B2 := TestCurve.H
 	R2 := PK
 
-	eProofNumTx, status := NewEquivalenceProof(B1, R1, B2, R2, sk)
+	eProofNumTx, status := NewEquivalenceProof(TestCurve, B1, R1, B2, R2, sk)
 
 	if status != nil {
 		proofStatus(status.(*errorProof))
@@ -196,10 +196,10 @@ func TestAverages_Basic(t *testing.T) {
 		t.Fatalf("Averages did not gerneate correct NUMTX equivilance proof\n")
 	}
 
-	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
+	B1 = totalCM.Add(TestCurve.G.Mult(totalValue, TestCurve).Neg(TestCurve), TestCurve)
 	R1 = totalCMTok
 
-	eProofValue, status1 := NewEquivalenceProof(B1, R1, B2, R2, sk)
+	eProofValue, status1 := NewEquivalenceProof(TestCurve, B1, R1, B2, R2, sk)
 
 	if status1 != nil {
 		proofStatus(status1.(*errorProof))
@@ -215,12 +215,12 @@ func TestAverages_Basic(t *testing.T) {
 	// auditor WILL verify eProofs and then perform the final average calcualtion, shown below
 	// ======== AUDITOR PROCESS ===========
 
-	B1 = totalC.Add(ZKCurve.G.Mult(numTranx).Neg())
+	B1 = totalC.Add(TestCurve.G.Mult(numTranx, TestCurve).Neg(TestCurve), TestCurve)
 	R1 = totalCTok
-	B2 = ZKCurve.H
+	B2 = TestCurve.H
 	R2 = PK
 
-	checkTx, err := eProofNumTx.Verify(B1, R1, B2, R2)
+	checkTx, err := eProofNumTx.Verify(TestCurve, B1, R1, B2, R2)
 
 	if err != nil {
 		t.Fatalf("Error while calling equivalence proof verify: %s", err.Error())
@@ -231,10 +231,10 @@ func TestAverages_Basic(t *testing.T) {
 		t.Fatalf("Equivilance proof of NUMTX did not verify\n")
 	}
 
-	B1 = totalCM.Add(ZKCurve.G.Mult(totalValue).Neg())
+	B1 = totalCM.Add(TestCurve.G.Mult(totalValue, TestCurve).Neg(TestCurve), TestCurve)
 	R1 = totalCMTok
 
-	checkVal, err := eProofValue.Verify(B1, R1, B2, R2)
+	checkVal, err := eProofValue.Verify(TestCurve, B1, R1, B2, R2)
 
 	if err != nil {
 		t.Fatalf("Error while calling equivalence proof verify: %s", err.Error())
@@ -249,28 +249,28 @@ func TestAverages_Basic(t *testing.T) {
 
 // ============== BENCHMARKS =================
 func BenchmarkPedCommit(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		PedCommit(value)
+		PedCommit(TestCurve, value)
 	}
 }
 
 func BenchmarkPedCommitR(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		PedCommitR(value, randVal)
+		PedCommitR(TestCurve, value, randVal)
 	}
 }
 
 func BenchmarkOpen(b *testing.B) {
-	value, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	randVal, _ := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	CM := PedCommitR(value, randVal)
+	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
+	CM := PedCommitR(TestCurve, value, randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
-		Open(value, randVal, CM)
+		Open(TestCurve, value, randVal, CM)
 	}
 }

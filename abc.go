@@ -56,36 +56,36 @@ type ABCProof struct {
 // in commitments A, B and C respectively.
 // Option Left is proving that A and C commit to zero and simulates that A, B and C commit to v, inv(v) and 1 respectively.
 // Option Right is proving that A, B and C commit to v, inv(v) and 1 respectively and sumulating that A and C commit to 0.
-func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, error) {
+func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof, error) {
 
 	// We cannot check that CM log is acutally the value, but the verification should catch that
 
-	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u1, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
-	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
-	if err != nil {
-		return nil, err
-	}
-
-	u3, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u2, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
 
-	ub, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u3, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
-	uc, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+
+	ub, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
+	if err != nil {
+		return nil, err
+	}
+	uc, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
 
 	B := ECPoint{}
 	C := ECPoint{}
-	CToken := ZKCurve.H.Mult(sk).Mult(uc)
+	CToken := zkpcp.H.Mult(sk, zkpcp).Mult(uc, zkpcp)
 
 	var disjuncAC *DisjunctiveProof
 	var e error
@@ -93,24 +93,24 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 	if option == Left && value.Cmp(big.NewInt(0)) == 0 {
 		// MUST:a = 0! ; side = left
 		// B = 0 + ubH, here since we want to prove v = 0, we later accomidate for the lack of inverses
-		B = PedCommitR(new(big.Int).ModInverse(big.NewInt(0), ZKCurve.C.Params().N), ub)
+		B = PedCommitR(zkpcp, new(big.Int).ModInverse(big.NewInt(0), zkpcp.C.Params().N), ub)
 
 		// C = 0 + ucH
-		C = PedCommitR(big.NewInt(0), uc)
+		C = PedCommitR(zkpcp, big.NewInt(0), uc)
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
 		// C - G is done regardless of the c = 0 or 1 becuase in the case c = 0 it does matter what that random number is
-		disjuncAC, e = NewDisjunctiveProof(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, Left)
+		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, C.Sub(zkpcp.G, zkpcp), sk, Left)
 	} else if option == Right && value.Cmp(big.NewInt(0)) != 0 {
 		// MUST:c = 1! ; side = right
 
-		B = PedCommitR(new(big.Int).ModInverse(value, ZKCurve.C.Params().N), ub)
+		B = PedCommitR(zkpcp, new(big.Int).ModInverse(value, zkpcp.C.Params().N), ub)
 
 		// C = G + ucH
-		C = PedCommitR(big.NewInt(1), uc)
+		C = PedCommitR(zkpcp, big.NewInt(1), uc)
 
 		// Look at notes a couple lines above on what the input is like this
-		disjuncAC, e = NewDisjunctiveProof(CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), uc, Right)
+		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, C.Sub(zkpcp.G, zkpcp), uc, Right)
 	} else {
 		return &ABCProof{}, &errorProof{"ABCProof", "invalid side-value pair passed"}
 	}
@@ -122,35 +122,35 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 	// CMTok is Ta for the rest of the proof
 	// T1 = u1G + u2Ta
 	// u1G
-	u1G := ZKCurve.G.Mult(u1)
+	u1G := zkpcp.G.Mult(u1, zkpcp)
 	// u2Ta
-	u2Ta := CMTok.Mult(u2)
+	u2Ta := CMTok.Mult(u2, zkpcp)
 	// Sum the above two
-	T1 := u1G.Add(u2Ta)
+	T1 := u1G.Add(u2Ta, zkpcp)
 
 	// T2 = u1B + u3H
 	// u1B
-	u1B := B.Mult(u1)
+	u1B := B.Mult(u1, zkpcp)
 	// u3H
-	u3H := ZKCurve.H.Mult(u3)
+	u3H := zkpcp.H.Mult(u3, zkpcp)
 	// Sum of the above two
-	T2 := u1B.Add(u3H)
+	T2 := u1B.Add(u3H, zkpcp)
 
 	// c = HASH(G,H,CM,CMTok,B,C,T1,T2)
-	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
+	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
 		B.Bytes(), C.Bytes(),
 		T1.Bytes(), T2.Bytes())
 
 	// j = u1 + v * c , can be though of as s1
 	j := new(big.Int).Add(u1, new(big.Int).Mul(value, Challenge))
-	j = new(big.Int).Mod(j, ZKCurve.C.Params().N)
+	j = new(big.Int).Mod(j, zkpcp.C.Params().N)
 
 	// k = u2 + inv(sk) * c
 	// inv(sk)
-	isk := new(big.Int).ModInverse(sk, ZKCurve.C.Params().N)
+	isk := new(big.Int).ModInverse(sk, zkpcp.C.Params().N)
 	k := new(big.Int).Add(u2, new(big.Int).Mul(isk, Challenge))
-	k = new(big.Int).Mod(k, ZKCurve.C.Params().N)
+	k = new(big.Int).Mod(k, zkpcp.C.Params().N)
 
 	// l = u3 + (uc - v * ub) * c
 	temp1 := new(big.Int).Sub(uc, new(big.Int).Mul(value, ub))
@@ -168,16 +168,16 @@ func NewABCProof(CM, CMTok ECPoint, value, sk *big.Int, option Side) (*ABCProof,
 }
 
 // Verify checks if ABCProof aProof with appropriate commits CM and CMTok is correct
-func (aProof *ABCProof) Verify(CM, CMTok ECPoint) (bool, error) {
+func (aProof *ABCProof) Verify(zkpcp ZKPCurveParams, CM, CMTok ECPoint) (bool, error) {
 
 	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuative
 	// Here it is important that you subtract exactly 1 G from the aProof.C becuase that only allows for you to prove c = 1!
-	_, status := aProof.disjuncAC.Verify(CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G))
+	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, zkpcp.H, aProof.C.Sub(zkpcp.G, zkpcp))
 	if status != nil {
 		return false, &errorProof{"ABCVerify", "ABCProof for disjuncAC is false or not generated properly"}
 	}
 
-	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
+	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
 		aProof.B.Bytes(), aProof.C.Bytes(),
 		aProof.T1.Bytes(), aProof.T2.Bytes())
@@ -189,27 +189,27 @@ func (aProof *ABCProof) Verify(CM, CMTok ECPoint) (bool, error) {
 
 	// cCM + T1 ?= jG + kCMTok
 	// cCM
-	chalA := CM.Mult(Challenge)
+	chalA := CM.Mult(Challenge, zkpcp)
 	// + T1
-	lhs1 := chalA.Add(aProof.T1)
+	lhs1 := chalA.Add(aProof.T1, zkpcp)
 	//jG
-	jG := ZKCurve.G.Mult(aProof.j)
+	jG := zkpcp.G.Mult(aProof.j, zkpcp)
 	// kCMTok
-	kCMTok := CMTok.Mult(aProof.k)
+	kCMTok := CMTok.Mult(aProof.k, zkpcp)
 	// jG + kCMTok
-	rhs1 := jG.Add(kCMTok)
+	rhs1 := jG.Add(kCMTok, zkpcp)
 
 	if !lhs1.Equal(rhs1) {
 		return false, &errorProof{"ABCProof", "cCM + T1 != jG + kCMTok"}
 	}
 
 	// cC + T2 ?= jB + lH
-	chalC := aProof.C.Mult(Challenge)
-	lhs2 := chalC.Add(aProof.T2)
+	chalC := aProof.C.Mult(Challenge, zkpcp)
+	lhs2 := chalC.Add(aProof.T2, zkpcp)
 
-	jB := aProof.B.Mult(aProof.j)
-	lH := ZKCurve.H.Mult(aProof.l)
-	rhs2 := jB.Add(lH)
+	jB := aProof.B.Mult(aProof.j, zkpcp)
+	lH := zkpcp.H.Mult(aProof.l, zkpcp)
+	rhs2 := jB.Add(lH, zkpcp)
 
 	if !lhs2.Equal(rhs2) {
 		return false, &errorProof{"ABCVerify", "cC + T2 != jB + lH"}
