@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/big"
 
+	"github.com/mit-dci/zksigma/btcec"
 	"github.com/mit-dci/zksigma/wire"
 )
 
@@ -96,6 +97,11 @@ func (p ECPoint) Mult(s *big.Int, zkpcp ZKPCurveParams) ECPoint {
 	// } else
 	if p.Equal(zkpcp.G) {
 		X, Y := zkpcp.C.ScalarBaseMult(modS.Bytes())
+		return ECPoint{X, Y}
+	}
+
+	if p.Equal(zkpcp.H) {
+		X, Y := zkpcp.C.(*btcec.KoblitzCurve).ScalarBaseMultH(modS.Bytes())
 		return ECPoint{X, Y}
 	}
 

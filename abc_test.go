@@ -132,7 +132,7 @@ func TestBreakABCProve(t *testing.T) {
 	CToken := TestCurve.H.Mult(uc, TestCurve)
 
 	// B = 2/v
-	x := new(big.Int).ModInverse(value, ZKCurve.C.Params().N)
+	x := new(big.Int).ModInverse(value, TestCurve.C.Params().N)
 	B = PedCommitR(TestCurve, new(big.Int).Mul(big.NewInt(2), x), ub)
 
 	// C = 2G + ucH, the 2 here is the big deal

@@ -102,7 +102,7 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
 		// C - G is done regardless of the c = 0 or 1 because in the case c = 0 it does matter what that random number is
-		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, ZKCurve.H, C.Sub(ZKCurve.G), sk, Left)
+		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, C.Sub(zkpcp.G, zkpcp), sk, Left)
 	} else if option == Right && value.Cmp(BigZero) != 0 {
 		// MUST: c = 1! ; side = right
 
@@ -139,7 +139,7 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 	T2 := u1B.Add(u3H, zkpcp)
 
 	// chal = HASH(G,H,CM,CMTok,B,C,T1,T2)
-	Challenge := GenerateChallenge(zkpcp, ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
+	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
 		B.Bytes(), C.Bytes(),
 		T1.Bytes(), T2.Bytes())
@@ -174,7 +174,7 @@ func (aProof *ABCProof) Verify(zkpcp ZKPCurveParams, CM, CMTok ECPoint) (bool, e
 
 	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuitive
 	// Here it is important that you subtract exactly 1 G from the aProof.C because that only allows for you to prove c = 1!
-	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, ZKCurve.H, aProof.C.Sub(ZKCurve.G))
+	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, zkpcp.H, aProof.C.Sub(zkpcp.G, zkpcp))
 
 	if status != nil {
 		return false, &errorProof{"ABCVerify", "ABCProof for disjuncAC is false or not generated properly"}

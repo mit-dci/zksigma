@@ -40,10 +40,10 @@ func TestZkpCryptoStuff(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	value = new(big.Int).Mod(value, ZKCurve.C.Params().N) // v % p
+	value = new(big.Int).Mod(value, TestCurve.C.Params().N) // v % p
 
-	ValEC := ZKCurve.G.Mult(value, TestCurve) // vG
-	InvValEC := ValEC.Neg(TestCurve)          // 1/vG (actually mod operation but whatever you get it)
+	ValEC := TestCurve.G.Mult(value, TestCurve) // vG
+	InvValEC := ValEC.Neg(TestCurve)            // 1/vG (actually mod operation but whatever you get it)
 
 	t.Logf("  vG : %v --- value : %v \n", ValEC, value)
 	t.Logf("1/vG : %v\n", InvValEC)
@@ -262,7 +262,7 @@ func TestAverages_Basic(t *testing.T) {
 
 // func TestZeroAssignment(t *testing.T) {
 // 	TestBigZero := Zero
-// 	One := ZKCurve.G
+// 	One := TestCurve.G
 
 // 	cool := TestBigZero.Add(One) // TestBigZero does not actually change
 
