@@ -34,60 +34,62 @@ type GSPFSProof struct {
 // NewGSPFSProof generates a Schnorr proof for the value x using the
 // first ZKCurve base point. It checks if the passed A is indeed
 // value x multiplied by the generator point.
-func NewGSPFSProof(A ECPoint, x *big.Int) (*GSPFSProof, error) {
-	return NewGSPFSProofBase(ZKCurve.G, A, x)
+func NewGSPFSProof(zkpcp ZKPCurveParams, A ECPoint, x *big.Int) (*GSPFSProof, error) {
+	return NewGSPFSProofBase(zkpcp, zkpcp.G, A, x)
 }
 
 // NewGSPFSProofBase is the same as NewGSPFSProof, except it allows you to specify
-// your own base point in parameter base, instead of using the first base point from ZKCurve.
-func NewGSPFSProofBase(base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
-	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
+// your own base point in parameter base, instead of using the first base point from zkpcp.
+func NewGSPFSProofBase(zkpcp ZKPCurveParams, base, A ECPoint, x *big.Int) (*GSPFSProof, error) {
+	modValue := new(big.Int).Mod(x, zkpcp.C.Params().N)
 
 	// A = xG, G is any base point in this proof
-	if !base.Mult(modValue).Equal(A) {
+	cX, cY := zkpcp.C.ScalarMult(base.X, base.Y, modValue.Bytes())
+	C := ECPoint{cX, cY}
+	if !C.Equal(A) {
 		return nil, &errorProof{"GSPFSProve:", "the point given is not xG"}
 	}
 
-	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
 
 	// generate random point uG
-	uG := base.Mult(u)
+	uG := base.Mult(u, zkpcp)
 
 	// generate hashed string challenge
-	c := GenerateChallenge(A.Bytes(), uG.Bytes())
+	c := GenerateChallenge(zkpcp, A.Bytes(), uG.Bytes())
 
 	// v = u - c * x
 	v := new(big.Int).Sub(u, new(big.Int).Mul(c, modValue))
-	v = v.Mod(v, ZKCurve.C.Params().N)
+	v = v.Mod(v, zkpcp.C.Params().N)
 
 	return &GSPFSProof{base, uG, v, c}, nil
 }
 
 // Verify (GSPFSVerify) checks if GSPFSProof proof is a valid proof for commitment A
-func (proof *GSPFSProof) Verify(A ECPoint) (bool, error) {
+func (proof *GSPFSProof) Verify(zkpcp ZKPCurveParams, A ECPoint) (bool, error) {
 
 	if proof == nil {
 		return false, &errorProof{"GSPFSProof.Verify", fmt.Sprintf("passed proof is nil")}
 	}
 
 	// A = xG and RandCommit = uG
-	testC := GenerateChallenge(A.Bytes(), proof.RandCommit.Bytes())
+	testC := GenerateChallenge(zkpcp, A.Bytes(), proof.RandCommit.Bytes())
 
 	if testC.Cmp(proof.Challenge) != 0 {
 		return false, &errorProof{"GSPFSProof.Verify", "calculated challenge and proof's challenge do not agree!"}
 	}
 
 	// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
-	s := proof.Base.Mult(proof.HiddenValue)
+	s := proof.Base.Mult(proof.HiddenValue, zkpcp)
 
 	// cResult = c(xG), we use testC as that follows the proof verficaion process more closely than using Challenge
-	c := A.Mult(proof.Challenge)
+	c := A.Mult(proof.Challenge, zkpcp)
 
 	// cxG + (u - cx)G = uG
-	tot := s.Add(c)
+	tot := s.Add(c, zkpcp)
 
 	if !proof.RandCommit.Equal(tot) {
 		return false, &errorProof{"GSPFSProof.Verify", "proof's final value and verification final value do not agree!"}

@@ -36,64 +36,67 @@ type ConsistencyProof struct {
 	T1        ECPoint
 	T2        ECPoint
 	Challenge *big.Int
-	s1        *big.Int
-	s2        *big.Int
+	S1        *big.Int // s1 - but capitalized to allow access from outside of zksigma
+	S2        *big.Int // s2 - but capitalized to allow access from outside of zksigma
 }
 
 // NewConsistencyProof generates a proof that the r used in CM(=xG+rH)
 // and CMTok(=r(sk*H)) are the same.
-func NewConsistencyProof(
+func NewConsistencyProof(zkpcp ZKPCurveParams,
 	CM, CMTok, PubKey ECPoint, value, randomness *big.Int) (*ConsistencyProof, error) {
 
-	modValue := new(big.Int).Mod(value, ZKCurve.C.Params().N)
-	//modRandom := new(big.Int).Mod(randomness, ZKCurve.C.Params().N)
+	modValue := new(big.Int).Mod(value, zkpcp.C.Params().N)
+	//modRandom := new(big.Int).Mod(randomness, zkpcp.C.Params().N)
 
 	// do a quick correctness check to ensure the value we are testing and the
 	// randomness are correct
-	if !CM.Equal(PedCommitR(value, randomness)) {
+	if !CM.Equal(PedCommitR(zkpcp, value, randomness)) {
 		return &ConsistencyProof{}, &errorProof{"ConsistencyProve", "value and randomVal does not produce CM"}
 	}
 
-	if !CMTok.Equal(PubKey.Mult(randomness)) {
+	if !CMTok.Equal(PubKey.Mult(randomness, zkpcp)) {
 		return &ConsistencyProof{}, &errorProof{"ConsistencyProve", "Pubkey and randomVal does not produce CMTok"}
 	}
 
-	u1, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u1, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
-	u2, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	u2, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return nil, err
 	}
 
-	T1 := PedCommitR(u1, u2)
-	T2 := PubKey.Mult(u2)
+	T1 := PedCommitR(zkpcp, u1, u2)
+	T2 := PubKey.Mult(u2, zkpcp)
 
-	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
+	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
 		PubKey.Bytes(),
 		T1.Bytes(), T2.Bytes())
 
 	s1 := new(big.Int).Add(u1, new(big.Int).Mul(modValue, Challenge))
 	s2 := new(big.Int).Add(u2, new(big.Int).Mul(randomness, Challenge))
-	s1.Mod(s1, ZKCurve.C.Params().N)
-	s2.Mod(s2, ZKCurve.C.Params().N)
 
-	return &ConsistencyProof{T1, T2, Challenge, s1, s2}, nil
+	s1.Mod(s1, zkpcp.C.Params().N)
+	s2.Mod(s2, zkpcp.C.Params().N)
+
+	conProof := &ConsistencyProof{T1, T2, Challenge, s1, s2}
+
+	return conProof, nil
 
 }
 
 // Verify checks if a ConsistencyProof conProof is valid
 func (conProof *ConsistencyProof) Verify(
-	CM, CMTok, PubKey ECPoint) (bool, error) {
+	zkpcp ZKPCurveParams, CM, CMTok, PubKey ECPoint) (bool, error) {
 
 	if conProof == nil {
 		return false, &errorProof{"ConsistencyProof.Verify", fmt.Sprintf("passed proof is nil")}
 	}
 
 	// Regenerate challenge string
-	Challenge := GenerateChallenge(ZKCurve.G.Bytes(), ZKCurve.H.Bytes(),
+	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
 		PubKey.Bytes(),
 		conProof.T1.Bytes(), conProof.T2.Bytes())
@@ -106,20 +109,20 @@ func (conProof *ConsistencyProof) Verify(
 	// lhs :: left hand side, rhs :: right hand side
 	// s1G + s2H ?= T1 + cCM, CM should be point1
 	// s1G + s2H from how PedCommitR works
-	lhs := PedCommitR(conProof.s1, conProof.s2)
+	lhs := PedCommitR(zkpcp, conProof.S1, conProof.S2)
 	// cCM
-	temp1 := CM.Mult(Challenge)
+	temp1 := CM.Mult(Challenge, zkpcp)
 	// T1 + cCM
-	rhs := conProof.T1.Add(temp1)
+	rhs := conProof.T1.Add(temp1, zkpcp)
 
 	if !lhs.Equal(rhs) {
 		return false, &errorProof{"ConsistencyVerify", "CM check is failing"}
 	}
 
 	// s2PK ?= T2 + cY
-	lhs = PubKey.Mult(conProof.s2)
-	temp1 = CMTok.Mult(Challenge)
-	rhs = conProof.T2.Add(temp1)
+	lhs = PubKey.Mult(conProof.S2, zkpcp)
+	temp1 = CMTok.Mult(Challenge, zkpcp)
+	rhs = conProof.T2.Add(temp1, zkpcp)
 
 	if !lhs.Equal(rhs) {
 		return false, &errorProof{"ConsistencyVerify", "CMTok check is failing"}
@@ -136,8 +139,8 @@ func (proof *ConsistencyProof) Bytes() []byte {
 	WriteECPoint(&buf, proof.T1)
 	WriteECPoint(&buf, proof.T2)
 	WriteBigInt(&buf, proof.Challenge)
-	WriteBigInt(&buf, proof.s1)
-	WriteBigInt(&buf, proof.s2)
+	WriteBigInt(&buf, proof.S1)
+	WriteBigInt(&buf, proof.S2)
 
 	return buf.Bytes()
 }
@@ -150,7 +153,7 @@ func NewConsistencyProofFromBytes(b []byte) (*ConsistencyProof, error) {
 	proof.T1, _ = ReadECPoint(buf)
 	proof.T2, _ = ReadECPoint(buf)
 	proof.Challenge, _ = ReadBigInt(buf)
-	proof.s1, _ = ReadBigInt(buf)
-	proof.s2, _ = ReadBigInt(buf)
+	proof.S1, _ = ReadBigInt(buf)
+	proof.S2, _ = ReadBigInt(buf)
 	return proof, nil
 }

@@ -14,22 +14,16 @@ import (
 	"github.com/mit-dci/zksigma/wire"
 )
 
+// ZKPCurveParams is zero knowledge proof curve and params struct, only one instance should be used
+type ZKPCurveParams struct {
+	C       elliptic.Curve // Curve
+	G       ECPoint        // generator 1
+	H       ECPoint        // generator 2
+	HPoints []ECPoint      // HPoints should be initialized with a pre-populated array of the ZKCurve's generator point H multiplied by 2^x where x = [0...63]
+}
+
 // DEBUG Indicates whether we output debug information while running the tests. Default off.
 var DEBUG = flag.Bool("debug1", false, "Debug output")
-
-// ZKCurve is a global cache for the curve and two generator points used in the various proof
-// generation and verification functions.
-var ZKCurve zkpCrypto
-
-// HPoints is initialized with a pre-populated array of the ZKCurve's generator point H multiplied by 2^x where x = [0...63]
-var HPoints []ECPoint
-
-// zkpCrypto is zero knowledge proof curve and params struct, only one instance should be used
-type zkpCrypto struct {
-	C elliptic.Curve // Curve
-	G ECPoint        // generator 1
-	H ECPoint        // generator 2
-}
 
 type errorProof struct {
 	t string // proof type that failed
@@ -57,13 +51,13 @@ func logStuff(format string, args ...interface{}) {
 
 // == Keygen ==
 
-func KeyGen() (ECPoint, *big.Int) {
+func KeyGen(curve elliptic.Curve, base ECPoint) (ECPoint, *big.Int) {
 
-	sk, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	sk, err := rand.Int(rand.Reader, curve.Params().N)
 	if err != nil {
 		panic(err)
 	}
-	pkX, pkY := ZKCurve.C.ScalarMult(ZKCurve.H.X, ZKCurve.H.Y, sk.Bytes())
+	pkX, pkY := curve.ScalarMult(base.X, base.Y, sk.Bytes())
 
 	return ECPoint{pkX, pkY}, sk
 }
@@ -89,63 +83,68 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 }
 
 // Mult multiplies point p by scalar s and returns the resulting point
-func (p ECPoint) Mult(s *big.Int) ECPoint {
+func (p ECPoint) Mult(s *big.Int, zkpcp ZKPCurveParams) ECPoint {
 
 	if p.X == nil && p.Y == nil { // Multiplying a nil point is "pointless". ha.
 		return ECPoint{nil, nil}
 	}
 
-	modS := new(big.Int).Mod(s, ZKCurve.C.Params().N)
+	modS := new(big.Int).Mod(s, zkpcp.C.Params().N)
 
 	// if p.Equal(Zero) {
 	// 	logStuff("Mult: Trying to multiple with zero-point!\n")
 	// 	return p
 	// } else
-	if p.Equal(ZKCurve.G) {
-		X, Y := ZKCurve.C.ScalarBaseMult(modS.Bytes())
+	if p.Equal(zkpcp.G) {
+		X, Y := zkpcp.C.ScalarBaseMult(modS.Bytes())
 		return ECPoint{X, Y}
 	}
 
-	X, Y := ZKCurve.C.ScalarMult(p.X, p.Y, modS.Bytes())
+	if p.Equal(zkpcp.H) {
+		X, Y := zkpcp.C.(*btcec.KoblitzCurve).ScalarBaseMultH(modS.Bytes())
+		return ECPoint{X, Y}
+	}
+
+	X, Y := zkpcp.C.ScalarMult(p.X, p.Y, modS.Bytes())
 	return ECPoint{X, Y}
 }
 
 // Add adds points p and p2 and returns the resulting point
-func (p ECPoint) Add(p2 ECPoint) ECPoint {
+func (p ECPoint) Add(p2 ECPoint, zkpcp ZKPCurveParams) ECPoint {
 	// if p.Equal(Zero) && p2.Equal(Zero) {
 	// 	return Zero
 	// } else
-	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
+	if p.Equal(Zero) && zkpcp.C.IsOnCurve(p2.X, p2.Y) {
 		return p2
-	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
+	} else if p2.Equal(Zero) && zkpcp.C.IsOnCurve(p.X, p.Y) {
 		return p
 	}
 
-	X, Y := ZKCurve.C.Add(p.X, p.Y, p2.X, p2.Y)
+	X, Y := zkpcp.C.Add(p.X, p.Y, p2.X, p2.Y)
 
 	return ECPoint{X, Y}
 }
 
-func (p ECPoint) Sub(p2 ECPoint) ECPoint {
+func (p ECPoint) Sub(p2 ECPoint, zkpcp ZKPCurveParams) ECPoint {
 	// if p.Equal(Zero) && p2.Equal(Zero) {
 	// 	return Zero
 	// } else
-	if p.Equal(Zero) && ZKCurve.C.IsOnCurve(p2.X, p2.Y) {
-		return p2.Neg()
-	} else if p2.Equal(Zero) && ZKCurve.C.IsOnCurve(p.X, p.Y) {
+	if p.Equal(Zero) && zkpcp.C.IsOnCurve(p2.X, p2.Y) {
+		return p2.Neg(zkpcp)
+	} else if p2.Equal(Zero) && zkpcp.C.IsOnCurve(p.X, p.Y) {
 		return p
 	}
 
-	temp := p2.Neg()
-	X, Y := ZKCurve.C.Add(p.X, p.Y, temp.X, temp.Y)
+	temp := p2.Neg(zkpcp)
+	X, Y := zkpcp.C.Add(p.X, p.Y, temp.X, temp.Y)
 
 	return ECPoint{X, Y}
 }
 
 // Neg returns the additive inverse of point p
-func (p ECPoint) Neg() ECPoint {
+func (p ECPoint) Neg(zkpcp ZKPCurveParams) ECPoint {
 	negY := new(big.Int).Neg(p.Y)
-	modValue := new(big.Int).Mod(negY, ZKCurve.C.Params().P)
+	modValue := new(big.Int).Mod(negY, zkpcp.C.Params().P)
 	return ECPoint{p.X, modValue}
 }
 
@@ -201,88 +200,71 @@ func ReadBigInt(r io.Reader) (*big.Int, error) {
 
 // CommitR uses the Public Key (pk) and a random number (r) to
 // generate a commitment of r as an ECPoint
-func CommitR(pk ECPoint, r *big.Int) ECPoint {
-	newR := new(big.Int).Mod(r, ZKCurve.C.Params().N)
-	X, Y := ZKCurve.C.ScalarMult(pk.X, pk.Y, newR.Bytes()) // {commitR.X,commitR.Y} = newR * {pk.X, pk.Y}
+func CommitR(zkpcp ZKPCurveParams, pk ECPoint, r *big.Int) ECPoint {
+	newR := new(big.Int).Mod(r, zkpcp.C.Params().N)
+	X, Y := zkpcp.C.ScalarMult(pk.X, pk.Y, newR.Bytes()) // {commitR.X,commitR.Y} = newR * {pk.X, pk.Y}
 	return ECPoint{X, Y}
 }
 
 // VerifyR checks if the point in question is a valid commitment of r
 // by generating a new point and comparing the two
-func VerifyR(rt ECPoint, pk ECPoint, r *big.Int) bool {
-	p := CommitR(pk, r) // Generate test point (P) using pk and r
+func VerifyR(zkpcp ZKPCurveParams, rt ECPoint, pk ECPoint, r *big.Int) bool {
+	p := CommitR(zkpcp, pk, r) // Generate test point (P) using pk and r
 	return p.Equal(rt)
 }
 
 // =============== PEDERSEN COMMITMENTS ================
-
-// PedCommit generates a Pedersen commitment of value using the
-// generators of ZKCurve.  It returns the randomness generated for the
+// PedCommit generates a pedersen commitment of value using the
+// generators of zkpcp.  It returns the randomness generated for the
 // commitment.
-func PedCommit(value *big.Int) (ECPoint, *big.Int, error) {
+func PedCommit(zkpcp ZKPCurveParams, value *big.Int) (ECPoint, *big.Int, error) {
 	// randomValue = rand() mod N
-	randomValue, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+	randomValue, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 	if err != nil {
 		return Zero, nil, err
 	}
-	return PedCommitR(value, randomValue), randomValue, nil
+	return PedCommitR(zkpcp, value, randomValue), randomValue, nil
 }
 
 // PedCommitR generates a Pedersen commitment with a given random value
-func PedCommitR(value, randomValue *big.Int) ECPoint {
+func PedCommitR(zkpcp ZKPCurveParams, value, randomValue *big.Int) ECPoint {
 
 	// modValue = value mod N
-	modValue := new(big.Int).Mod(value, ZKCurve.C.Params().N)
-	modRandom := new(big.Int).Mod(randomValue, ZKCurve.C.Params().N)
+	modValue := new(big.Int).Mod(value, zkpcp.C.Params().N)
+	modRandom := new(big.Int).Mod(randomValue, zkpcp.C.Params().N)
 
 	// mG, rH :: lhs, rhs
-	lhs := ZKCurve.G.Mult(modValue)
-	rhs := ZKCurve.H.Mult(modRandom)
+	lhs := zkpcp.G.Mult(modValue, zkpcp)
+	rhs := zkpcp.H.Mult(modRandom, zkpcp)
 
 	//mG + rH
-	return lhs.Add(rhs)
+	return lhs.Add(rhs, zkpcp)
 }
 
 // Open checks if the values given result in the given Pedersen commitment
-func Open(value, randomValue *big.Int, pcomm ECPoint) bool {
-	return PedCommitR(value, randomValue).Equal(pcomm)
+func Open(zkpcp ZKPCurveParams, value, randomValue *big.Int, pcomm ECPoint) bool {
+	return PedCommitR(zkpcp, value, randomValue).Equal(pcomm)
+
 }
 
 // ====== Generalized Hash Function =========
 
 // GenerateChallenge hashes the passed byte arrays using SHA-256, and then returns
 // the resulting hash as a big.Int modulo the order of the curve base point
-func GenerateChallenge(arr ...[]byte) *big.Int {
+func GenerateChallenge(zkpcp ZKPCurveParams, arr ...[]byte) *big.Int {
 	hasher := sha256.New()
 	for _, v := range arr {
 		hasher.Write(v)
 	}
 	c := new(big.Int).SetBytes(hasher.Sum(nil))
-	c = new(big.Int).Mod(c, ZKCurve.C.Params().N)
+	c = new(big.Int).Mod(c, zkpcp.C.Params().N)
 	return c
 }
 
 // ====== init =========
 
-func generateH2tothe() []ECPoint {
-	Hslice := make([]ECPoint, 64)
-	for i := range Hslice {
-		m := big.NewInt(1 << uint(i))
-		Hslice[i].X, Hslice[i].Y = ZKCurve.C.ScalarBaseMult(m.Bytes())
-	}
-	return Hslice
-}
-
 func init() {
-	s256 := sha256.New()
-	hashedString := s256.Sum([]byte("This is the new random point in zksigma"))
-	HX, HY := btcec.S256().ScalarMult(btcec.S256().Gx, btcec.S256().Gy, hashedString)
-	ZKCurve = zkpCrypto{
-		btcec.S256(),
-		ECPoint{btcec.S256().Gx, btcec.S256().Gy},
-		ECPoint{HX, HY},
-	}
-	HPoints = generateH2tothe()
+
 	BigZero = big.NewInt(0)
 	Zero = ECPoint{BigZero, BigZero}
 

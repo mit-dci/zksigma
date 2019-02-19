@@ -36,39 +36,39 @@ type EquivalenceProof struct {
 // NewEquivalenceProof generates an equivalence proof that Result1 is the scalar multiple of base Base1,
 // and Result2 is the scalar multiple of base Base2 and that both results are using the same x as discrete log.
 func NewEquivalenceProof(
-	Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (*EquivalenceProof, error) {
+	zkpcp ZKPCurveParams, Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (*EquivalenceProof, error) {
 
-	modValue := new(big.Int).Mod(x, ZKCurve.C.Params().N)
-	check1 := Base1.Mult(modValue)
+	modValue := new(big.Int).Mod(x, zkpcp.C.Params().N)
+	check1 := Base1.Mult(modValue, zkpcp)
 
 	if !check1.Equal(Result1) {
 		return nil, &errorProof{"EquivalenceProve", "Base1 and Result1 are not related by x"}
 	}
 
-	check2 := Base2.Mult(modValue)
+	check2 := Base2.Mult(modValue, zkpcp)
 	if !check2.Equal(Result2) {
 		return nil, &errorProof{"EquivalenceProve", "Base2 and Result2 are not related by x"}
 	}
 
 	// random number
-	u, err := rand.Int(rand.Reader, ZKCurve.C.Params().N) // random number to hide x later
+	u, err := rand.Int(rand.Reader, zkpcp.C.Params().N) // random number to hide x later
 	if err != nil {
 		return nil, err
 	}
 
 	// uG
-	uBase1 := Base1.Mult(u)
+	uBase1 := Base1.Mult(u, zkpcp)
 	// uH
-	uBase2 := Base2.Mult(u)
+	uBase2 := Base2.Mult(u, zkpcp)
 
 	// HASH(G, H, xG, xH, uG, uH)
-	Challenge := GenerateChallenge(Base1.Bytes(), Result1.Bytes(),
+	Challenge := GenerateChallenge(zkpcp, Base1.Bytes(), Result1.Bytes(),
 		Base2.Bytes(), Result2.Bytes(),
 		uBase1.Bytes(), uBase2.Bytes())
 
 	// s = u + c * x
 	HiddenValue := new(big.Int).Add(u, new(big.Int).Mul(Challenge, modValue))
-	HiddenValue = HiddenValue.Mod(HiddenValue, ZKCurve.C.Params().N)
+	HiddenValue = HiddenValue.Mod(HiddenValue, zkpcp.C.Params().N)
 
 	return &EquivalenceProof{
 		uBase1, // uG
@@ -82,14 +82,14 @@ func NewEquivalenceProof(
 // the scalar multiple of base Base1, and Result2 is the scalar multiple of base
 // Base2. Both using the same x as discrete log.
 func (eqProof *EquivalenceProof) Verify(
-	Base1, Result1, Base2, Result2 ECPoint) (bool, error) {
+	zkpcp ZKPCurveParams, Base1, Result1, Base2, Result2 ECPoint) (bool, error) {
 
 	if eqProof == nil {
 		return false, &errorProof{"EquivalenceVerify", fmt.Sprintf("passed proof is nil")}
 	}
 
 	// Regenerate challenge string
-	c := GenerateChallenge(Base1.Bytes(), Result1.Bytes(),
+	c := GenerateChallenge(zkpcp, Base1.Bytes(), Result1.Bytes(),
 		Base2.Bytes(), Result2.Bytes(),
 		eqProof.UG.Bytes(), eqProof.UH.Bytes())
 
@@ -99,18 +99,18 @@ func (eqProof *EquivalenceProof) Verify(
 	}
 
 	// sG ?= uG + cA
-	sG := Base1.Mult(eqProof.HiddenValue)
-	cG := Result1.Mult(eqProof.Challenge)
-	test := eqProof.UG.Add(cG)
+	sG := Base1.Mult(eqProof.HiddenValue, zkpcp)
+	cG := Result1.Mult(eqProof.Challenge, zkpcp)
+	test := eqProof.UG.Add(cG, zkpcp)
 
 	if !sG.Equal(test) {
 		return false, &errorProof{"EquivalenceVerify", "sG comparison did not pass"}
 	}
 
 	// sH ?= uH + cB
-	sH := Base2.Mult(eqProof.HiddenValue)
-	cH := Result2.Mult(eqProof.Challenge)
-	test = eqProof.UH.Add(cH)
+	sH := Base2.Mult(eqProof.HiddenValue, zkpcp)
+	cH := Result2.Mult(eqProof.Challenge, zkpcp)
+	test = eqProof.UH.Add(cH, zkpcp)
 
 	if !sH.Equal(test) {
 		return false, &errorProof{"EquivalenceVerify", "sH comparison did not pass"}

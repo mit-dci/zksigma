@@ -48,7 +48,7 @@ type proverInternalData struct {
 
 // proofGenA takes in a waitgroup, index and bit
 // returns an Rpoint and Cpoint, and the k value bigint
-func proofGenA(
+func proofGenA(zkpcp ZKPCurveParams,
 	wg *sync.WaitGroup, idx int, bit bool, s *proverInternalData) error {
 
 	defer wg.Done()
@@ -60,41 +60,41 @@ func proofGenA(
 	//	v := stuff.vScalars[index]
 
 	if !bit { // If bit is 0, just make a random R = k*H
-		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N) // random k
+		s.kScalars[idx], err = rand.Int(rand.Reader, zkpcp.C.Params().N) // random k
 		if err != nil {
 			return err
 		}
-		s.Rpoints[idx] = ZKCurve.H.Mult(s.kScalars[idx]) // R is k * H
+		s.Rpoints[idx] = zkpcp.H.Mult(s.kScalars[idx], zkpcp) // R is k * H
 	} else { // if bit is 1, actually do stuff
 
 		// get a random ri
-		s.vScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N)
+		s.vScalars[idx], err = rand.Int(rand.Reader, zkpcp.C.Params().N)
 		if err != nil {
 			return err
 		}
 		// get R as H*ri... what is KC..?
-		s.Rpoints[idx] = ZKCurve.H.Mult(s.vScalars[idx])
+		s.Rpoints[idx] = zkpcp.H.Mult(s.vScalars[idx], zkpcp)
 
 		// B is htothe[index] plus partial R
 		s.Bpoints[idx].X, s.Bpoints[idx].Y =
-			ZKCurve.C.Add(HPoints[idx].X, HPoints[idx].Y,
+			zkpcp.C.Add(zkpcp.HPoints[idx].X, zkpcp.HPoints[idx].Y,
 				s.Rpoints[idx].X, s.Rpoints[idx].Y)
 
 			// random k
-		s.kScalars[idx], err = rand.Int(rand.Reader, ZKCurve.C.Params().N)
+		s.kScalars[idx], err = rand.Int(rand.Reader, zkpcp.C.Params().N)
 		if err != nil {
 			return err
 		}
 
 		// make k*H for hashing
-		temp := ZKCurve.H.Mult(s.kScalars[idx])
+		temp := zkpcp.H.Mult(s.kScalars[idx], zkpcp)
 
 		// Hash of temp point (why the whole thing..?
 		hash := sha256.Sum256(append(temp.X.Bytes(), temp.Y.Bytes()...))
 		ei := new(big.Int).SetBytes(hash[:])
-		ei.Mod(ei, ZKCurve.C.Params().N)
+		ei.Mod(ei, zkpcp.C.Params().N)
 		s.Rpoints[idx].X, s.Rpoints[idx].Y =
-			ZKCurve.C.ScalarMult(s.Bpoints[idx].X, s.Bpoints[idx].Y, ei.Bytes())
+			zkpcp.C.ScalarMult(s.Bpoints[idx].X, s.Bpoints[idx].Y, ei.Bytes())
 	}
 	//	fmt.Printf("loop %d\n", idx)
 
@@ -102,39 +102,39 @@ func proofGenA(
 }
 
 // proofGenB takes waitgroup, index, bit, along with the data to operate on
-func proofGenB(
+func proofGenB(zkpcp ZKPCurveParams,
 	wg *sync.WaitGroup, idx int, bit bool, e0 *big.Int, data *proverInternalData) error {
 
 	defer wg.Done()
 
 	if !bit {
 		// choose a random value from the integers mod prime
-		j, err := rand.Int(rand.Reader, ZKCurve.C.Params().N)
+		j, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
 		if err != nil {
 			return err
 		}
 
-		m2 := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(idx)), ZKCurve.C.Params().N)
+		m2 := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(idx)), zkpcp.C.Params().N)
 		//		m2 := big.NewInt(1 << uint(idx))
 		em2 := new(big.Int).Mul(e0, m2)
-		em2.Mod(em2, ZKCurve.C.Params().N)
+		em2.Mod(em2, zkpcp.C.Params().N)
 
-		rhsX, rhsY := ZKCurve.C.ScalarBaseMult(em2.Bytes())
+		rhsX, rhsY := zkpcp.C.ScalarBaseMult(em2.Bytes())
 
-		lhs := ZKCurve.H.Mult(j)
+		lhs := zkpcp.H.Mult(j, zkpcp)
 
-		totX, totY := ZKCurve.C.Add(lhs.X, lhs.Y, rhsX, rhsY)
+		totX, totY := zkpcp.C.Add(lhs.X, lhs.Y, rhsX, rhsY)
 
 		hash := sha256.Sum256(append(totX.Bytes(), totY.Bytes()...))
 		ei := new(big.Int).SetBytes(hash[:]) // get ei
-		ei.Mod(ei, ZKCurve.C.Params().N)
+		ei.Mod(ei, zkpcp.C.Params().N)
 
-		inverseEI := new(big.Int).ModInverse(ei, ZKCurve.C.Params().N)
+		inverseEI := new(big.Int).ModInverse(ei, zkpcp.C.Params().N)
 
 		data.vScalars[idx] = new(big.Int).Mul(inverseEI, data.kScalars[idx])
 
 		// set the C point for this index to R* inv ei
-		data.Bpoints[idx] = data.Rpoints[idx].Mult(inverseEI)
+		data.Bpoints[idx] = data.Rpoints[idx].Mult(inverseEI, zkpcp)
 
 		// s = k + (kValues[i] * e0) * inverse ei
 		data.kScalars[idx] = j.Add(
@@ -151,7 +151,7 @@ func proofGenB(
 }
 
 // NewRangeProof generates a range proof for the given value
-func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
+func NewRangeProof(zkpcp ZKPCurveParams, value *big.Int) (*RangeProof, *big.Int, error) {
 	proof := RangeProof{}
 
 	// extend or truncate our value to 64 bits, which is the range we are proving
@@ -184,7 +184,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
 		// TODO: Check errors
-		go proofGenA(&wg, i, value.Bit(i) == 1, stuff)
+		go proofGenA(zkpcp, &wg, i, value.Bit(i) == 1, stuff)
 	}
 	wg.Wait()
 
@@ -197,7 +197,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	hashed := rHash.Sum(nil)
 
 	e0 := new(big.Int).SetBytes(hashed[:])
-	e0.Mod(e0, ZKCurve.C.Params().N)
+	e0.Mod(e0, zkpcp.C.Params().N)
 
 	var AggregatePoint ECPoint
 	AggregatePoint.X = new(big.Int)
@@ -207,7 +207,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 	wg.Add(proofSize)
 	for i := 0; i < proofSize; i++ {
 		// TODO: Check errors
-		go proofGenB(
+		go proofGenB(zkpcp,
 			&wg, i, value.Bit(i) == 1, e0, stuff)
 	}
 	wg.Wait()
@@ -217,7 +217,7 @@ func NewRangeProof(value *big.Int) (*RangeProof, *big.Int, error) {
 		vTotal.Add(vTotal, stuff.vScalars[i])
 
 		// add points to get AggregatePoint
-		AggregatePoint = AggregatePoint.Add(stuff.Bpoints[i])
+		AggregatePoint = AggregatePoint.Add(stuff.Bpoints[i], zkpcp)
 
 		// copy data to ProofTuples
 		proof.ProofTuples[i].C = stuff.Bpoints[i]
@@ -236,17 +236,17 @@ type verifyTuple struct {
 }
 
 // give it a proof tuple, proofE.  Get back an Rpoint, and a Cpoint
-func verifyGen(
+func verifyGen(zkpcp ZKPCurveParams,
 	idx int, proofE *big.Int, rpt rangeProofTuple, retbox chan verifyTuple) {
 
-	lhs := ZKCurve.H.Mult(rpt.S)
+	lhs := zkpcp.H.Mult(rpt.S, zkpcp)
 
-	rhs2 := rpt.C.Add(HPoints[idx].Neg())
+	rhs2 := rpt.C.Add(zkpcp.HPoints[idx].Neg(zkpcp), zkpcp)
 
-	rhsXYNeg := rhs2.Mult(proofE).Neg()
+	rhsXYNeg := rhs2.Mult(proofE, zkpcp).Neg(zkpcp)
 
 	//s_i * G - e_0 * (C_i - 2^i * H)
-	tot := lhs.Add(rhsXYNeg)
+	tot := lhs.Add(rhsXYNeg, zkpcp)
 
 	hash := sha256.Sum256(append(tot.X.Bytes(), tot.Y.Bytes()...))
 
@@ -254,12 +254,12 @@ func verifyGen(
 
 	var result verifyTuple
 	result.index = idx
-	result.Rpoint = rpt.C.Mult(e1)
+	result.Rpoint = rpt.C.Mult(e1, zkpcp)
 
 	retbox <- result
 }
 
-func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
+func (proof *RangeProof) Verify(zkpcp ZKPCurveParams, comm ECPoint) (bool, error) {
 	if proof == nil {
 		return false, &errorProof{"RangeProof.Verify", fmt.Sprintf("passed proof is nil")}
 	}
@@ -285,7 +285,7 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 		}
 
 		// give proof to the verify gorouting
-		go verifyGen(i, proof.ProofE, proof.ProofTuples[i], resultBox)
+		go verifyGen(zkpcp, i, proof.ProofE, proof.ProofTuples[i], resultBox)
 	}
 
 	for i := 0; i < proofLength; i++ {
@@ -296,7 +296,7 @@ func (proof *RangeProof) Verify(comm ECPoint) (bool, error) {
 		Rpoints[result.index] = result.Rpoint
 
 		// add to totalpoint here (commutative)
-		totalPoint = totalPoint.Add(proof.ProofTuples[i].C)
+		totalPoint = totalPoint.Add(proof.ProofTuples[i].C, zkpcp)
 	}
 
 	rHash := sha256.New()
