@@ -19,7 +19,7 @@ Statements that can be proved:
 - I know either the discrete log of commitments `A` or `B` (Disjunctive Proof)
 - I know that the blinding factor of commitments `A` and `B` is equal (Consistency Proof)
 - I know `a`, `b`, and `c` in commitments `A`, `B` and `C` and `a * b = c` (ABC Proof)
-- I know commitments `a` and `b` in commitments `A` and `B` and `a != b` (InequalityProof == ABCProof)
+- I know `a` and `b` in commitments `A` and `B` and `a != b` (InequalityProof is a special case of ABC Proof)
 
 
 Running the tests:
