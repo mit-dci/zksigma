@@ -22,12 +22,12 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	// Even though we generated the values for ua and ub in this test case, we do not
 	// need to know ua or ub, only the commitment tokens are needed
-	CMTokA := PK.Mult(ua, TestCurve)
-	CMTokB := PK.Mult(ub, TestCurve)
+	CMTokA := TestCurve.Mult(PK, ua)
+	CMTokB := TestCurve.Mult(PK, ub)
 
 	aProof, status := NewInequalityProof(TestCurve, A, B, CMTokA, CMTokB, a, b, sk)
 
@@ -37,7 +37,7 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
-	check, err := aProof.Verify(TestCurve, A.Sub(B, TestCurve), CMTokA.Sub(CMTokB, TestCurve))
+	check, err := aProof.Verify(TestCurve, TestCurve.Sub(A, B), TestCurve.Sub(CMTokA, CMTokB))
 	if !check || err != nil {
 		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
@@ -52,7 +52,7 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
-	check, err = aProof.Verify(TestCurve, B.Sub(A, TestCurve), CMTokB.Sub(CMTokA, TestCurve))
+	check, err = aProof.Verify(TestCurve, TestCurve.Sub(B, A), TestCurve.Sub(CMTokB, CMTokA))
 	if !check || err != nil {
 		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
@@ -69,7 +69,7 @@ func TestInequalityProve(t *testing.T) {
 		t.Fatalf("ABCProof for InequalityProve failed\n")
 	}
 
-	check, err = aProof.Verify(TestCurve, A.Sub(B, TestCurve), CMTokA.Sub(CMTokB, TestCurve))
+	check, err = aProof.Verify(TestCurve, TestCurve.Sub(A, B), TestCurve.Sub(CMTokA, CMTokB))
 	if check || err == nil {
 		t.Logf("ABCProof for InequalityProve failed to verify!\n")
 		t.Fatalf("ABCVerify for InequalityProve failed\n")
@@ -93,12 +93,12 @@ func BenchmarkInequalityProve(b *testing.B) {
 		b.Fatalf("%v\n", err)
 	}
 
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	// even though we generated the values for ua and ub in this test case, we do not
 	// need to know ua or ub, only the commitment tokens, which is already used in many other proofs
-	CMTokA := PK.Mult(ua, TestCurve)
-	CMTokB := PK.Mult(ub, TestCurve)
+	CMTokA := TestCurve.Mult(PK, ua)
+	CMTokB := TestCurve.Mult(PK, ub)
 
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {

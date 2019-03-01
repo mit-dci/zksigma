@@ -13,7 +13,7 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	// MUST use G here because of GSPFSProve implementation
-	result := TestCurve.G.Mult(x, TestCurve)
+	result := TestCurve.Mult(TestCurve.G, x)
 
 	testProof, err := NewGSPFSProof(TestCurve, result, x)
 	if err != nil {
@@ -29,7 +29,7 @@ func TestGSPFS(t *testing.T) {
 	}
 
 	// Using H here should break the proof
-	result = TestCurve.H.Mult(x, TestCurve)
+	result = TestCurve.Mult(TestCurve.H, x)
 
 	t.Logf("Next GSPFSVerify should fail\n")
 	status, err = testProof.Verify(TestCurve, result)
@@ -45,7 +45,7 @@ func TestGSPFS(t *testing.T) {
 func TestGSPFSSerialization(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base := TestCurve.G
-	CM := TestCurve.G.Mult(value, TestCurve)
+	CM := TestCurve.Mult(TestCurve.G, value)
 	proof, err := NewGSPFSProofBase(TestCurve, Base, CM, value)
 	proof, err = NewGSPFSProofFromBytes(proof.Bytes())
 	if err != nil {
@@ -61,7 +61,7 @@ func TestGSPFSSerialization(t *testing.T) {
 func BenchmarkGSPFS_AnyBase(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base := TestCurve.G
-	CM := TestCurve.G.Mult(value, TestCurve)
+	CM := TestCurve.Mult(TestCurve.G, value)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		NewGSPFSProofBase(TestCurve, Base, CM, value)
@@ -71,7 +71,7 @@ func BenchmarkGSPFS_AnyBase(b *testing.B) {
 func BenchmarkGSPFS_Verify(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base := TestCurve.G
-	CM := TestCurve.G.Mult(value, TestCurve)
+	CM := TestCurve.Mult(TestCurve.G, value)
 	proof, err := NewGSPFSProofBase(TestCurve, Base, CM, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)

@@ -64,7 +64,7 @@ func proofGenA(zkpcp ZKPCurveParams,
 		if err != nil {
 			return err
 		}
-		s.Rpoints[idx] = zkpcp.H.Mult(s.kScalars[idx], zkpcp) // R is k * H
+		s.Rpoints[idx] = zkpcp.Mult(zkpcp.H, s.kScalars[idx]) // R is k * H
 	} else { // if bit is 1, actually do stuff
 
 		// get a random ri
@@ -73,7 +73,7 @@ func proofGenA(zkpcp ZKPCurveParams,
 			return err
 		}
 		// get R as H*ri... what is KC..?
-		s.Rpoints[idx] = zkpcp.H.Mult(s.vScalars[idx], zkpcp)
+		s.Rpoints[idx] = zkpcp.Mult(zkpcp.H, s.vScalars[idx])
 
 		// B is htothe[index] plus partial R
 		s.Bpoints[idx].X, s.Bpoints[idx].Y =
@@ -87,7 +87,7 @@ func proofGenA(zkpcp ZKPCurveParams,
 		}
 
 		// make k*H for hashing
-		temp := zkpcp.H.Mult(s.kScalars[idx], zkpcp)
+		temp := zkpcp.Mult(zkpcp.H, s.kScalars[idx])
 
 		// Hash of temp point (why the whole thing..?
 		hash := sha256.Sum256(append(temp.X.Bytes(), temp.Y.Bytes()...))
@@ -121,7 +121,7 @@ func proofGenB(zkpcp ZKPCurveParams,
 
 		rhsX, rhsY := zkpcp.C.ScalarBaseMult(em2.Bytes())
 
-		lhs := zkpcp.H.Mult(j, zkpcp)
+		lhs := zkpcp.Mult(zkpcp.H, j)
 
 		totX, totY := zkpcp.C.Add(lhs.X, lhs.Y, rhsX, rhsY)
 
@@ -134,7 +134,7 @@ func proofGenB(zkpcp ZKPCurveParams,
 		data.vScalars[idx] = new(big.Int).Mul(inverseEI, data.kScalars[idx])
 
 		// set the C point for this index to R* inv ei
-		data.Bpoints[idx] = data.Rpoints[idx].Mult(inverseEI, zkpcp)
+		data.Bpoints[idx] = zkpcp.Mult(data.Rpoints[idx], inverseEI)
 
 		// s = k + (kValues[i] * e0) * inverse ei
 		data.kScalars[idx] = j.Add(
@@ -217,7 +217,7 @@ func NewRangeProof(zkpcp ZKPCurveParams, value *big.Int) (*RangeProof, *big.Int,
 		vTotal.Add(vTotal, stuff.vScalars[i])
 
 		// add points to get AggregatePoint
-		AggregatePoint = AggregatePoint.Add(stuff.Bpoints[i], zkpcp)
+		AggregatePoint = zkpcp.Add(AggregatePoint, stuff.Bpoints[i])
 
 		// copy data to ProofTuples
 		proof.ProofTuples[i].C = stuff.Bpoints[i]
@@ -239,14 +239,14 @@ type verifyTuple struct {
 func verifyGen(zkpcp ZKPCurveParams,
 	idx int, proofE *big.Int, rpt rangeProofTuple, retbox chan verifyTuple) {
 
-	lhs := zkpcp.H.Mult(rpt.S, zkpcp)
+	lhs := zkpcp.Mult(zkpcp.H, rpt.S)
 
-	rhs2 := rpt.C.Add(zkpcp.HPoints[idx].Neg(zkpcp), zkpcp)
+	rhs2 := zkpcp.Add(rpt.C, zkpcp.Neg(zkpcp.HPoints[idx]))
 
-	rhsXYNeg := rhs2.Mult(proofE, zkpcp).Neg(zkpcp)
+	rhsXYNeg := zkpcp.Neg(zkpcp.Mult(rhs2, proofE))
 
 	//s_i * G - e_0 * (C_i - 2^i * H)
-	tot := lhs.Add(rhsXYNeg, zkpcp)
+	tot := zkpcp.Add(lhs, rhsXYNeg)
 
 	hash := sha256.Sum256(append(tot.X.Bytes(), tot.Y.Bytes()...))
 
@@ -254,7 +254,7 @@ func verifyGen(zkpcp ZKPCurveParams,
 
 	var result verifyTuple
 	result.index = idx
-	result.Rpoint = rpt.C.Mult(e1, zkpcp)
+	result.Rpoint = zkpcp.Mult(rpt.C, e1)
 
 	retbox <- result
 }
@@ -296,7 +296,7 @@ func (proof *RangeProof) Verify(zkpcp ZKPCurveParams, comm ECPoint) (bool, error
 		Rpoints[result.index] = result.Rpoint
 
 		// add to totalpoint here (commutative)
-		totalPoint = totalPoint.Add(proof.ProofTuples[i].C, zkpcp)
+		totalPoint = zkpcp.Add(totalPoint, proof.ProofTuples[i].C)
 	}
 
 	rHash := sha256.New()

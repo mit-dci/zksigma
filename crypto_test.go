@@ -8,22 +8,22 @@ import (
 
 func TestECPointMethods(t *testing.T) {
 	v := big.NewInt(3)
-	p := TestCurve.G.Mult(v, TestCurve)
-	negp := p.Neg(TestCurve)
-	sum := p.Add(negp, TestCurve)
+	p := TestCurve.Mult(TestCurve.G, v)
+	negp := TestCurve.Neg(p)
+	sum := TestCurve.Add(p, negp)
 	if !sum.Equal(Zero) {
 		t.Logf("p : %v\n", p)
 		t.Logf("negp : %v\n", negp)
 		t.Logf("sum : %v\n", sum)
 		t.Fatalf("p + -p should be 0\n")
 	}
-	negnegp := negp.Neg(TestCurve)
+	negnegp := TestCurve.Neg(negp)
 	if !negnegp.Equal(p) {
 		t.Logf("p : %v\n", p)
 		t.Logf("negnegp : %v\n", negnegp)
 		t.Fatalf("-(-p) should be p\n")
 	}
-	sum = p.Add(Zero, TestCurve)
+	sum = TestCurve.Add(p, Zero)
 	if !sum.Equal(p) {
 		t.Logf("p : %v\n", p)
 		t.Logf("sum : %v\n", sum)
@@ -42,13 +42,13 @@ func TestZkpCryptoStuff(t *testing.T) {
 
 	value = new(big.Int).Mod(value, TestCurve.C.Params().N) // v % p
 
-	ValEC := TestCurve.G.Mult(value, TestCurve) // vG
-	InvValEC := ValEC.Neg(TestCurve)            // 1/vG (actually mod operation but whatever you get it)
+	ValEC := TestCurve.Mult(TestCurve.G, value) // vG
+	InvValEC := TestCurve.Neg(ValEC)            // 1/vG (actually mod operation but whatever you get it)
 
 	t.Logf("  vG : %v --- value : %v \n", ValEC, value)
 	t.Logf("1/vG : %v\n", InvValEC)
 
-	temp := ValEC.Add(InvValEC, TestCurve)
+	temp := TestCurve.Add(ValEC, InvValEC)
 	t.Logf("TestZkpCrypto:")
 	t.Logf("Added the above: %v\n", temp)
 
@@ -58,8 +58,8 @@ func TestZkpCryptoStuff(t *testing.T) {
 		t.Fatalf("Failed Addition of inverse points failed")
 	}
 
-	testOpen := InvValEC.Add(testCommit, TestCurve)    // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
-	RandEC := TestCurve.H.Mult(randomValue, TestCurve) // rH
+	testOpen := TestCurve.Add(InvValEC, testCommit)    // 1/vG + vG + rH ?= rH (1/vG + vG = 0, hopefully)
+	RandEC := TestCurve.Mult(TestCurve.H, randomValue) // rH
 
 	if !RandEC.Equal(testOpen) {
 		t.Logf("RandEC : %v\n", RandEC)
@@ -139,7 +139,7 @@ func TestAverages_Basic(t *testing.T) {
 	totalRand := big.NewInt(0)
 	txn := make([]etx, numTx)
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 	var value *big.Int
 	var commRand *big.Int
 	var err error
@@ -153,7 +153,7 @@ func TestAverages_Basic(t *testing.T) {
 			t.Fatalf("%v\n", err)
 		}
 		totalRand.Add(totalRand, commRand)
-		txn[ii].CMTok = PK.Mult(commRand, TestCurve)
+		txn[ii].CMTok = TestCurve.Mult(PK, commRand)
 		txn[ii].ABCP, _ = NewABCProof(TestCurve, txn[ii].CM, txn[ii].CMTok, value, sk, Right)
 	}
 
@@ -175,14 +175,14 @@ func TestAverages_Basic(t *testing.T) {
 	totalCTok := Zero
 
 	for ii := 0; ii < numTx; ii++ {
-		totalCM = txn[ii].CM.Add(totalCM, TestCurve)
-		totalCMTok = txn[ii].CMTok.Add(totalCMTok, TestCurve)
-		totalC = txn[ii].ABCP.C.Add(totalC, TestCurve)
-		totalCTok = txn[ii].ABCP.CToken.Add(totalCTok, TestCurve)
+		totalCM = TestCurve.Add(txn[ii].CM, totalCM)
+		totalCMTok = TestCurve.Add(txn[ii].CMTok, totalCMTok)
+		totalC = TestCurve.Add(txn[ii].ABCP.C, totalC)
+		totalCTok = TestCurve.Add(txn[ii].ABCP.CToken, totalCTok)
 	}
 
 	// makes the call look cleaner
-	B1 := totalC.Add(TestCurve.G.Mult(numTranx, TestCurve).Neg(TestCurve), TestCurve)
+	B1 := TestCurve.Add(totalC, TestCurve.Neg(TestCurve.Mult(TestCurve.G, numTranx)))
 	R1 := totalCTok
 	B2 := TestCurve.H
 	R2 := PK
@@ -195,7 +195,7 @@ func TestAverages_Basic(t *testing.T) {
 		t.Fatalf("Averages did not generate correct NUMTX equivalence proof\n")
 	}
 
-	B1 = totalCM.Add(TestCurve.G.Mult(totalValue, TestCurve).Neg(TestCurve), TestCurve)
+	B1 = TestCurve.Add(totalCM, TestCurve.Neg(TestCurve.Mult(TestCurve.G, totalValue)))
 	R1 = totalCMTok
 
 	eProofValue, status1 := NewEquivalenceProof(TestCurve, B1, R1, B2, R2, sk)
@@ -214,7 +214,7 @@ func TestAverages_Basic(t *testing.T) {
 	// auditor WILL verify eProofs and then perform the final average calculation, shown below
 	// ======== AUDITOR PROCESS ===========
 
-	B1 = totalC.Add(TestCurve.G.Mult(numTranx, TestCurve).Neg(TestCurve), TestCurve)
+	B1 = TestCurve.Add(totalC, TestCurve.Neg(TestCurve.Mult(TestCurve.G, numTranx)))
 	R1 = totalCTok
 	B2 = TestCurve.H
 	R2 = PK
@@ -230,7 +230,7 @@ func TestAverages_Basic(t *testing.T) {
 		t.Fatalf("equivalence proof of NUMTX did not verify\n")
 	}
 
-	B1 = totalCM.Add(TestCurve.G.Mult(totalValue, TestCurve).Neg(TestCurve), TestCurve)
+	B1 = TestCurve.Add(totalCM, TestCurve.Neg(TestCurve.Mult(TestCurve.G, totalValue)))
 	R1 = totalCMTok
 
 	checkVal, err := eProofValue.Verify(TestCurve, B1, R1, B2, R2)

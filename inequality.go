@@ -20,9 +20,9 @@ func NewInequalityProof(zkpcp ZKPCurveParams, A, B, CMTokA, CMTokB ECPoint, a, b
 	// should I check if a > b? I think that shouldn't be a problem
 	// generate a-b for ABCProof, D will be created  commitment
 	value := new(big.Int).Sub(a, b)
-	CM := A.Sub(B, zkpcp)
+	CM := zkpcp.Sub(A, B)
 
-	CMTok := CMTokA.Sub(CMTokB, zkpcp)
+	CMTok := zkpcp.Sub(CMTokA, CMTokB)
 
 	proof, proofStatus := NewABCProof(zkpcp, CM, CMTok, value, sk, Right)
 

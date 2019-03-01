@@ -39,13 +39,13 @@ func NewEquivalenceProof(
 	zkpcp ZKPCurveParams, Base1, Result1, Base2, Result2 ECPoint, x *big.Int) (*EquivalenceProof, error) {
 
 	modValue := new(big.Int).Mod(x, zkpcp.C.Params().N)
-	check1 := Base1.Mult(modValue, zkpcp)
+	check1 := zkpcp.Mult(Base1, modValue)
 
 	if !check1.Equal(Result1) {
 		return nil, &errorProof{"EquivalenceProve", "Base1 and Result1 are not related by x"}
 	}
 
-	check2 := Base2.Mult(modValue, zkpcp)
+	check2 := zkpcp.Mult(Base2, modValue)
 	if !check2.Equal(Result2) {
 		return nil, &errorProof{"EquivalenceProve", "Base2 and Result2 are not related by x"}
 	}
@@ -57,9 +57,9 @@ func NewEquivalenceProof(
 	}
 
 	// uG
-	uBase1 := Base1.Mult(u, zkpcp)
+	uBase1 := zkpcp.Mult(Base1, u)
 	// uH
-	uBase2 := Base2.Mult(u, zkpcp)
+	uBase2 := zkpcp.Mult(Base2, u)
 
 	// HASH(G, H, xG, xH, uG, uH)
 	Challenge := GenerateChallenge(zkpcp, Base1.Bytes(), Result1.Bytes(),
@@ -99,18 +99,18 @@ func (eqProof *EquivalenceProof) Verify(
 	}
 
 	// sG ?= uG + cA
-	sG := Base1.Mult(eqProof.HiddenValue, zkpcp)
-	cG := Result1.Mult(eqProof.Challenge, zkpcp)
-	test := eqProof.UG.Add(cG, zkpcp)
+	sG := zkpcp.Mult(Base1, eqProof.HiddenValue)
+	cG := zkpcp.Mult(Result1, eqProof.Challenge)
+	test := zkpcp.Add(eqProof.UG, cG)
 
 	if !sG.Equal(test) {
 		return false, &errorProof{"EquivalenceVerify", "sG comparison did not pass"}
 	}
 
 	// sH ?= uH + cB
-	sH := Base2.Mult(eqProof.HiddenValue, zkpcp)
-	cH := Result2.Mult(eqProof.Challenge, zkpcp)
-	test = eqProof.UH.Add(cH, zkpcp)
+	sH := zkpcp.Mult(Base2, eqProof.HiddenValue)
+	cH := zkpcp.Mult(Result2, eqProof.Challenge)
+	test = zkpcp.Add(eqProof.UH, cH)
 
 	if !sH.Equal(test) {
 		return false, &errorProof{"EquivalenceVerify", "sH comparison did not pass"}

@@ -12,13 +12,13 @@ func TestABCProof(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
-	PK := TestCurve.H.Mult(sk, TestCurve)
-	A := TestCurve.H.Mult(ua, TestCurve)       // uaH
-	temp := TestCurve.G.Mult(value, TestCurve) // value(G)
+	PK := TestCurve.Mult(TestCurve.H, sk)
+	A := TestCurve.Mult(TestCurve.H, ua)       // uaH
+	temp := TestCurve.Mult(TestCurve.G, value) // value(G)
 
 	// A = vG + uaH
-	A = A.Add(temp, TestCurve)
-	AToken := PK.Mult(ua, TestCurve)
+	A = TestCurve.Add(A, temp)
+	AToken := TestCurve.Mult(PK, ua)
 
 	aProof, status := NewABCProof(TestCurve, A, AToken, value, sk, Right)
 
@@ -34,7 +34,7 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("ABCVerify RIGHT failed\n")
 	}
 
-	A = TestCurve.H.Mult(ua, TestCurve)
+	A = TestCurve.Mult(TestCurve.H, ua)
 	aProof, status = NewABCProof(TestCurve, A, AToken, big.NewInt(0), sk, Left)
 
 	if status != nil {
@@ -54,7 +54,7 @@ func TestABCProof(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	AToken = PK.Mult(ua, TestCurve)
+	AToken = TestCurve.Mult(PK, ua)
 
 	aProof, status = NewABCProof(TestCurve, A, AToken, big.NewInt(1001), sk, Right)
 
@@ -79,13 +79,13 @@ func TestABCProofSerialization(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
-	PK := TestCurve.H.Mult(sk, TestCurve)
-	A := TestCurve.H.Mult(ua, TestCurve)       // uaH
-	temp := TestCurve.G.Mult(value, TestCurve) // value(G)
+	PK := TestCurve.Mult(TestCurve.H, sk)
+	A := TestCurve.Mult(TestCurve.H, ua)       // uaH
+	temp := TestCurve.Mult(TestCurve.G, value) // value(G)
 
 	// A = vG + uaH
-	A = A.Add(temp, TestCurve)
-	AToken := PK.Mult(ua, TestCurve)
+	A = TestCurve.Add(A, temp)
+	AToken := TestCurve.Mult(PK, ua)
 
 	aProof, status := NewABCProof(TestCurve, A, AToken, value, sk, Right)
 
@@ -113,13 +113,13 @@ func TestBreakABCProve(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, big.NewInt(10000000000)) // "realistic rarnge"
 	ua, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
-	PK := TestCurve.H.Mult(sk, TestCurve)
-	CM := TestCurve.H.Mult(ua, TestCurve)      // uaH
-	temp := TestCurve.G.Mult(value, TestCurve) // value(G)
+	PK := TestCurve.Mult(TestCurve.H, sk)
+	CM := TestCurve.Mult(TestCurve.H, ua)      // uaH
+	temp := TestCurve.Mult(TestCurve.G, value) // value(G)
 
 	// A = vG + uaH
-	CM = CM.Add(temp, TestCurve)
-	CMTok := PK.Mult(ua, TestCurve)
+	CM = TestCurve.Add(CM, temp)
+	CMTok := TestCurve.Mult(PK, ua)
 
 	u1, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	u2, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
@@ -129,7 +129,7 @@ func TestBreakABCProve(t *testing.T) {
 
 	B := ECPoint{}
 	C := ECPoint{}
-	CToken := TestCurve.H.Mult(uc, TestCurve)
+	CToken := TestCurve.Mult(TestCurve.H, uc)
 
 	// B = 2/v
 	x := new(big.Int).ModInverse(value, TestCurve.C.Params().N)
@@ -138,22 +138,22 @@ func TestBreakABCProve(t *testing.T) {
 	// C = 2G + ucH, the 2 here is the big deal
 	C = PedCommitR(TestCurve, big.NewInt(2), uc)
 
-	disjuncAC, _ := NewDisjunctiveProof(TestCurve, CMTok, CM, TestCurve.H, C.Sub(TestCurve.G.Mult(big.NewInt(2), TestCurve), TestCurve), uc, Right)
+	disjuncAC, _ := NewDisjunctiveProof(TestCurve, CMTok, CM, TestCurve.H, TestCurve.Sub(C, TestCurve.Mult(TestCurve.G, big.NewInt(2))), uc, Right)
 
 	// CMTok is Ta for the rest of the proof
 	// T1 = u1G + u2Ta
 	// u1G
-	u1G := TestCurve.G.Mult(u1, TestCurve)
+	u1G := TestCurve.Mult(TestCurve.G, u1)
 	// u2Ta
-	u2Ta := CMTok.Mult(u2, TestCurve)
+	u2Ta := TestCurve.Mult(CMTok, u2)
 	// Sum the above two
 	T1X, T1Y := TestCurve.C.Add(u1G.X, u1G.Y, u2Ta.X, u2Ta.Y)
 
 	// T2 = u1B + u3H
 	// u1B
-	u1B := B.Mult(u1, TestCurve)
+	u1B := TestCurve.Mult(B, u1)
 	// u3H
-	u3H := TestCurve.H.Mult(u3, TestCurve)
+	u3H := TestCurve.Mult(TestCurve.H, u3)
 	// Sum of the above two
 	T2X, T2Y := TestCurve.C.Add(u1B.X, u1B.Y, u3H.X, u3H.Y)
 
@@ -201,14 +201,14 @@ func BenchmarkABCProve_0(b *testing.B) {
 	value := big.NewInt(0)
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	CM, randVal, err := PedCommit(TestCurve, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
-	CMTok := PK.Mult(randVal, TestCurve)
+	CMTok := TestCurve.Mult(PK, randVal)
 
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
@@ -220,14 +220,14 @@ func BenchmarkABCProve_1(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	CM, randVal, err := PedCommit(TestCurve, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
-	CMTok := PK.Mult(randVal, TestCurve)
+	CMTok := TestCurve.Mult(PK, randVal)
 
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
@@ -239,14 +239,14 @@ func BenchmarkABCVerify_0(b *testing.B) {
 	value := big.NewInt(0)
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	CM, randVal, err := PedCommit(TestCurve, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
-	CMTok := PK.Mult(randVal, TestCurve)
+	CMTok := TestCurve.Mult(PK, randVal)
 	proof, _ := NewABCProof(TestCurve, CM, CMTok, value, sk, Left)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
@@ -258,14 +258,14 @@ func BenchmarkABCVerify_1(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	CM, randVal, err := PedCommit(TestCurve, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
-	CMTok := PK.Mult(randVal, TestCurve)
+	CMTok := TestCurve.Mult(PK, randVal)
 	proof, _ := NewABCProof(TestCurve, CM, CMTok, value, sk, Right)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
