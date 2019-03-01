@@ -79,7 +79,7 @@ func NewDisjunctiveProof(
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "invalid side provided"}
 	}
 
-	if !ProveBase.Mult(x, zkpcp).Equal(ProveResult) {
+	if !zkpcp.Mult(ProveBase, x).Equal(ProveResult) {
 		return &DisjunctiveProof{}, &errorProof{"DisjunctiveProve", "Base and Result to be proved not related by x"}
 	}
 	u1, err := rand.Int(rand.Reader, zkpcp.C.Params().N)
@@ -100,14 +100,14 @@ func NewDisjunctiveProof(
 	u3Neg.Mod(u3Neg, zkpcp.C.Params().N)
 
 	// T1 = u1G
-	T1 := ProveBase.Mult(u1, zkpcp)
+	T1 := zkpcp.Mult(ProveBase, u1)
 
 	// u2H
-	temp := OtherBase.Mult(u2, zkpcp)
+	temp := zkpcp.Mult(OtherBase, u2)
 	// (-u3)yH
-	temp2 := OtherResult.Mult(u3Neg, zkpcp)
+	temp2 := zkpcp.Mult(OtherResult, u3Neg)
 	// T2 = u2H + (-u3)yH (yH is OtherResult)
-	T2 := temp.Add(temp2, zkpcp)
+	T2 := zkpcp.Add(temp, temp2)
 
 	var Challenge *big.Int
 	if option == 0 {
@@ -183,18 +183,18 @@ func (djProof *DisjunctiveProof) Verify(
 	}
 
 	// T1 + c1A
-	c1A := Result1.Mult(C1, zkpcp)
-	checks1G := T1.Add(c1A, zkpcp)
-	s1G := Base1.Mult(S1, zkpcp)
+	c1A := zkpcp.Mult(Result1, C1)
+	checks1G := zkpcp.Add(T1, c1A)
+	s1G := zkpcp.Mult(Base1, S1)
 
 	if !checks1G.Equal(s1G) {
 		return false, &errorProof{"DisjunctiveVerify", "s1G not equal to T1 + c1A"}
 	}
 
 	// T2 + c2B
-	c2A := Result2.Mult(C2, zkpcp)
-	checks2G := c2A.Add(T2, zkpcp)
-	s2G := Base2.Mult(S2, zkpcp)
+	c2A := zkpcp.Mult(Result2, C2)
+	checks2G := zkpcp.Add(c2A, T2)
+	s2G := zkpcp.Mult(Base2, S2)
 
 	if !checks2G.Equal(s2G) {
 		return false, &errorProof{"DisjunctiveVerify", "s2G not equal to T2 + c2B"}

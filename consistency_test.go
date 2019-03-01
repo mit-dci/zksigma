@@ -16,14 +16,14 @@ func TestConsistency(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	pk := TestCurve.H.Mult(sk, TestCurve)
+	pk := TestCurve.Mult(TestCurve.H, sk)
 
 	comm, u, err := PedCommit(TestCurve, x)
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	y := pk.Mult(u, TestCurve)
+	y := TestCurve.Mult(pk, u)
 
 	conProof, status1 := NewConsistencyProof(TestCurve, comm, y, pk, x, u)
 
@@ -57,14 +57,14 @@ func TestConsistencySerialization(t *testing.T) {
 		t.Fatalf("%v\n", err)
 	}
 
-	pk := TestCurve.H.Mult(sk, TestCurve)
+	pk := TestCurve.Mult(TestCurve.H, sk)
 
 	comm, u, err := PedCommit(TestCurve, x)
 	if err != nil {
 		t.Fatalf("%v\n", err)
 	}
 
-	y := pk.Mult(u, TestCurve)
+	y := TestCurve.Mult(pk, u)
 
 	conProof, status1 := NewConsistencyProof(TestCurve, comm, y, pk, x, u)
 
@@ -87,14 +87,14 @@ func BenchmarkConsistencyProve(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	CM, randVal, err := PedCommit(TestCurve, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
-	CMTok := PK.Mult(randVal, TestCurve)
+	CMTok := TestCurve.Mult(PK, randVal)
 
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
@@ -106,14 +106,14 @@ func BenchmarkConsistencyVerify(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 
 	sk, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
-	PK := TestCurve.H.Mult(sk, TestCurve)
+	PK := TestCurve.Mult(TestCurve.H, sk)
 
 	CM, randVal, err := PedCommit(TestCurve, value)
 	if err != nil {
 		b.Fatalf("%v\n", err)
 	}
 
-	CMTok := PK.Mult(randVal, TestCurve)
+	CMTok := TestCurve.Mult(PK, randVal)
 	proof, _ := NewConsistencyProof(TestCurve, CM, CMTok, PK, value, randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {

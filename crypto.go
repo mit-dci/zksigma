@@ -83,7 +83,7 @@ func (p ECPoint) Equal(p2 ECPoint) bool {
 }
 
 // Mult multiplies point p by scalar s and returns the resulting point
-func (p ECPoint) Mult(s *big.Int, zkpcp ZKPCurveParams) ECPoint {
+func (zkpcp ZKPCurveParams) Mult(p ECPoint, s *big.Int) ECPoint {
 
 	if p.X == nil && p.Y == nil { // Multiplying a nil point is "pointless". ha.
 		return ECPoint{nil, nil}
@@ -110,7 +110,7 @@ func (p ECPoint) Mult(s *big.Int, zkpcp ZKPCurveParams) ECPoint {
 }
 
 // Add adds points p and p2 and returns the resulting point
-func (p ECPoint) Add(p2 ECPoint, zkpcp ZKPCurveParams) ECPoint {
+func (zkpcp ZKPCurveParams) Add(p, p2 ECPoint) ECPoint {
 	// if p.Equal(Zero) && p2.Equal(Zero) {
 	// 	return Zero
 	// } else
@@ -125,24 +125,24 @@ func (p ECPoint) Add(p2 ECPoint, zkpcp ZKPCurveParams) ECPoint {
 	return ECPoint{X, Y}
 }
 
-func (p ECPoint) Sub(p2 ECPoint, zkpcp ZKPCurveParams) ECPoint {
+func (zkpcp ZKPCurveParams) Sub(p, p2 ECPoint) ECPoint {
 	// if p.Equal(Zero) && p2.Equal(Zero) {
 	// 	return Zero
 	// } else
 	if p.Equal(Zero) && zkpcp.C.IsOnCurve(p2.X, p2.Y) {
-		return p2.Neg(zkpcp)
+		return zkpcp.Neg(p2)
 	} else if p2.Equal(Zero) && zkpcp.C.IsOnCurve(p.X, p.Y) {
 		return p
 	}
 
-	temp := p2.Neg(zkpcp)
+	temp := zkpcp.Neg(p2)
 	X, Y := zkpcp.C.Add(p.X, p.Y, temp.X, temp.Y)
 
 	return ECPoint{X, Y}
 }
 
 // Neg returns the additive inverse of point p
-func (p ECPoint) Neg(zkpcp ZKPCurveParams) ECPoint {
+func (zkpcp ZKPCurveParams) Neg(p ECPoint) ECPoint {
 	negY := new(big.Int).Neg(p.Y)
 	modValue := new(big.Int).Mod(negY, zkpcp.C.Params().P)
 	return ECPoint{p.X, modValue}
@@ -234,11 +234,11 @@ func PedCommitR(zkpcp ZKPCurveParams, value, randomValue *big.Int) ECPoint {
 	modRandom := new(big.Int).Mod(randomValue, zkpcp.C.Params().N)
 
 	// mG, rH :: lhs, rhs
-	lhs := zkpcp.G.Mult(modValue, zkpcp)
-	rhs := zkpcp.H.Mult(modRandom, zkpcp)
+	lhs := zkpcp.Mult(zkpcp.G, modValue)
+	rhs := zkpcp.Mult(zkpcp.H, modRandom)
 
 	//mG + rH
-	return lhs.Add(rhs, zkpcp)
+	return zkpcp.Add(lhs, rhs)
 }
 
 // Open checks if the values given result in the given Pedersen commitment

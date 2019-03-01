@@ -12,9 +12,9 @@ func TestDisjunctive(t *testing.T) {
 	y := big.NewInt(101)
 
 	Base1 := TestCurve.G
-	Result1 := TestCurve.G.Mult(x, TestCurve)
+	Result1 := TestCurve.Mult(TestCurve.G, x)
 	Base2 := TestCurve.H
-	Result2 := TestCurve.H.Mult(y, TestCurve)
+	Result2 := TestCurve.Mult(TestCurve.H, y)
 
 	djProofLEFT, status1 := NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, x, Left)
 
@@ -56,9 +56,9 @@ func TestDisjuncSerialization(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(randVal, TestCurve)
+	Result2 := TestCurve.Mult(Base2, randVal)
 	proof, _ := NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, value, Left)
 	proof, err := NewDisjunctiveProofFromBytes(proof.Bytes())
 	if err != nil {
@@ -75,9 +75,9 @@ func BenchmarkDisjuncProve_LEFT(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(randVal, TestCurve)
+	Result2 := TestCurve.Mult(Base2, randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, value, Left)
@@ -88,9 +88,9 @@ func BenchmarkDisjuncProve_RIGHT(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(randVal, TestCurve)
+	Result2 := TestCurve.Mult(Base2, randVal)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, randVal, Right)
@@ -101,9 +101,9 @@ func BenchmarkDisjuncVerify_LEFT(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(randVal, TestCurve)
+	Result2 := TestCurve.Mult(Base2, randVal)
 	proof, _ := NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, value, Left)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
@@ -115,9 +115,9 @@ func BenchmarkDisjuncVerify_RIGHT(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	randVal, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(randVal, TestCurve)
+	Result2 := TestCurve.Mult(Base2, randVal)
 	proof, _ := NewDisjunctiveProof(TestCurve, Base1, Result1, Base2, Result2, randVal, Right)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {

@@ -87,7 +87,7 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 
 	B := ECPoint{}
 	C := ECPoint{}
-	CToken := zkpcp.H.Mult(sk, zkpcp).Mult(uc, zkpcp)
+	CToken := zkpcp.Mult(zkpcp.Mult(zkpcp.H, sk), uc)
 
 	var disjuncAC *DisjunctiveProof
 	var e error
@@ -102,7 +102,7 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 
 		// CM is considered the "base" of CMTok since it would be only uaH and not ua sk H
 		// C - G is done regardless of the c = 0 or 1 because in the case c = 0 it does matter what that random number is
-		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, C.Sub(zkpcp.G, zkpcp), sk, Left)
+		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, zkpcp.Sub(C, zkpcp.G), sk, Left)
 	} else if option == Right && value.Cmp(BigZero) != 0 {
 		// MUST: c = 1! ; side = right
 
@@ -112,7 +112,7 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 		C = PedCommitR(zkpcp, big.NewInt(1), uc)
 
 		// Look at notes a couple lines above on what the input is like this
-		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, C.Sub(zkpcp.G, zkpcp), uc, Right)
+		disjuncAC, e = NewDisjunctiveProof(zkpcp, CM, CMTok, zkpcp.H, zkpcp.Sub(C, zkpcp.G), uc, Right)
 	} else {
 		return &ABCProof{}, &errorProof{"ABCProof", "invalid side-value pair passed"}
 	}
@@ -124,19 +124,19 @@ func NewABCProof(zkpcp ZKPCurveParams, CM, CMTok ECPoint, value, sk *big.Int, op
 	// CMTok is Ta for the rest of the proof
 	// T1 = u1G + u2Ta
 	// u1G
-	u1G := zkpcp.G.Mult(u1, zkpcp)
+	u1G := zkpcp.Mult(zkpcp.G, u1)
 	// u2Ta
-	u2Ta := CMTok.Mult(u2, zkpcp)
+	u2Ta := zkpcp.Mult(CMTok, u2)
 	// Sum the above two
-	T1 := u1G.Add(u2Ta, zkpcp)
+	T1 := zkpcp.Add(u1G, u2Ta)
 
 	// T2 = u1B + u3H
 	// u1B
-	u1B := B.Mult(u1, zkpcp)
+	u1B := zkpcp.Mult(B, u1)
 	// u3H
-	u3H := zkpcp.H.Mult(u3, zkpcp)
+	u3H := zkpcp.Mult(zkpcp.H, u3)
 	// Sum of the above two
-	T2 := u1B.Add(u3H, zkpcp)
+	T2 := zkpcp.Add(u1B, u3H)
 
 	// chal = HASH(G,H,CM,CMTok,B,C,T1,T2)
 	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
@@ -174,7 +174,7 @@ func (aProof *ABCProof) Verify(zkpcp ZKPCurveParams, CM, CMTok ECPoint) (bool, e
 
 	// Notes in ABCProof talk about why the Disjunc takes in this specific input even though it looks non-intuitive
 	// Here it is important that you subtract exactly 1 G from the aProof.C because that only allows for you to prove c = 1!
-	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, zkpcp.H, aProof.C.Sub(zkpcp.G, zkpcp))
+	_, status := aProof.disjuncAC.Verify(zkpcp, CM, CMTok, zkpcp.H, zkpcp.Sub(aProof.C, zkpcp.G))
 
 	if status != nil {
 		return false, &errorProof{"ABCVerify", "ABCProof for disjuncAC is false or not generated properly"}
@@ -192,27 +192,27 @@ func (aProof *ABCProof) Verify(zkpcp ZKPCurveParams, CM, CMTok ECPoint) (bool, e
 
 	// chalCM + T1 ?= jG + kCMTok
 	// chalCM
-	chalA := CM.Mult(Challenge, zkpcp)
+	chalA := zkpcp.Mult(CM, Challenge)
 	// + T1
-	lhs1 := chalA.Add(aProof.T1, zkpcp)
+	lhs1 := zkpcp.Add(chalA, aProof.T1)
 	//jG
-	jG := zkpcp.G.Mult(aProof.j, zkpcp)
+	jG := zkpcp.Mult(zkpcp.G, aProof.j)
 	// kCMTok
-	kCMTok := CMTok.Mult(aProof.k, zkpcp)
+	kCMTok := zkpcp.Mult(CMTok, aProof.k)
 	// jG + kCMTok
-	rhs1 := jG.Add(kCMTok, zkpcp)
+	rhs1 := zkpcp.Add(jG, kCMTok)
 
 	if !lhs1.Equal(rhs1) {
 		return false, &errorProof{"ABCProof", "cCM + T1 != jG + kCMTok"}
 	}
 
 	// cC + T2 ?= jB + lH
-	chalC := aProof.C.Mult(Challenge, zkpcp)
-	lhs2 := chalC.Add(aProof.T2, zkpcp)
+	chalC := zkpcp.Mult(aProof.C, Challenge)
+	lhs2 := zkpcp.Add(chalC, aProof.T2)
 
-	jB := aProof.B.Mult(aProof.j, zkpcp)
-	lH := zkpcp.H.Mult(aProof.l, zkpcp)
-	rhs2 := jB.Add(lH, zkpcp)
+	jB := zkpcp.Mult(aProof.B, aProof.j)
+	lH := zkpcp.Mult(zkpcp.H, aProof.l)
+	rhs2 := zkpcp.Add(jB, lH)
 
 	if !lhs2.Equal(rhs2) {
 		return false, &errorProof{"ABCVerify", "cC + T2 != jB + lH"}

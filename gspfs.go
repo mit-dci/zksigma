@@ -56,7 +56,7 @@ func NewGSPFSProofBase(zkpcp ZKPCurveParams, base, A ECPoint, x *big.Int) (*GSPF
 	}
 
 	// generate random point uG
-	uG := base.Mult(u, zkpcp)
+	uG := zkpcp.Mult(base, u)
 
 	// generate hashed string challenge
 	c := GenerateChallenge(zkpcp, A.Bytes(), uG.Bytes())
@@ -83,13 +83,13 @@ func (proof *GSPFSProof) Verify(zkpcp ZKPCurveParams, A ECPoint) (bool, error) {
 	}
 
 	// (u - c * x)G, look at HiddenValue from GSPFS.Proof()
-	s := proof.Base.Mult(proof.HiddenValue, zkpcp)
+	s := zkpcp.Mult(proof.Base, proof.HiddenValue)
 
 	// cResult = c(xG), we use testC as that follows the proof verficaion process more closely than using Challenge
-	c := A.Mult(proof.Challenge, zkpcp)
+	c := zkpcp.Mult(A, proof.Challenge)
 
 	// cxG + (u - cx)G = uG
-	tot := s.Add(c, zkpcp)
+	tot := zkpcp.Add(s, c)
 
 	if !proof.RandCommit.Equal(tot) {
 		return false, &errorProof{"GSPFSProof.Verify", "proof's final value and verification final value do not agree!"}

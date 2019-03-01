@@ -54,7 +54,7 @@ func NewConsistencyProof(zkpcp ZKPCurveParams,
 		return &ConsistencyProof{}, &errorProof{"ConsistencyProve", "value and randomVal does not produce CM"}
 	}
 
-	if !CMTok.Equal(PubKey.Mult(randomness, zkpcp)) {
+	if !CMTok.Equal(zkpcp.Mult(PubKey, randomness)) {
 		return &ConsistencyProof{}, &errorProof{"ConsistencyProve", "Pubkey and randomVal does not produce CMTok"}
 	}
 
@@ -68,7 +68,7 @@ func NewConsistencyProof(zkpcp ZKPCurveParams,
 	}
 
 	T1 := PedCommitR(zkpcp, u1, u2)
-	T2 := PubKey.Mult(u2, zkpcp)
+	T2 := zkpcp.Mult(PubKey, u2)
 
 	Challenge := GenerateChallenge(zkpcp, zkpcp.G.Bytes(), zkpcp.H.Bytes(),
 		CM.Bytes(), CMTok.Bytes(),
@@ -111,18 +111,18 @@ func (conProof *ConsistencyProof) Verify(
 	// s1G + s2H from how PedCommitR works
 	lhs := PedCommitR(zkpcp, conProof.S1, conProof.S2)
 	// cCM
-	temp1 := CM.Mult(Challenge, zkpcp)
+	temp1 := zkpcp.Mult(CM, Challenge)
 	// T1 + cCM
-	rhs := conProof.T1.Add(temp1, zkpcp)
+	rhs := zkpcp.Add(conProof.T1, temp1)
 
 	if !lhs.Equal(rhs) {
 		return false, &errorProof{"ConsistencyVerify", "CM check is failing"}
 	}
 
 	// s2PK ?= T2 + cY
-	lhs = PubKey.Mult(conProof.S2, zkpcp)
-	temp1 = CMTok.Mult(Challenge, zkpcp)
-	rhs = conProof.T2.Add(temp1, zkpcp)
+	lhs = zkpcp.Mult(PubKey, conProof.S2)
+	temp1 = zkpcp.Mult(CMTok, Challenge)
+	rhs = zkpcp.Add(conProof.T2, temp1)
 
 	if !lhs.Equal(rhs) {
 		return false, &errorProof{"ConsistencyVerify", "CMTok check is failing"}

@@ -10,10 +10,10 @@ func TestEquivalence(t *testing.T) {
 
 	x, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(x, TestCurve)
+	Result1 := TestCurve.Mult(Base1, x)
 
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(x, TestCurve)
+	Result2 := TestCurve.Mult(Base2, x)
 
 	eqProof, status1 := NewEquivalenceProof(TestCurve, Base1, Result1, Base2, Result2, x)
 
@@ -75,9 +75,11 @@ func TestEquivalence(t *testing.T) {
 func TestEquivSerialization(t *testing.T) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
+
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(value, TestCurve)
+	Result2 := TestCurve.Mult(Base2, value)
+
 	proof, _ := NewEquivalenceProof(TestCurve, Base1, Result1, Base2, Result2, value)
 	proof, err := NewEquivalenceProofFromBytes(proof.Bytes())
 	if err != nil {
@@ -93,9 +95,10 @@ func TestEquivSerialization(t *testing.T) {
 func BenchmarkEquivProve(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
+
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(value, TestCurve)
+	Result2 := TestCurve.Mult(Base2, value)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
 		NewEquivalenceProof(TestCurve, Base1, Result1, Base2, Result2, value)
@@ -105,9 +108,10 @@ func BenchmarkEquivProve(b *testing.B) {
 func BenchmarkEquivVerify(b *testing.B) {
 	value, _ := rand.Int(rand.Reader, TestCurve.C.Params().N)
 	Base1 := TestCurve.G
-	Result1 := Base1.Mult(value, TestCurve)
+	Result1 := TestCurve.Mult(Base1, value)
+
 	Base2 := TestCurve.H
-	Result2 := Base2.Mult(value, TestCurve)
+	Result2 := TestCurve.Mult(Base2, value)
 	proof, _ := NewEquivalenceProof(TestCurve, Base1, Result1, Base2, Result2, value)
 	b.ResetTimer()
 	for ii := 0; ii < b.N; ii++ {
