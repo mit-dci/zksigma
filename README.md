@@ -16,7 +16,7 @@ Statements that can be proved:
 - I can open a Pedersen Commitment `A`(=`aG+uH`) (Open)
 - I know the discrete log of a commitment `A`(=`aG`) (GSPFS Proof)
 - I know the discrete log of commitments `A`(=`xG`) and `B`(=`xH`) and they are equal (Equivalence Proof)
-- I know either the discrete log of commitments `A` or `B` (Disjunctive Proof)
+- I know the discrete log of either commitment `A` or `B` (Disjunctive Proof)
 - I know that the blinding factor of commitments `A` and `B` is equal (Consistency Proof)
 - I know `a`, `b`, and `c` in commitments `A`, `B` and `C` and `a * b = c` (ABC Proof)
 - I know `a` and `b` in commitments `A` and `B` and `a != b` (InequalityProof is a special case of ABC Proof)
